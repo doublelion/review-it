@@ -1,129 +1,74 @@
 /**
- * @Project: Review-It Collector Engine (SaaS v1.0)
- * @Description: 카페24 쇼핑몰 리뷰 자동 수집 스크립트
+ * @Project: Review-It Collector (SaaS Version)
+ * @Updated: 2026-04-23
+ * @Description: 카페24 게시판 데이터를 Supabase 신규 테이블 구조에 맞게 자동 전송
  */
 
 (function () {
-  // [보안 가이드] 추후 실제 배포시에는 이 설정을 외부 JSON이나 API에서 불러오도록 확장 가능합니다.
   const CONFIG = {
-    SB_URL: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
-    SB_KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // Client-side anon key
-    SYNC_INTERVAL: 1000,
-    MAX_ATTEMPTS: 10
+    sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
+    sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
+    mallId: window.location.hostname.split('.')[0] // 상점 아이디 자동 추출
   };
 
-  // 1. Mall ID 추출 (카페24 전용 로직 강화)
-  const getMallId = () => {
-    try {
-      // 카페24 글로벌 객체 확인
-      if (window.CAFE24API && typeof window.CAFE24API.getMallId === 'function') {
-        return window.CAFE24API.getMallId();
-      }
-      // EC_COMMON_UTIL 등 카페24 내부 변수 활용 시도
-      if (window.EC_COMMON_UTIL && window.EC_COMMON_UTIL.getMallId) {
-        return window.EC_COMMON_UTIL.getMallId();
-      }
-    } catch (e) {
-      console.warn("[Review-It] API 추출 실패, 호스트네임으로 대체합니다.");
-    }
-    return window.location.hostname.split('.')[0] || 'unknown_mall';
-  };
+  console.log(`🚀 [Review-it] Monitoring for: ${CONFIG.mallId}`);
 
-  const MALL_ID = getMallId();
+  async function syncReview() {
+    // 1. 카페24 상세페이지의 리뷰 엘리먼트 탐색 (선택자는 실제 환경에 맞게 조정 가능)
+    const reviewElements = document.querySelectorAll('.review-item, .xans-board-listpackage li');
 
-  // 2. 이미지 URL 추출 도우미
-  const extractImages = (element) => {
-    const imgs = element.querySelectorAll('img');
-    const urls = [];
-    imgs.forEach(img => {
-      const src = img.getAttribute('src');
-      if (src && !src.includes('icon') && !src.includes('star')) { // 아이콘 제외
-        urls.push(src.startsWith('//') ? 'https:' + src : src);
-      }
-    });
-    return urls;
-  };
+    if (reviewElements.length === 0) return;
 
-  // 3. 별점 추출 도우미 (이미지 alt값이나 클래스명 분석)
-  const extractStars = (element) => {
-    const starText = element.innerText + element.innerHTML;
-    const match = starText.match(/star(\d)/i) || starText.match(/(\d)개/);
-    return match ? parseInt(match[1]) : 5; // 기본값 5점
-  };
-
-  // 4. 데이터 전송 (Upsert)
-  const syncToDB = async (items) => {
-    console.log(`📦 [Review-It] ${items.length}개의 리뷰 후보 발견. 동기화 시작...`);
-
-    for (const item of items) {
-      const articleNo = item.getAttribute('data-no') || item.id?.replace(/[^0-9]/g, '');
-      const subjectEl = item.querySelector('.subject, .title, strong');
-      const subject = subjectEl?.innerText.trim() || "";
-
-      // 🚫 가드 로직: 유효성 검사
-      if (!articleNo || !subject || subject.length < 2) continue;
-
-      const payload = {
-        mall_id: MALL_ID,
-        article_no: String(articleNo),
-        subject: subject,
-        writer: item.querySelector('.name, .writer, .author')?.innerText.trim() || "고객",
-        content: item.innerHTML, // 전체 HTML 보존 (상세 노출용)
-        stars: extractStars(item),
-        image_urls: extractImages(item),
-        is_visible: true, // 기본 노출
-        created_at: new Date().toISOString()
-      };
-
+    for (let el of reviewElements) {
       try {
-        const response = await fetch(`${CONFIG.SB_URL}/reviews`, {
+        // 2. 데이터 추출
+        const articleNo = el.getAttribute('data-article-no') || el.querySelector('a')?.href.match(/no=(\d+)/)?.[1];
+        const subject = el.querySelector('.subject, .title')?.innerText.trim();
+        const content = el.querySelector('.content, .view_content_raw')?.value || el.querySelector('.displaynone')?.innerText;
+        const writer = el.querySelector('.writer, .user-id')?.innerText.trim();
+        const stars = parseInt(el.querySelector('.star-rating, .star-rate')?.className.match(/\d+/)?.[0]) || 5;
+        const date = el.querySelector('.date, .write-date')?.innerText.trim();
+
+        // 이미지 추출 (여러 장일 경우 배열로)
+        const imgs = Array.from(el.querySelectorAll('img')).map(img => img.src).filter(src => src.includes('/web/upload/'));
+
+        if (!articleNo || !subject) continue;
+
+        // 3. Supabase 전송 (Upsert: 중복이면 업데이트, 없으면 삽입)
+        const payload = {
+          mall_id: CONFIG.mallId,
+          article_no: String(articleNo),
+          subject: subject,
+          content: content,
+          writer: writer,
+          stars: stars,
+          date: date,
+          image_urls: imgs,
+          is_visible: true // 기본값 노출
+        };
+
+        const response = await fetch(`${CONFIG.sbUrl}/reviews`, {
           method: 'POST',
           headers: {
-            'apikey': CONFIG.SB_KEY,
-            'Authorization': `Bearer ${CONFIG.SB_KEY}`,
+            'apikey': CONFIG.sbKey,
+            'Authorization': `Bearer ${CONFIG.sbKey}`,
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates' // 핵심: 중복 데이터는 업데이트
+            'Prefer': 'resolution=merge-counter' // 중복 발생 시 무시하거나 업데이트
           },
           body: JSON.stringify(payload)
         });
 
         if (response.ok) {
-          console.log(`✅ [Review-It] 리뷰 저장 완료: ${articleNo}`);
+          console.log(`✅ Sync Success: [${articleNo}] ${subject.substring(0, 10)}...`);
         }
       } catch (err) {
-        console.error("❌ [Review-It] 동기화 실패:", err);
+        console.error('❌ Sync Error:', err);
       }
     }
-  };
-
-  // 5. 실행 엔진 (리뷰 리스트 탐지)
-  let attempts = 0;
-  const startCollector = () => {
-    // 카페24의 다양한 테마 레이아웃 대응 셀렉터
-    const selectors = [
-      '.boardComment li', 
-      '.commentList li', 
-      '.xans-product-review .record', 
-      '.review_list_item',
-      '.xans-board-listall li'
-    ];
-    
-    const items = document.querySelectorAll(selectors.join(', '));
-
-    if (items.length > 0) {
-      syncToDB(items);
-    } else if (attempts < CONFIG.MAX_ATTEMPTS) {
-      attempts++;
-      setTimeout(startCollector, CONFIG.SYNC_INTERVAL);
-    } else {
-      console.log("ℹ️ [Review-It] 수집할 리뷰가 발견되지 않았습니다.");
-    }
-  };
-
-  // 페이지 로드 후 실행
-  if (document.readyState === 'complete') {
-    startCollector();
-  } else {
-    window.addEventListener('load', startCollector);
   }
+
+  // 페이지 로드 후 실행 및 게시판 탭 클릭 등 동적 로드 대응
+  window.addEventListener('load', () => {
+    setTimeout(syncReview, 2000); // 카페24 렌더링 대기
+  });
 })();
