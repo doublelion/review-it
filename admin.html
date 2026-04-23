@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Review-It Admin Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .img-box { width: 60px; height: 60px; min-width: 60px; }
+    .rit-setting-box { display: flex; align-items: center; gap: 15px; background: #fff; padding: 15px 20px; border-radius: 12px; border: 1px solid #eee; height: 100%; }
+    .rit-label { font-size: 14px; font-weight: bold; color: #444; }
+    .rit-switch-group { display: flex; gap: 5px; background: #f1f1f1; padding: 4px; border-radius: 8px; }
+    .rit-btn-toggle { padding: 6px 15px; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; transition: 0.2s; background: transparent; color: #666; }
+    .rit-btn-toggle.active { background: #000; color: #fff; }
+  </style>
+</head>
+<body class="bg-[#f8f9fa] min-h-screen p-4 md:p-10">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6">
+      <div>
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Review-It 관리자</h1>
+        <p class="text-gray-500 mt-1">
+          <span id="display-mall-name" class="font-bold text-gray-700">SHOP</span> 몰의 리뷰 
+          <span id="total-count" class="font-bold text-blue-600">0</span>개가 수집되었습니다.
+        </p>
+      </div>
+      <div class="flex gap-2 w-full md:w-auto">
+        <input type="text" id="search-input" placeholder="작성자 또는 제목 검색" class="flex-1 md:w-64 px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+        <button onclick="handleSearch()" class="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-gray-800 transition shadow-md">검색</button>
+      </div>
+    </div>
+
+    <div class="mb-10 space-y-4">
+      <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">위젯 환경 설정</h2>
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
+          <span class="rit-label mb-2">위젯 노출 타입</span>
+          <div class="rit-switch-group w-full flex justify-between">
+            <button onclick="updateWidgetType('grid')" id="btn-grid" class="rit-btn-toggle flex-1">나열형(Grid)</button>
+            <button onclick="updateWidgetType('swiper')" id="btn-swiper" class="rit-btn-toggle flex-1">슬라이드(Swiper)</button>
+          </div>
+        </div>
+        <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
+              <span class="w-1 h-4 bg-blue-500 rounded-full"></span>위젯 헤더 문구 커스텀
+            </h3>
+            <button onclick="saveHeaderSettings()" class="px-4 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700 transition shadow-sm">설정 저장</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Tagline (상단 소제목)</label>
+              <input type="text" id="input-tagline" class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Main Title (메인 제목)</label>
+              <input type="text" id="input-title" class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Description (상세 설명)</label>
+              <textarea id="input-description" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-100">
+            <th class="p-5 text-xs font-bold text-gray-400 uppercase w-24">작성자</th>
+            <th class="p-5 text-xs font-bold text-gray-400 uppercase">리뷰 상세</th>
+            <th class="p-5 text-xs font-bold text-gray-400 uppercase w-32 text-center">별점</th>
+            <th class="p-5 text-xs font-bold text-gray-400 uppercase w-32 text-center">노출 제어</th>
+          </tr>
+        </thead>
+        <tbody id="admin-list" class="divide-y divide-gray-50"></tbody>
+      </table>
+    </div>
+
+    <div class="flex justify-center items-center mt-8 gap-4 mb-10">
+      <button onclick="changePage(-1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50" id="prev-btn">이전</button>
+      <span id="page-info" class="text-sm font-medium text-gray-600 font-mono italic">Page 1</span>
+      <button onclick="changePage(1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50" id="next-btn">다음</button>
+    </div>
+  </div>
+
+  <script>
+    const SB_URL = 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1';
+    const SB_KEY = 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt';
+    
+    // ✅ [SaaS 핵심] URL 파라미터에서 mall_id 추출
+    const params = new URLSearchParams(window.location.search);
+    const MALL_ID = params.get('mall_id') || 'test_mall';
+    document.getElementById('display-mall-name').innerText = MALL_ID.toUpperCase();
+
+    let currentPage = 0;
+    const itemsPerPage = 15;
+    let currentSearchKeyword = '';
+
+    // 1. 리뷰 데이터 로드
+    async function loadAdminData() {
+      try {
+        const from = currentPage * itemsPerPage;
+        const to = from + itemsPerPage - 1;
+        let query = `${SB_URL}/reviews?mall_id=eq.${MALL_ID}&select=*&order=created_at.desc`;
+
+        if (currentSearchKeyword) {
+          query += `&or=(subject.ilike.*${currentSearchKeyword}*,writer.ilike.*${currentSearchKeyword}*)`;
+        }
+
+        const res = await fetch(query, {
+          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Range': `${from}-${to}`, 'Prefer': 'count=exact' }
+        });
+
+        const rangeHeader = res.headers.get('content-range');
+        const total = rangeHeader ? rangeHeader.split('/')[1] : 0;
+        document.getElementById('total-count').innerText = total;
+
+        const data = await res.json();
+        renderList(data);
+        updatePagination(total);
+      } catch (err) { console.error(err); }
+    }
+
+    // 2. 리스트 렌더링
+    function renderList(data) {
+      const list = document.getElementById('admin-list');
+      if (data.length === 0) {
+        list.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400">결과가 없습니다.</td></tr>`;
+        return;
+      }
+      list.innerHTML = data.map(rv => {
+        const imgSrc = (rv.image_urls && rv.image_urls[0]) || '';
+        return `
+          <tr class="hover:bg-blue-50/30 transition-colors">
+            <td class="p-5 font-semibold text-gray-700 text-sm">${rv.writer || '익명'}</td>
+            <td class="p-5">
+              <div class="flex items-start gap-4">
+                <div class="img-box rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
+                  ${imgSrc ? `<img src="${imgSrc}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-gray-300">NO IMG</span>`}
+                </div>
+                <div class="flex-1">
+                  <div class="text-sm font-bold text-gray-900 mb-1">${rv.subject}</div>
+                  <div class="text-xs text-gray-500 line-clamp-2">${(rv.content || "").replace(/<[^>]*>?/gm, '')}</div>
+                </div>
+              </div>
+            </td>
+            <td class="p-5 text-center">
+              <div class="inline-flex items-center px-2 py-1 bg-amber-50 rounded-md">
+                <span class="text-amber-500 text-xs mr-1">★</span>
+                <span class="text-amber-700 font-bold text-sm">${rv.stars || 5}</span>
+              </div>
+            </td>
+            <td class="p-5 text-center">
+              <button onclick="toggleVisibility('${rv.id}', ${rv.is_visible})" 
+                class="w-24 py-2 rounded-full text-[11px] font-black transition-all ${rv.is_visible ? 'bg-blue-600 text-white' : 'bg-white border text-gray-400'}">
+                ${rv.is_visible ? '노출중' : '대기중'}
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    // 3. 설정 저장 (Upsert 로직 반영)
+    async function saveHeaderSettings() {
+      const payload = {
+        mall_id: MALL_ID,
+        tagline: document.getElementById('input-tagline').value,
+        title: document.getElementById('input-title').value,
+        description: document.getElementById('input-description').value,
+        updated_at: new Date()
+      };
+
+      const res = await fetch(`${SB_URL}/widget_settings`, {
+        method: 'POST', // POST + Upsert 헤더
+        headers: { 
+          'apikey': SB_KEY, 
+          'Authorization': `Bearer ${SB_KEY}`, 
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates' 
+        },
+        body: JSON.stringify(payload)
+      });
+      if(res.ok) alert('설정이 저장되었습니다.');
+    }
+
+    // 4. 위젯 타입 업데이트
+    async function updateWidgetType(type) {
+      await fetch(`${SB_URL}/widget_settings`, {
+        method: 'POST',
+        headers: { 
+            'apikey': SB_KEY, 
+            'Authorization': `Bearer ${SB_KEY}`, 
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates' 
+        },
+        body: JSON.stringify({ mall_id: MALL_ID, display_type: type })
+      });
+      refreshSettingUI(type);
+    }
+
+    // 5. 초기 설정값 로드
+    async function loadSettings() {
+      const res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+      });
+      const data = await res.json();
+      if (data && data[0]) {
+        const s = data[0];
+        refreshSettingUI(s.display_type);
+        document.getElementById('input-tagline').value = s.tagline || '';
+        document.getElementById('input-title').value = s.title || '';
+        document.getElementById('input-description').value = s.description || '';
+      }
+    }
+
+    // 공통 유틸 함수들 (페이지네이션, 검색 등)
+    function handleSearch() { currentSearchKeyword = document.getElementById('search-input').value; currentPage = 0; loadAdminData(); }
+    function updatePagination(total) {
+      const totalPages = Math.ceil(total / itemsPerPage);
+      document.getElementById('page-info').innerText = `PAGE ${currentPage + 1} / ${totalPages || 1}`;
+      document.getElementById('prev-btn').disabled = currentPage === 0;
+      document.getElementById('next-btn').disabled = (currentPage + 1) >= totalPages;
+    }
+    function changePage(step) { currentPage += step; loadAdminData(); window.scrollTo(0, 0); }
+    function refreshSettingUI(type) {
+      document.querySelectorAll('.rit-btn-toggle').forEach(btn => btn.classList.remove('active'));
+      const target = document.getElementById(`btn-${type}`);
+      if(target) target.classList.add('active');
+    }
+    async function toggleVisibility(id, currentStatus) {
+      await fetch(`${SB_URL}/reviews?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_visible: !currentStatus })
+      });
+      loadAdminData();
+    }
+
+    // 초기화
+    window.onload = () => { loadSettings(); loadAdminData(); };
+  </script>
+</body>
+</html>

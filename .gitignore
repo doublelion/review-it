@@ -1,0 +1,10 @@
+.vercel
+# VSCode history files
+.history/
+*.history
+
+# Mac system files
+.DS_Store
+
+# Other logs
+*.log
