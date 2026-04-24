@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Collector v2.6 (Final Stable)
- * @Description: 409 Conflict 해결 및 게시글 번호 추출 로직 강화
+ * @Project: Review-It Collector v2.7 (Target Lock & 400 Error Fix)
+ * @Description: 메인 페이지 오작동 방지 및 불량 데이터 전송 차단
  */
 (function () {
   const CONFIG = {
@@ -11,9 +11,15 @@
   };
 
   async function syncReview() {
-    console.log("🚀 [Review-it] 데이터 스캔 시작...");
+    // [맥점 1] URL 검사: 게시판(/board/ 또는 /article/) 관련 주소가 아니면 즉시 종료
+    const path = window.location.pathname;
+    if (!path.includes('/board/') && !path.includes('/article/')) {
+        console.log("⏸️ [Review-it] 리뷰 게시판이 아니므로 수집을 대기합니다.");
+        return; 
+    }
+
+    console.log("🚀 [Review-it] 리뷰 데이터 스캔 시작...");
     
-    // 상세 페이지 여부 확인
     const readPage = document.querySelector('.xans-board-read, #board_read');
     if (readPage) {
       await handleReadPage(readPage);
@@ -26,7 +32,6 @@
   async function handleReadPage(container) {
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      // 번호 추출 로직 강화 (쿼리스트링 우선, 없으면 경로에서)
       const articleNo = urlParams.get('no') || window.location.pathname.split('/').filter(Boolean).pop();
       if (!articleNo || isNaN(articleNo)) return;
 
@@ -57,20 +62,23 @@
 
   // --- 목록 페이지 수집 ---
   async function handleListPage() {
-    // 카페24의 다양한 링크 패턴 대응
-    const allLinks = document.querySelectorAll('a[href*="no="], a[href*="/article/"]');
+    // [맥점 2] 아무 링크나 잡지 않고, 실제 게시판 목록 영역 내부의 링크만 스캔
+    const boardListContainer = document.querySelector('.xans-board-list, .board_list, tbody');
+    if (!boardListContainer) return;
+
+    const allLinks = boardListContainer.querySelectorAll('a[href*="no="], a[href*="/article/"]');
     const processedNos = new Set();
 
     for (let link of allLinks) {
       const href = link.getAttribute('href');
+      // 제목이 비어있거나 너무 짧으면 불량 링크로 간주하고 패스
       if (!href || link.innerText.trim().length < 2) continue;
 
-      // 정규식: no=숫자 혹은 /번호/ 형태 추출
       const match = href.match(/no=(\d+)/) || href.match(/\/(\d+)\/?$/);
       if (!match) continue;
 
       const articleNo = match[1];
-      if (processedNos.has(articleNo) || articleNo === "undefined") continue;
+      if (processedNos.has(articleNo) || !articleNo || isNaN(articleNo)) continue;
       processedNos.add(articleNo);
 
       const row = link.closest('tr') || link.closest('li');
@@ -81,7 +89,7 @@
         mall_id: CONFIG.mallId,
         article_no: String(articleNo),
         subject: link.innerText.trim(),
-        content: "",
+        content: "리뷰 목록 수집",
         writer: writer,
         stars: 5,
         image_urls: thumb ? [thumb.src] : [CONFIG.defaultImg]
@@ -89,10 +97,12 @@
     }
   }
 
-  // --- DB 전송 (409 에러 원천 차단) ---
+  // --- DB 전송 ---
   async function postToDB(data) {
-    // 번호가 없거나 'undefined'면 전송 자체를 하지 않음 (로그 정화)
-    if (!data.article_no || data.article_no === 'undefined') return;
+    // [맥점 3] 필수 데이터(게시글 번호, 제목)가 없으면 전송 자체를 차단 (400 에러 방지)
+    if (!data.article_no || data.article_no === 'undefined' || !data.subject) {
+        return; 
+    }
 
     try {
       const res = await fetch(`${CONFIG.sbUrl}/reviews`, {
@@ -101,8 +111,6 @@
           'apikey': CONFIG.sbKey,
           'Authorization': `Bearer ${CONFIG.sbKey}`,
           'Content-Type': 'application/json',
-          // [맥점] 409 Conflict를 해결하는 핵심 코드
-          // 중복 발생 시 오류를 내지 말고 업데이트(Upsert) 하라는 명령어입니다.
           'Prefer': 'resolution=merge-duplicates' 
         },
         body: JSON.stringify({
@@ -113,12 +121,12 @@
       });
 
       if (res.ok) {
-        // 성공 시에만 로그를 남겨서 콘솔을 깨끗하게 유지
-        console.log(`✅ [${data.article_no}] 동기화 완료`);
+        console.log(`✅ [${data.article_no}] 동기화 성공`);
+      } else {
+        console.log(`⚠️ [${data.article_no}] DB 거절 (코드: ${res.status})`);
       }
     } catch (e) {
-      // 네트워크 에러 등 진짜 에러만 출력
-      console.error("🚀 전송 중 진짜 에러 발생:", e);
+      console.error("네트워크 오류:", e);
     }
   }
 
