@@ -1,240 +1,183 @@
 /**
- * @Project: Review-It Widget Engine v4.0 (Path Fixed)
+ * @Project: Review-It Widget Engine v4.1 (Production Ready)
+ * @Description: Supabase 연결 및 카페24 이미지 경로 최적화 버전
  */
 (function () {
   const CONFIG = {
     URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
     KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-    MALL: window.location.origin,
-    MALL_ID: window.location.hostname.split('.')[0],
-    MALL_NAME: document.title.split('-')[0].trim() || 'SHOP',
-    BOARD_NO: '4',
-    DEFAULT_IMG: 'https://ecudemo389879.cafe24.com/web/upload/no-img.png', // 기본 이미지 주소
-    ADMIN_KEYWORDS: ['관리자', 'CS', 'TENUE', '운영자', 'Official'],
-    COPYRIGHT: `© ${new Date().getFullYear()} ${window.location.hostname.split('.')[0].toUpperCase()}. ALL RIGHTS RESERVED.`
+    MALL_ID: 'ecudemo389879', // 몰 아이디 고정
+    MALL_ORIGIN: window.location.origin,
+    BOARD_NO: '4', // 상품후기 게시판 번호
+    ADMIN_KEYWORDS: ['관리자', 'CS', '운영자', 'Official'],
+    DEFAULT_IMG: 'https://ecudemo389879.cafe24.com/web/upload/no-img.png'
   };
 
   const ReviewApp = {
-    // ... (init, checkSwiper, loadSettings, injectCSS는 기존과 동일) ...
+    data: {},
+    listOrder: [],
+    currentScrollY: 0,
+
+    async init() {
+      console.log('🚀 [REVIEW-IT] 위젯 로딩 중...');
+      this.injectCSS();
+      await this.loadReviews();
+      this.renderWidget();
+      this.bindEvents();
+    },
+
+    injectCSS() {
+      const css = `
+        #rit-widget-container { width: 100%; max-width: 1200px; margin: 50px auto; padding: 0 20px; font-family: 'Pretendard', sans-serif; }
+        .rit-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; }
+        .rit-header h2 { font-size: 24px; font-weight: 800; margin: 0; color: #111; }
+        .rit-card { cursor: pointer; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 1/1; background: #f4f4f4; }
+        .rit-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+        .rit-card:hover img { transform: scale(1.08); }
+        .rit-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); color: #fff; }
+        .rit-overlay .subject { font-size: 14px; font-weight: 600; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rit-star-wrap { color: #ffb800; font-size: 12px; margin-right: 5px; }
+        
+        /* 모달 스타일 */
+        #rit-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        #rit-modal.active { display: flex; }
+        .rit-modal-container { width: 90%; max-width: 1000px; height: 80vh; background: #fff; display: flex; border-radius: 16px; overflow: hidden; position: relative; }
+        .rit-modal-left { flex: 1.2; background: #000; display: flex; align-items: center; justify-content: center; }
+        .rit-modal-right { flex: 1; padding: 40px; display: flex; flex-direction: column; overflow-y: auto; background: #fff; }
+        .rit-close { position: absolute; top: 20px; right: 20px; font-size: 30px; color: #fff; cursor: pointer; z-index: 10001; }
+        
+        @media (max-width: 768px) {
+          .rit-modal-container { flex-direction: column; height: 90vh; overflow-y: auto; }
+          .rit-modal-left { min-height: 350px; }
+        }
+      `;
+      const style = document.createElement('style');
+      style.innerHTML = css;
+      document.head.appendChild(style);
+    },
 
     async loadReviews() {
       try {
-        const res = await fetch(`${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true&order=created_at.desc`, {
+        const res = await fetch(`${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true&order=created_at.desc&limit=10`, {
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
         const list = await res.json();
-
         this.listOrder = list.map(r => String(r.id));
-        list.forEach(r => {
-          // [맥점 1 해결] DB 컬럼명 혼선 방지 (image_urls와 all_images 통합)
-          const rawImgs = r.image_urls || r.all_images || [];
-          r.safe_images = rawImgs.length > 0 ? rawImgs : ['/web/upload/no-img.png'];
-
-          this.data[String(r.id)] = r;
-        });
+        list.forEach(r => { this.data[String(r.id)] = r; });
       } catch (e) { console.error("데이터 로드 실패", e); }
+    },
+
+    renderWidget() {
+      const container = document.getElementById('rit-widget-container');
+      if (!container) return;
+
+      let html = `
+        <div class="rit-header">
+          <h2>REAL REVIEW</h2>
+          <span style="font-size:14px; color:#666;">전체보기 ></span>
+        </div>
+        <div class="swiper rit-swiper">
+          <div class="swiper-wrapper">
+            ${this.listOrder.map(id => `
+              <div class="swiper-slide">${this.getItemHTML(id)}</div>
+            `).join('')}
+          </div>
+        </div>
+        <div id="rit-modal" onclick="if(event.target === this) ReviewApp.closeModal()">
+           <span class="rit-close" onclick="ReviewApp.closeModal()">✕</span>
+           <div id="rit-modal-content"></div>
+        </div>
+      `;
+      container.innerHTML = html;
+
+      new Swiper('.rit-swiper', {
+        slidesPerView: 1.5,
+        spaceBetween: 15,
+        breakpoints: {
+          768: { slidesPerView: 3, spaceBetween: 20 },
+          1024: { slidesPerView: 4, spaceBetween: 25 }
+        }
+      });
     },
 
     getItemHTML(id) {
       const rv = this.data[id];
-      const writerDisplay = (rv.writer && rv.writer.includes('*')) ? rv.writer : this.maskName(rv.writer);
-
-      // DB에 저장된 첫 번째 이미지를 가져오되, 없으면 기본 경로
-      const firstImg = (rv.image_urls && rv.image_urls.length > 0) ? rv.image_urls[0] : '/web/upload/no-img.png';
-
+      const firstImg = (rv.image_urls && rv.image_urls.length > 0) ? rv.image_urls[0] : CONFIG.DEFAULT_IMG;
       return `
         <div class="rit-card" onclick="ReviewApp.openModal('${id}')">
-          <img src="${this.fixImg(firstImg)}" 
-               onerror="this.src='${CONFIG.MALL}/web/upload/no-img.png'" 
-               loading="lazy">
+          <img src="${this.fixImg(firstImg)}" onerror="this.src='${CONFIG.DEFAULT_IMG}'" loading="lazy">
           <div class="rit-overlay">
             <div class="subject">${rv.subject || '리뷰 내용'}</div>
-            <div class="info">
+            <div style="font-size:12px; display:flex; align-items:center;">
               ${this.getStarHtml(rv.stars)}
-              <span>${writerDisplay}</span>
+              <span style="opacity:0.8; margin-left:5px;">${this.maskName(rv.writer)}</span>
             </div>
           </div>
         </div>`;
-    },
-
-    renderModalImages(d) {
-      const container = document.getElementById('modalImgContainer');
-      // DB 필드명 image_urls 기준으로 통합
-      const imgs = (d.image_urls && d.image_urls.length > 0) ? d.image_urls : ['/web/upload/no-img.png'];
-
-      if (imgs.length > 1 && imgs[0] !== '/web/upload/no-img.png') {
-        container.innerHTML = `
-          <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
-            <div class="swiper-wrapper">
-              ${imgs.map(img => `
-                <div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;">
-                  <img src="${this.fixImg(img)}" onerror="this.src='${CONFIG.MALL}/web/upload/no-img.png'" style="max-width:100%; max-height:100%; object-fit:contain;">
-                </div>`).join('')}
-            </div>
-            <div class="swiper-pagination" style="color:#fff;"></div>
-          </div>`;
-        new Swiper('.rit-modal-swiper', { pagination: { el: '.swiper-pagination', type: 'fraction' } });
-      } else {
-        container.innerHTML = `<img src="${this.fixImg(imgs[0])}" onerror="this.src='${CONFIG.MALL}/web/upload/no-img.png'" style="max-width:100%; max-height:100%; object-fit:contain;">`;
-      }
-    },
-
-    fixImg(url) {
-      // 이미지 URL이 없거나, placeholder 주소인 경우 카페24 기본 이미지 반환
-      if (!url || url.includes('placeholder') || url.includes('undefined')) {
-        return '/web/upload/no-img.png';
-      }
-      // 카페24 내부 경로(/web/...) 대응
-      let fixedUrl = url;
-      if (url.startsWith('//')) {
-        fixedUrl = 'https:' + url;
-      } else if (url.startsWith('/')) {
-        fixedUrl = CONFIG.MALL + url;
-      }
-      return fixedUrl;
-    },
-
-    maskName(name) {
-      if (!name || name === '고객') return '익명';
-      let clean = name.trim().split('(')[0].trim();
-      const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => clean.toUpperCase().includes(k.toUpperCase()));
-      if (isAdmin) return clean;
-
-      // 마스킹 로직 개선 (성*형태 또는 이*훈 형태)
-      if (clean.length <= 1) return "*";
-      if (clean.length === 2) return clean[0] + "*";
-      return clean[0] + "*" + clean.slice(-1);
     },
 
     async openModal(id) {
       const d = this.data[id];
       if (!d) return;
 
-      // v3.9 스크롤 잠금 적용
-      this.currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
-      document.body.style.cssText = `position: fixed; top: -${this.currentScrollY}px; width: 100%; overflow: hidden;`;
+      // 스크롤 잠금
+      this.currentScrollY = window.pageYOffset;
+      document.body.style.cssText = `overflow:hidden; position:fixed; top:-${this.currentScrollY}px; width:100%;`;
 
-      const modal = document.getElementById('rit-modal');
-      modal.innerHTML = `...[생략: 상세 모달 HTML]...`; // 기존 모달 구조 유지
-      modal.classList.add('active');
-
-      this.loadComments(d.article_no); // v3.9 실시간 댓글 로딩
-
-      const safeContent = d.clean_content || "내용이 없습니다.";
-
-      modal.innerHTML = `
+      const modalContainer = document.getElementById('rit-modal');
+      const content = document.getElementById('rit-modal-content');
+      
+      content.innerHTML = `
         <div class="rit-modal-container">
-          <div class="rit-outside-nav">
-            <div class="rit-nav-label font-bold">${CONFIG.MALL_NAME} REVIEW</div>
-            <div class="rit-right-area">
-              <button onclick="ReviewApp.closeModal()" style="background:none; border:none; color:#fff; font-size:28px; cursor:pointer;">✕</button>
-            </div>
+          <div class="rit-modal-left" id="modalImgContainer">
+             <img src="${this.fixImg(d.image_urls[0] || CONFIG.DEFAULT_IMG)}" style="max-width:100%; max-height:100%; object-fit:contain;">
           </div>
-          <div class="rit-modal-win">
-            <div class="rit-modal-left" id="modalImgContainer"></div>
-            <div class="rit-modal-right">
-              <div style="display:flex; justify-content:space-between; margin-bottom:20px; font-size:13px;">
-                <b>${this.maskName(d.writer)}</b>
-                <span style="color:#999;">${displayDate}</span>
-              </div>
-              ${this.getStarHtml(d.stars)}
-              <h3 style="font-size:20px; font-weight:700; margin: 15px 0;">${d.subject}</h3>
-              <div style="font-size:14px; line-height:1.8; color:#444; flex:1; overflow-y:auto; margin-bottom:20px;">${safeContent}</div>
-              
-              <div id="rit-comments-container"></div>
-
-              <div style="margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
-                <button onclick="location.href='/product/detail.html?product_no=${d.article_no}'" 
-                        style="width:100%; padding:15px; background:#111; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">제품 보러가기</button>
-                <p style="font-size:10px; color:#ccc; text-align:center; margin-top:15px; letter-spacing: 1px;">${CONFIG.COPYRIGHT}</p>
-              </div>
+          <div class="rit-modal-right">
+            <div style="margin-bottom:15px;">${this.getStarHtml(d.stars)}</div>
+            <h3 style="font-size:22px; margin-bottom:10px;">${d.subject}</h3>
+            <p style="color:#666; font-size:14px; line-height:1.8; flex:1; white-space:pre-wrap;">${d.content === '리스트 수집 데이터' ? '구매해 주셔서 감사합니다. 정성스러운 후기가 쇼핑에 큰 도움이 됩니다.' : d.content}</p>
+            <div style="margin-top:30px; border-top:1px solid #eee; padding-top:20px;">
+              <p style="font-size:13px; font-weight:bold;">${this.maskName(d.writer)}님</p>
+              <button onclick="location.href='/product/detail.html?product_no=${d.article_no}'" 
+                      style="width:100%; margin-top:15px; padding:15px; background:#111; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">상품 상세 보기</button>
             </div>
           </div>
         </div>`;
 
-      modal.classList.add('active');
-      this.renderModalImages(d);
-
-      // 댓글 로딩 호출
-      this.loadComments(d.article_no);
+      modalContainer.classList.add('active');
     },
-
-    async loadComments(articleNo) {
-      const container = document.getElementById('rit-comments-container');
-      if (!container) return;
-
-      try {
-        const url = `/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}&_t=${Date.now()}`;
-        const res = await fetch(url);
-        const html = await res.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        const items = doc.querySelectorAll('.boardComment li, .commentList li, .xans-board-commentlist li, .view_comment_list li');
-
-
-        if (items.length > 0) {
-          let cHtml = "";
-          items.forEach(item => {
-            const wr = item.querySelector('.name')?.innerText || "고객";
-            const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => wr.toUpperCase().includes(k.toUpperCase()));
-            const con = item.querySelector('.comment span[id^="comment_contents"], .comment')?.innerText || "";
-            const date = item.querySelector('.date')?.innerText || "";
-
-            cHtml += `
-                        <div style="padding:15px; border-radius:8px; margin-bottom:10px; background:${isAdmin ? '#fcfaf5' : '#f9fafb'}; border: 1px solid ${isAdmin ? '#eaddca' : '#f3f4f6'};">
-                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                                <span style="font-size:11px; font-weight:bold; color:${isAdmin ? '#8b5e3c' : '#111'};">${isAdmin ? 'Official' : this.maskName(wr)}</span>
-                                <span style="font-size:10px; color:#999;">${date}</span>
-                            </div>
-                            <div style="font-size:12px; color:#555; line-height:1.5;">${con}</div>
-                        </div>`;
-          });
-          container.innerHTML = cHtml;
-        }
-      } catch (e) {
-        console.warn("댓글 로드 실패", e);
-      }
-    },
-
-    renderModalImages(d) {
-      const container = document.getElementById('modalImgContainer');
-      if (d.all_images.length > 1) {
-        container.innerHTML = `<div class="swiper rit-modal-swiper" style="width:100%; height:100%;"><div class="swiper-wrapper">${d.all_images.map(img => `<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><img src="${this.fixImg(img)}" style="max-width:100%; max-height:100%; object-fit:contain;"></div>`).join('')}</div><div class="swiper-pagination" style="color:#fff;"></div></div>`;
-        new Swiper('.rit-modal-swiper', { pagination: { el: '.swiper-pagination', type: 'fraction' } });
-      } else {
-        container.innerHTML = `<img src="${this.fixImg(d.all_images[0])}" style="max-width:100%; max-height:100%; object-fit:contain;">`;
-      }
-    },
-
-    fixImg(url) { return url.startsWith('//') ? 'https:' + url : (url.startsWith('/') ? CONFIG.MALL + url : url); },
-
-    maskName(name) {
-      if (!name) return '고객';
-      let clean = name.trim().split('(')[0].trim();
-      // 관리자 예외 처리 (마스킹 안 함)
-      const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => clean.toUpperCase().includes(k.toUpperCase()));
-      if (isAdmin) return clean;
-
-      if (clean.length <= 1) return "*";
-      if (clean.length === 2) return clean[0] + "*";
-      return clean[0] + "*".repeat(clean.length - 2) + clean.slice(-1);
-    },
-
-    getStarHtml(score) { return `<span class="rit-star-wrap">` + '★'.repeat(Math.floor(score || 5)) + '☆'.repeat(5 - Math.floor(score || 5)) + `</span>`; },
 
     closeModal() {
-      const modal = document.getElementById('rit-modal');
-      modal.classList.remove('active');
-      // 스크롤 원복
+      document.getElementById('rit-modal').classList.remove('active');
       document.body.style.cssText = "";
       window.scrollTo(0, this.currentScrollY);
     },
 
-    bindSecurity() {
-      document.addEventListener('contextmenu', e => { if (e.target.closest('#rit-modal')) e.preventDefault(); });
-      document.addEventListener('selectstart', e => { if (e.target.closest('#rit-modal')) e.preventDefault(); }); // 드래그 방지 추가
+    fixImg(url) {
+      if (!url) return CONFIG.DEFAULT_IMG;
+      if (url.startsWith('//')) return 'https:' + url;
+      if (url.startsWith('/')) return CONFIG.MALL_ORIGIN + url;
+      return url;
+    },
+
+    maskName(name) {
+      if (!name || name === '고객') return '익명';
+      let clean = name.trim();
+      if (clean.length <= 1) return "*";
+      if (clean.length === 2) return clean[0] + "*";
+      return clean[0] + "*" + clean.slice(-1);
+    },
+
+    getStarHtml(score) {
+      return `<span class="rit-star-wrap">` + '★'.repeat(Math.floor(score || 5)) + '☆'.repeat(5 - Math.floor(score || 5)) + `</span>`;
+    },
+
+    bindEvents() {
+      // 보안: 우클릭 및 드래그 방지
+      document.addEventListener('contextmenu', e => { if (e.target.closest('.rit-modal-container')) e.preventDefault(); });
     }
   };
 
   window.ReviewApp = ReviewApp;
-  document.addEventListener('DOMContentLoaded', () => ReviewApp.init());
+  ReviewApp.init();
 })();
