@@ -1,18 +1,16 @@
 /**
  * @Project: Review-It Widget Engine (SaaS & Multi-Tenant Edition)
- * @Description: 상점별 Mall ID 자동 감지 및 데이터 격리 렌더링
+ * @Description: 댓글 수집, 스크롤 잠금, 관리자 마스킹 예외 등 v3.9 기능 완벽 이식
  */
 (function () {
   const CONFIG = {
     URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
     KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-
-    // ✅ Mall ID 및 환경 정보 동적 추출
     MALL: window.location.origin,
     MALL_ID: window.location.hostname.split('.')[0],
     MALL_NAME: document.title.split('-')[0].trim() || 'SHOP',
-
-    ADMIN_KEYWORDS: ['관리자', 'CS', 'TENUE'],
+    BOARD_NO: '4', // 카페24 리뷰 게시판 번호 (댓글 수집용)
+    ADMIN_KEYWORDS: ['관리자', 'CS', 'TENUE', '운영자', 'Official'], // 마스킹 예외 키워드
     COPYRIGHT: `© ${new Date().getFullYear()} ${window.location.hostname.split('.')[0].toUpperCase()}. ALL RIGHTS RESERVED.`
   };
 
@@ -20,67 +18,39 @@
     settings: {
       display_type: 'grid',
       tagline: 'Verified Authenticity',
-      title: 'People Choice',
+      title: 'Customer Real Feed',
       description: '실제 구매 고객들이 직접 경험하고 기록한 생생한 리얼 피드'
     },
     data: {},
     listOrder: [],
     activeId: null,
     modalImgSwiper: null,
+    currentScrollY: 0, // 스크롤 잠금용 위치 저장
 
     async init() {
       console.log(`🎨 [Review-it] Widget active for: ${CONFIG.MALL_ID}`);
-
-      // 1. Swiper 의존성 체크 및 로드
       await this.checkSwiper();
-
-      // 2. CSS 주입
       this.injectCSS();
-
-      // 3. 데이터 로드
       await Promise.all([this.loadSettings(), this.loadReviews()]);
-
-      // 4. 렌더링
       this.renderList();
       this.bindSecurity();
     },
 
     async checkSwiper() {
       if (!window.Swiper) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css';
-        document.head.appendChild(link);
-
-        await new Promise(resolve => {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js';
-          script.onload = resolve;
-          document.head.appendChild(script);
-        });
+        const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css'; document.head.appendChild(link);
+        await new Promise(res => { const script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js'; script.onload = res; document.head.appendChild(script); });
       }
     },
 
     async loadSettings() {
       try {
-
         const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {
-          headers: {
-            'apikey': CONFIG.KEY,
-            'Authorization': `Bearer ${CONFIG.KEY}`
-          }
+          headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
-
         const data = await res.json();
-        if (data && data[0]) {
-          this.settings = { ...this.settings, ...data[0] };
-          console.log("✅ 설정 로드 성공:", this.settings.display_type);
-        } else {
-          console.log("ℹ️ 설정 데이터가 없어 기본값을 유지합니다.");
-        }
-      } catch (e) {
-        console.error("❌ Setting load fail:", e);
-      }
+        if (data && data[0]) this.settings = { ...this.settings, ...data[0] };
+      } catch (e) { console.error("Setting load fail", e); }
     },
 
     async loadReviews() {
@@ -100,12 +70,18 @@
         this.listOrder = list.map(r => String(r.id));
         list.forEach(r => {
           let imgs = Array.isArray(r.image_urls) ? r.image_urls : [];
+          // 내용에서 이미지만 추출하여 배열에 합치기
           const div = document.createElement('div');
           div.innerHTML = r.content;
           const bodyImgs = Array.from(div.querySelectorAll('img')).map(img => img.getAttribute('src'));
           const merged = [...imgs, ...bodyImgs].map(normalize).filter(v => v && v.length > 10);
           r.all_images = [...new Set(merged)];
-          if (r.all_images.length === 0) r.all_images = ['https://via.placeholder.com/400x533?text=Review-It'];
+          if (r.all_images.length === 0) r.all_images = ['https://via.placeholder.com/400x533?text=No+Image'];
+
+          // 본문에서 이미지 태그 제거 (텍스트만 남기기)
+          div.querySelectorAll('img').forEach(img => img.remove());
+          r.clean_content = div.innerText.trim();
+
           this.data[String(r.id)] = r;
         });
       } catch (e) { console.error("Data fail", e); }
@@ -140,7 +116,7 @@
         .rit-modal-win { background: #fff; flex: 1; display: flex; overflow: hidden; border-radius: 4px; }
         .rit-modal-left { flex: 1.2; background: #000; display: flex; align-items: center; justify-content: center; position: relative; }
         .rit-modal-right { flex: 0.8; padding: 40px; display: flex; flex-direction: column; overflow-y: auto; }
-        @media (max-width: 768px) { .rit-modal-win { flex-direction: column; } .rit-modal-left { min-height: 300px; } }
+        @media (max-width: 768px) { .rit-modal-win { flex-direction: column; } .rit-modal-left { min-height: 300px; } .rit-modal-right { padding: 20px; } }
       `;
       document.head.appendChild(style);
     },
@@ -192,10 +168,12 @@
       this.activeId = String(id);
       let displayDate = d.created_at ? new Date(d.created_at).toISOString().split('T')[0] : "방금 전";
 
-      const modal = document.getElementById('rit-modal');
+      // 스크롤 잠금 (v3.9 방식 적용)
+      this.currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+      document.body.style.cssText = `position: fixed; top: -${this.currentScrollY}px; width: 100%; overflow: hidden;`;
 
-      // [중요] 변수 선언은 HTML 백틱(``) 밖에서 미리 해야 합니다.
-      const safeContent = d.content ? String(d.content).replace(/<img[^>]*>/g, "") : "내용이 없습니다.";
+      const modal = document.getElementById('rit-modal');
+      const safeContent = d.clean_content || "내용이 없습니다.";
 
       modal.innerHTML = `
         <div class="rit-modal-container">
@@ -214,19 +192,59 @@
               </div>
               ${this.getStarHtml(d.stars)}
               <h3 style="font-size:20px; font-weight:700; margin: 15px 0;">${d.subject}</h3>
-              <div style="font-size:15px; line-height:1.8; color:#444; flex:1; overflow-y:auto;">${safeContent}</div>
-              <div style="margin-top:30px; border-top:1px solid #eee; padding-top:20px;">
+              <div style="font-size:14px; line-height:1.8; color:#444; flex:1; overflow-y:auto; margin-bottom:20px;">${safeContent}</div>
+              
+              <div id="rit-comments-container"></div>
+
+              <div style="margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
                 <button onclick="location.href='/product/detail.html?product_no=${d.article_no}'" 
                         style="width:100%; padding:15px; background:#111; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">제품 보러가기</button>
-                <p style="font-size:10px; color:#ccc; text-align:center; margin-top:15px;">${CONFIG.COPYRIGHT}</p>
+                <p style="font-size:10px; color:#ccc; text-align:center; margin-top:15px; letter-spacing: 1px;">${CONFIG.COPYRIGHT}</p>
               </div>
             </div>
           </div>
         </div>`;
 
       modal.classList.add('active');
-      document.body.style.overflow = 'hidden';
       this.renderModalImages(d);
+
+      // 댓글 로딩 호출
+      this.loadComments(d.article_no);
+    },
+
+    async loadComments(articleNo) {
+      const container = document.getElementById('rit-comments-container');
+      if (!container) return;
+
+      try {
+        const url = `/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}&_t=${Date.now()}`;
+        const res = await fetch(url);
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const items = doc.querySelectorAll('.boardComment li, .commentList li, .xans-board-commentlist li');
+
+        if (items.length > 0) {
+          let cHtml = "";
+          items.forEach(item => {
+            const wr = item.querySelector('.name')?.innerText || "고객";
+            const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => wr.toUpperCase().includes(k.toUpperCase()));
+            const con = item.querySelector('.comment span[id^="comment_contents"], .comment')?.innerText || "";
+            const date = item.querySelector('.date')?.innerText || "";
+
+            cHtml += `
+                        <div style="padding:15px; border-radius:8px; margin-bottom:10px; background:${isAdmin ? '#fcfaf5' : '#f9fafb'}; border: 1px solid ${isAdmin ? '#eaddca' : '#f3f4f6'};">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span style="font-size:11px; font-weight:bold; color:${isAdmin ? '#8b5e3c' : '#111'};">${isAdmin ? 'Official' : this.maskName(wr)}</span>
+                                <span style="font-size:10px; color:#999;">${date}</span>
+                            </div>
+                            <div style="font-size:12px; color:#555; line-height:1.5;">${con}</div>
+                        </div>`;
+          });
+          container.innerHTML = cHtml;
+        }
+      } catch (e) {
+        console.warn("댓글 로드 실패", e);
+      }
     },
 
     renderModalImages(d) {
@@ -240,18 +258,33 @@
     },
 
     fixImg(url) { return url.startsWith('//') ? 'https:' + url : (url.startsWith('/') ? CONFIG.MALL + url : url); },
+
     maskName(name) {
       if (!name) return '고객';
-      const clean = name.trim().split('(')[0];
+      let clean = name.trim().split('(')[0].trim();
+      // 관리자 예외 처리 (마스킹 안 함)
+      const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => clean.toUpperCase().includes(k.toUpperCase()));
+      if (isAdmin) return clean;
+
       if (clean.length <= 1) return "*";
-      return clean[0] + "*".repeat(Math.max(1, clean.length - 2)) + (clean.length > 2 ? clean.slice(-1) : "*");
+      if (clean.length === 2) return clean[0] + "*";
+      return clean[0] + "*".repeat(clean.length - 2) + clean.slice(-1);
     },
+
     getStarHtml(score) { return `<span class="rit-star-wrap">` + '★'.repeat(Math.floor(score || 5)) + '☆'.repeat(5 - Math.floor(score || 5)) + `</span>`; },
+
     closeModal() {
-      document.getElementById('rit-modal').classList.remove('active');
-      document.body.style.overflow = '';
+      const modal = document.getElementById('rit-modal');
+      modal.classList.remove('active');
+      // 스크롤 원상복구 (v3.9 방식 적용)
+      document.body.style.cssText = "";
+      window.scrollTo(0, this.currentScrollY);
     },
-    bindSecurity() { document.addEventListener('contextmenu', e => { if (e.target.closest('#rit-modal')) e.preventDefault(); }); }
+
+    bindSecurity() {
+      document.addEventListener('contextmenu', e => { if (e.target.closest('#rit-modal')) e.preventDefault(); });
+      document.addEventListener('selectstart', e => { if (e.target.closest('#rit-modal')) e.preventDefault(); }); // 드래그 방지 추가
+    }
   };
 
   window.ReviewApp = ReviewApp;
