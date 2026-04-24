@@ -53,7 +53,7 @@
             'apikey': CONFIG.sbKey,
             'Authorization': `Bearer ${CONFIG.sbKey}`,
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-counter' // 중복 발생 시 무시하거나 업데이트
+            'Prefer': 'resolution=merge-duplicates'
           },
           body: JSON.stringify(payload)
         });

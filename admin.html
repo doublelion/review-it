@@ -341,30 +341,42 @@
 
     async function saveSettings() {
       const urlParams = new URLSearchParams(window.location.search);
-      const mallId = urlParams.get('mall_id');
+      const mallId = urlParams.get('mall_id') || window.location.hostname.split('.')[0]; // Fallback 추가
 
       const payload = {
         mall_id: mallId,
-        display_type: document.querySelector('input[name="display_type"]:checked')?.value || 'swiper',
+        display_type: document.querySelector('button.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid', // 현재 active된 버튼 기반
         tagline: document.getElementById('input-tagline').value,
         title: document.getElementById('input-title').value,
         description: document.getElementById('input-description').value,
         updated_at: new Date().toISOString()
       };
 
-      const res = await fetch(`${SB_URL}/rest/v1/widget_settings`, {
-        method: 'POST', // Supabase에서는 POST + Prefer header로 Upsert 수행
-        headers: {
-          'apikey': SB_KEY,
-          'Authorization': `Bearer ${SB_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates' // PK가 겹치면 업데이트함
-        },
-        body: JSON.stringify(payload)
-      });
+      try {
+        const res = await fetch(`${SB_URL}/widget_settings`, {
+          method: 'POST',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify(payload)
+        });
 
-      if (res.ok) alert('성공적으로 저장되었습니다!');
+        if (res.ok) {
+          alert('설정이 저장되었습니다!');
+          loadSettings();
+        } else {
+          const err = await res.json();
+          console.error("저장 실패:", err);
+          alert('설정 저장 중 오류가 발생했습니다.');
+        }
+      } catch (err) {
+        console.error("네트워크 오류:", err);
+      }
     }
+
     // 유틸리티 함수
     function handleSearch() { currentSearchKeyword = document.getElementById('search-input').value; currentPage = 0; loadAdminData(); }
     function updatePagination(total) {
