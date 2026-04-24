@@ -72,6 +72,7 @@
         }
 
         const url = `${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`;
+        if (!CONFIG.MALL_ID || CONFIG.MALL_ID === 'default') return;
         console.log('🔥 API 요청:', url);
 
         const res = await fetch(url, {
@@ -203,7 +204,9 @@
       let displayDate = d.created_at ? new Date(d.created_at).toISOString().split('T')[0] : "방금 전";
 
       const modal = document.getElementById('rit-modal');
-      const idx = this.listOrder.indexOf(String(id));
+
+      // [중요] 변수 선언은 HTML 백틱(``) 밖에서 미리 해야 합니다.
+      const safeContent = d.content ? String(d.content).replace(/<img[^>]*>/g, "") : "내용이 없습니다.";
 
       modal.innerHTML = `
         <div class="rit-modal-container">
@@ -222,10 +225,7 @@
               </div>
               ${this.getStarHtml(d.stars)}
               <h3 style="font-size:20px; font-weight:700; margin: 15px 0;">${d.subject}</h3>
-              const safeContent = d.content ? String(d.content).replace(/<img[^>]*>/g, "") : "내용이 없습니다.";
-
-// 그리고 HTML 렌더링 부분에 safeContent 변수를 넣습니다.
-<div style="font-size:15px; line-height:1.8; color:#444; flex:1; overflow-y:auto;">${safeContent}</div>
+              <div style="font-size:15px; line-height:1.8; color:#444; flex:1; overflow-y:auto;">${safeContent}</div>
               <div style="margin-top:30px; border-top:1px solid #eee; padding-top:20px;">
                 <button onclick="location.href='/product/detail.html?product_no=${d.article_no}'" 
                         style="width:100%; padding:15px; background:#111; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">제품 보러가기</button>
