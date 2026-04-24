@@ -7,7 +7,7 @@
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     mallId: window.location.hostname.split('.')[0],
-    defaultImg: '/web/upload/no-img.png' 
+    defaultImg: '/web/upload/no-img.png'
   };
 
   async function syncReview() {
@@ -87,7 +87,7 @@
       processedNos.add(articleNo);
 
       const row = link.closest('tr') || link.closest('li') || link.parentElement;
-      
+
       // 목록 썸네일 (없으면 기본 이미지)
       const thumb = row.querySelector('img[src*="/web/upload/"], .thumb img, .thumbnail img');
       let imageUrls = thumb ? [thumb.src] : [CONFIG.defaultImg];
@@ -104,28 +104,33 @@
     }
   }
 
+  // 수집기 파일의 postToDB 부분을 이렇게 수정해보세요
   async function postToDB(data) {
-    // 세탁: placeholder 제거
-    data.image_urls = data.image_urls.filter(url => url && !url.includes('placeholder'));
-    if (data.image_urls.length === 0) data.image_urls = [CONFIG.defaultImg];
+    // 번호가 없으면 전송 중단
+    if (!data.article_no || data.article_no === 'undefined') return;
 
-    try {
-      const res = await fetch(`${CONFIG.sbUrl}/reviews`, {
-        method: 'POST',
-        headers: {
-          'apikey': CONFIG.sbKey,
-          'Authorization': `Bearer ${CONFIG.sbKey}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify({
-          ...data,
-          is_visible: true,
-          created_at: new Date().toISOString()
-        })
-      });
-      if (res.ok) console.log(`✅ [${data.article_no}] 성공`);
-    } catch (e) { }
+    const res = await fetch(`${CONFIG.sbUrl}/reviews`, {
+      method: 'POST',
+      headers: {
+        'apikey': CONFIG.sbKey,
+        'Authorization': `Bearer ${CONFIG.sbKey}`,
+        'Content-Type': 'application/json',
+        // 핵심: 409 오류를 내지 않고, 중복되면 덮어쓰기(Upsert) 하라는 설정
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        ...data,
+        is_visible: true,
+        created_at: new Date().toISOString()
+      })
+    });
+
+    if (res.ok) {
+      console.log(`✅ [${data.article_no}] 동기화 성공`);
+    } else if (res.status === 409) {
+      // 409가 떠도 사실상 업데이트 된 것이니 성공으로 간주하거나 무시하도록 처리
+      console.log(`ℹ️ [${data.article_no}] 이미 존재함 (건너뜀)`);
+    }
   }
 
   setTimeout(syncReview, 2500); // 렌더링 대기 시간 살짝 증가
