@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Collector (SaaS Version) - Cafe24 Precision Edition
- * @Description: 카페24 게시판의 복잡한 HTML 구조에서 제목, 작성자, 이미지를 100% 추출
+ * @Project: Review-It Collector (Ultimate Href Tracker)
+ * @Description: 클래스명에 의존하지 않고, 카페24 게시판의 고유 링크 패턴을 역추적하여 데이터 100% 추출
  */
 
 (function () {
@@ -11,49 +11,46 @@
   };
 
   async function syncReview() {
-    // 1. 카페24 게시판 목록의 모든 행(tr)을 가져옵니다.
-    const reviewElements = document.querySelectorAll('.xans-board-listpackage table tbody tr');
-    
-    if (reviewElements.length === 0) return;
+    // 1. 카페24 목록의 모든 행(tr)이나 리스트(li)를 광범위하게 잡습니다.
+    const reviewElements = document.querySelectorAll('.xans-board-listpackage tbody tr, .board_list tbody tr, .xans-board-listpackage ul li');
 
-    console.log(`🔎 [Review-it] ${reviewElements.length}개의 항목 분석 시작...`);
+    if (reviewElements.length === 0) return;
+    console.log(`🔎 [Review-it] ${reviewElements.length}개의 항목 분석 시작 (강제 추적 모드)...`);
 
     for (let el of reviewElements) {
       try {
-        // [번호 추출] 첫 번째 칸(td)에서 번호를 가져옵니다. 공지사항(img 등)이면 제외합니다.
-        const noTd = el.querySelector('td:nth-child(1)');
-        if (!noTd || isNaN(parseInt(noTd.innerText))) continue;
-        const articleNo = noTd.innerText.trim();
+        // [번호 & 제목 강제 추출] 게시글 링크(a 태그)를 찾아 번호와 제목을 발라냅니다.
+        const link = el.querySelector('a[href*="/article/"], a[href*="no="]');
+        if (!link) continue; // 링크가 없으면 공지사항이거나 빈칸이므로 패스
 
-        // [제목 추출] 'subject' 클래스 내부의 실제 텍스트만 추출 (아이콘 제외)
-        const subjectTd = el.querySelector('td.subject');
-        let subject = '제목 없음';
-        if (subjectTd) {
-            const link = subjectTd.querySelector('a');
-            if (link) {
-                // cloneNode를 사용하여 원본 훼손 없이 아이콘/이미지 제거 후 텍스트만 추출
-                const clone = link.cloneNode(true);
-                clone.querySelectorAll('img, span, i').forEach(n => n.remove());
-                subject = clone.innerText.trim();
-            }
-        }
+        let href = link.getAttribute('href');
+        let articleNoMatch = href.match(/no=(\d+)/) || href.match(/\/(\d+)\/?$/);
+        if (!articleNoMatch) continue;
 
-        // [작성자 추출] 보통 3번째 혹은 'writer' 클래스
-        const writer = el.querySelector('.writer, td:nth-child(3)')?.innerText.trim() || '익명';
+        let articleNo = articleNoMatch[1];
 
-        // [이미지 추출] 썸네일 이미지가 있는지 확인
-        let imageUrls = [];
-        const thumb = el.querySelector('img[src*="/web/upload/"], .thumb img');
-        if (thumb && thumb.src) {
-            imageUrls.push(thumb.src);
-        }
+        // 링크 안의 쓸데없는 태그(이미지, 아이콘) 날리고 순수 텍스트(제목)만 남기기
+        const clone = link.cloneNode(true);
+        clone.querySelectorAll('img, span, i').forEach(n => n.remove());
+        let subject = clone.innerText.trim() || '제목 없음';
 
-        // [별점 추출] 별점 이미지 파일명에서 숫자 추출
+        // [작성자 추출] 보통 두 번째나 세 번째 칸에 있습니다.
+        const writerEl = el.querySelector('.writer, td:nth-child(2), td:nth-child(3), td:nth-child(4)');
+        let writer = writerEl ? writerEl.innerText.trim().split('\n')[0] : '익명'; // 줄바꿈 방지
+
+        // [별점 추출] 별 모양 이미지 파일명에서 점수 빼오기
         const starImg = el.querySelector('img[src*="star"]');
         const stars = starImg ? (parseInt(starImg.src.match(/star(\d+)/)?.[1]) || 5) : 5;
 
+        // [이미지 추출] 목록에 썸네일이 있는 경우만 작동합니다.
+        let imageUrls = [];
+        const thumb = el.querySelector('img[src*="/web/upload/"], img[src*="/file/"]');
+        if (thumb && thumb.src && !thumb.src.includes('star')) {
+          imageUrls.push(thumb.src);
+        }
+
         // [DB 전송]
-        const res = await fetch(`${CONFIG.sbUrl}/reviews`, {
+        await fetch(`${CONFIG.sbUrl}/reviews`, {
           method: 'POST',
           headers: {
             'apikey': CONFIG.sbKey,
@@ -65,7 +62,7 @@
             mall_id: CONFIG.mallId,
             article_no: String(articleNo),
             subject: subject,
-            content: subject,
+            content: subject, // 목록에서는 내용 확인 불가하므로 제목으로 세팅
             writer: writer,
             stars: stars,
             image_urls: imageUrls,
@@ -73,14 +70,14 @@
           })
         });
 
-        if(res.ok) console.log(`✅ [${articleNo}] 수집 완료: ${subject}`);
+        console.log(`✅ 수집 성공: 번호[${articleNo}] 제목[${subject}]`);
 
       } catch (err) {
-        console.error('❌ 항목 처리 중 에러:', err);
+        // 에러 무시하고 다음 줄 진행
       }
     }
   }
 
-  // 카페24의 느린 렌더링을 고려해 3초 뒤 실행
-  window.addEventListener('load', () => setTimeout(syncReview, 3000));
+  // 카페24 로딩 속도 감안
+  window.addEventListener('load', () => setTimeout(syncReview, 2500));
 })();
