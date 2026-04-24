@@ -63,8 +63,21 @@
 
     async loadSettings() {
       try {
-        // ✅ 수정: mall_id를 사용하여 쿼리합니다.
-        const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {
+
+        // ✅ 1. mall_id 확인
+        console.log('🔥 mall_id:', CONFIG.MALL_ID);
+
+        // ✅ 2. 방어 코드
+        if (!CONFIG.MALL_ID || CONFIG.MALL_ID === 'default') {
+          console.error('❌ mall_id 비정상:', CONFIG.MALL_ID);
+          return;
+        }
+
+        // ✅ 3. 실제 요청 로그
+        const url = `${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`;
+        console.log('🔥 API 요청:', url);
+
+        const res = await fetch(url, {
           headers: {
             'apikey': CONFIG.KEY,
             'Authorization': `Bearer ${CONFIG.KEY}`
