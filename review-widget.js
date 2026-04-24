@@ -1,6 +1,5 @@
 /**
- * @Project: Review-It Widget Engine (SaaS & Multi-Tenant Edition)
- * @Description: 댓글 수집, 스크롤 잠금, 관리자 마스킹 예외 등 v3.9 기능 완벽 이식
+ * @Project: Review-It Widget Engine v3.9 (SaaS Edition)
  */
 (function () {
   const CONFIG = {
@@ -9,31 +8,22 @@
     MALL: window.location.origin,
     MALL_ID: window.location.hostname.split('.')[0],
     MALL_NAME: document.title.split('-')[0].trim() || 'SHOP',
-    BOARD_NO: '4', // 카페24 리뷰 게시판 번호 (댓글 수집용)
-    ADMIN_KEYWORDS: ['관리자', 'CS', 'TENUE', '운영자', 'Official'], // 마스킹 예외 키워드
+    BOARD_NO: '4',
+    ADMIN_KEYWORDS: ['관리자', 'CS', 'TENUE', '운영자', 'Official'],
     COPYRIGHT: `© ${new Date().getFullYear()} ${window.location.hostname.split('.')[0].toUpperCase()}. ALL RIGHTS RESERVED.`
   };
 
   const ReviewApp = {
-    settings: {
-      display_type: 'grid',
-      tagline: 'Verified Authenticity',
-      title: 'Customer Real Feed',
-      description: '실제 구매 고객들이 직접 경험하고 기록한 생생한 리얼 피드'
-    },
+    settings: { display_type: 'grid', tagline: 'Verified Authenticity', title: 'Customer Real Feed', description: '생생한 리얼 피드' },
     data: {},
     listOrder: [],
-    activeId: null,
-    modalImgSwiper: null,
-    currentScrollY: 0, // 스크롤 잠금용 위치 저장
+    currentScrollY: 0,
 
     async init() {
-      console.log(`🎨 [Review-it] Widget active for: ${CONFIG.MALL_ID}`);
       await this.checkSwiper();
       this.injectCSS();
       await Promise.all([this.loadSettings(), this.loadReviews()]);
       this.renderList();
-      this.bindSecurity();
     },
 
     async checkSwiper() {
@@ -50,7 +40,7 @@
         });
         const data = await res.json();
         if (data && data[0]) this.settings = { ...this.settings, ...data[0] };
-      } catch (e) { console.error("Setting load fail", e); }
+      } catch (e) { }
     },
 
     async loadReviews() {
@@ -59,33 +49,13 @@
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
         const list = await res.json();
-
-        const normalize = (url) => {
-          if (!url) return '';
-          if (url.startsWith('//')) return 'https:' + url;
-          if (url.startsWith('/')) return CONFIG.MALL + url;
-          return url;
-        };
-
         this.listOrder = list.map(r => String(r.id));
         list.forEach(r => {
-          let imgs = Array.isArray(r.image_urls) ? r.image_urls : [];
-          // 내용에서 이미지만 추출하여 배열에 합치기
-          const div = document.createElement('div');
-          div.innerHTML = r.content;
-          const bodyImgs = Array.from(div.querySelectorAll('img')).map(img => img.getAttribute('src'));
-          const merged = [...imgs, ...bodyImgs].map(normalize).filter(v => v && v.length > 10);
-          r.all_images = [...new Set(merged)];
-          if (r.all_images.length === 0) r.all_images = ['https://via.placeholder.com/400x533?text=No+Image'];
-
-          // 본문에서 이미지 태그 제거 (텍스트만 남기기)
-          div.querySelectorAll('img').forEach(img => img.remove());
-          r.clean_content = div.innerText.trim();
-
           this.data[String(r.id)] = r;
         });
-      } catch (e) { console.error("Data fail", e); }
+      } catch (e) { }
     },
+
 
     injectCSS() {
       const style = document.createElement('style');
@@ -145,6 +115,7 @@
         m.onclick = (e) => { if (e.target === m) this.closeModal(); };
         document.body.appendChild(m);
       }
+
     },
 
     getItemHTML(id) {
@@ -165,14 +136,17 @@
     async openModal(id) {
       const d = this.data[id];
       if (!d) return;
-      this.activeId = String(id);
-      let displayDate = d.created_at ? new Date(d.created_at).toISOString().split('T')[0] : "방금 전";
 
-      // 스크롤 잠금 (v3.9 방식 적용)
+      // v3.9 스크롤 잠금 적용
       this.currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
       document.body.style.cssText = `position: fixed; top: -${this.currentScrollY}px; width: 100%; overflow: hidden;`;
 
       const modal = document.getElementById('rit-modal');
+      modal.innerHTML = `...[생략: 상세 모달 HTML]...`; // 기존 모달 구조 유지
+      modal.classList.add('active');
+
+      this.loadComments(d.article_no); // v3.9 실시간 댓글 로딩
+
       const safeContent = d.clean_content || "내용이 없습니다.";
 
       modal.innerHTML = `
@@ -221,7 +195,8 @@
         const res = await fetch(url);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const items = doc.querySelectorAll('.boardComment li, .commentList li, .xans-board-commentlist li');
+        const items = doc.querySelectorAll('.boardComment li, .commentList li, .xans-board-commentlist li, .view_comment_list li');
+
 
         if (items.length > 0) {
           let cHtml = "";
@@ -276,7 +251,7 @@
     closeModal() {
       const modal = document.getElementById('rit-modal');
       modal.classList.remove('active');
-      // 스크롤 원상복구 (v3.9 방식 적용)
+      // 스크롤 원복
       document.body.style.cssText = "";
       window.scrollTo(0, this.currentScrollY);
     },
