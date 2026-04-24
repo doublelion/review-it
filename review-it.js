@@ -1,94 +1,84 @@
 (function () {
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
-    sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // 실제 발급받은 키로 교체
-    mallId: 'ecudemo389879'      // 해당 몰 아이디
+    sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // 발급받은 Anon Key 입력
+    mallId: 'ecudemo389879'      // 몰 아이디
   };
 
   const sentMap = new Map();
 
   async function sync() {
-    // 1. 상세 페이지 여부 확인 (카페24 표준 클래스/ID 기반)
-    if (!isDetailPage()) return;
+    // 1. 상세 페이지 감지 (카페24 표준)
+    if (!document.querySelector('.xans-board-readpackage, .xans-board-read, #board_read')) return;
 
-    // 2. 게시글 번호 추출
     const articleNo = getArticleNo();
     if (!articleNo || sentMap.has(articleNo)) return;
 
-    console.log('📸 [REVIEW-IT] 수집 시작:', articleNo);
+    console.log('📸 [REVIEW-IT] 데이터 수집 시작:', articleNo);
 
-    // 3. 데이터 추출
+    // 2. 데이터 추출
     const data = extractData(articleNo);
 
-    // 4. 유효성 검사 (최소한 내용이 있어야 함)
-    if (!validate(data)) {
-      console.log('⛔ [REVIEW-IT] 데이터 부적합 (내용 부족 등):', articleNo);
+    // 3. 유효성 검증
+    if (!data.subject || data.content.length < 5) {
+      console.log('⛔ [REVIEW-IT] 내용 부족으로 스킵');
       return;
     }
 
-    // 5. 서버 전송
+    // 4. 전송
     await send(data);
     sentMap.set(articleNo, true);
   }
 
-  function isDetailPage() {
-    // xans-board-readpackage 클래스가 있으면 상세페이지로 판단
-    return document.querySelector('.xans-board-readpackage, .xans-board-read');
-  }
-
   function getArticleNo() {
     const url = new URL(location.href);
-    // URL 파라미터 'no' 혹은 경로상의 숫자 추출
-    const no = url.searchParams.get('no') || location.pathname.match(/\/(\d+)\/?$/)?.[1];
-    return no;
+    return url.searchParams.get('no') || location.pathname.match(/\/(\d+)\/?$/)?.[1];
   }
 
   function extractData(articleNo) {
-    // 본문 영역 선택 (에디터 클래스 우선)
-    const contentEl = document.querySelector('.fr-view-article') || 
-                      document.querySelector('.detail') || 
-                      document.querySelector('#prdReviewContent');
+    // 본문 영역
+    const contentEl = document.querySelector('.fr-view-article, .detail, #prdReviewContent, .boardView .content');
+    
+    // 제목
+    const subjectEl = document.querySelector('.head h3, .subject, .boardView .title, h3');
 
-    // 제목 선택
-    const subjectEl = document.querySelector('.head h3') || 
-                      document.querySelector('.subject') || 
-                      document.querySelector('h3');
+    // 작성자 (IP 제거 로직 포함)
+    const writerEl = document.querySelector('.description .name, .name, .boardView .writer');
+    const rawWriter = writerEl?.innerText || '고객';
+    const cleanWriter = rawWriter.split('(')[0].replace(/ip:/gi, '').trim();
 
-    // 작성자 선택
-    const writerEl = document.querySelector('.description .name') || 
-                      document.querySelector('.name');
+    // 별점 (SQL의 stars 컬럼과 매칭)
+    const ratingImg = document.querySelector('.etcArea img[src*="star-rating"], .point img[src*="star"]');
+    let starCount = 5; // 기본값
+    if (ratingImg) {
+      const altText = ratingImg.alt || '';
+      const match = altText.match(/\d/);
+      if (match) starCount = parseInt(match[0]);
+    }
 
-    // 별점 추출 (이미지 alt 속성에서 '5' 추출)
-    const ratingEl = document.querySelector('.etcArea img[src*="icon-star-rating"]');
-    const rating = ratingEl ? ratingEl.alt.replace(/[^0-9]/g, '') : '5';
-
-    // 이미지 필터링 (실제 사용자가 올린 리뷰 이미지만)
+    // 이미지 추출 (SQL의 image_urls jsonb 컬럼과 매칭)
     const imgs = contentEl
       ? Array.from(contentEl.querySelectorAll('img'))
           .map(i => i.src)
           .filter(src => {
             return src && 
                    src.length > 30 && 
-                   src.includes('/web/upload/') && // 카페24 업로드 경로
-                   !src.includes('icon') &&        // 아이콘 제외
-                   !src.includes('clear.gif');     // 투명픽셀 제외
+                   (src.includes('/web/upload/') || src.includes('file_directory')) && 
+                   !src.includes('icon') && 
+                   !src.includes('clear.gif');
           })
       : [];
 
     return {
+      mall_id: CONFIG.mallId,
       article_no: String(articleNo),
       subject: subjectEl?.innerText.trim() || '',
       content: contentEl?.innerText.trim() || '',
-      writer: writerEl?.innerText.replace(/\(ip:.*\)/g, '').trim() || '고객',
-      rating: parseInt(rating) || 5,
-      image_urls: imgs,
-      collected_at: new Date().toISOString()
+      writer: cleanWriter,
+      stars: starCount,        // SQL stars 컬럼명 일치
+      image_urls: imgs,        // SQL image_urls 컬럼명 일치 (배열로 전달하면 jsonb가 자동 처리)
+      is_visible: true
     };
-  }
-
-  function validate(data) {
-    // 제목이나 내용이 너무 짧으면 수집하지 않음 (스팸 방지)
-    return data.article_no && (data.subject.length > 1 || data.content.length > 5);
   }
 
   async function send(data) {
@@ -101,23 +91,24 @@
             apikey: CONFIG.sbKey,
             Authorization: `Bearer ${CONFIG.sbKey}`,
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates' // 중복 시 업데이트(Upsert)
+            // 중요: unique_mall_article 제약조건을 이용한 Upsert 처리
+            'Prefer': 'resolution=merge-duplicates' 
           },
-          body: JSON.stringify({
-            ...data,
-            mall_id: CONFIG.mallId,
-            is_visible: true
-          })
+          body: JSON.stringify(data)
         }
       );
 
-      if (!res.ok) throw new Error(await res.text());
-      console.log(`✅ [REVIEW-IT] 동기화 완료: ${data.article_no}`);
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
+
+      console.log(`✅ [REVIEW-IT] 전송 성공: ${data.article_no} (${data.stars}점)`);
     } catch (e) {
-      console.error('🔥 [REVIEW-IT] 전송 오류:', e.message);
+      console.error('🔥 [REVIEW-IT] 오류 발생:', e.message);
     }
   }
 
-  // 카페24 동적 로딩 대응을 위해 1.5초 후 실행
-  setTimeout(sync, 1500);
+  // 카페24 렌더링 속도를 고려하여 2초 후 실행
+  setTimeout(sync, 2000);
 })();
