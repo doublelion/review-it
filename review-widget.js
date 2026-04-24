@@ -64,16 +64,13 @@
     async loadSettings() {
       try {
 
-        // ✅ 1. mall_id 확인
         console.log('🔥 mall_id:', CONFIG.MALL_ID);
 
-        // ✅ 2. 방어 코드
         if (!CONFIG.MALL_ID || CONFIG.MALL_ID === 'default') {
           console.error('❌ mall_id 비정상:', CONFIG.MALL_ID);
           return;
         }
 
-        // ✅ 3. 실제 요청 로그
         const url = `${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`;
         console.log('🔥 API 요청:', url);
 
@@ -90,6 +87,7 @@
         } else {
           console.log("기본 설정 데이터가 없어 기본값을 사용합니다.");
         }
+
       } catch (e) {
         console.error("Setting load fail", e);
       }
