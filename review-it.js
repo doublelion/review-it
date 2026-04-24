@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Collector v2.7 (Target Lock & 400 Error Fix)
- * @Description: 메인 페이지 오작동 방지 및 불량 데이터 전송 차단
+ * @Project: Review-It Collector v2.8 (Deep Diagnostics)
+ * @Description: 수집 로그 정밀화 및 가짜 데이터 원천 차단
  */
 (function () {
   const CONFIG = {
@@ -11,97 +11,113 @@
   };
 
   async function syncReview() {
-    // [맥점 1] URL 검사: 게시판(/board/ 또는 /article/) 관련 주소가 아니면 즉시 종료
-    const path = window.location.pathname;
-    if (!path.includes('/board/') && !path.includes('/article/')) {
-        console.log("⏸️ [Review-it] 리뷰 게시판이 아니므로 수집을 대기합니다.");
-        return; 
+    // 1. 페이지 성격 파악 로그
+    const isBoard = window.location.pathname.includes('/board/') || window.location.pathname.includes('/article/');
+    console.log(`🔍 [Review-it] 현재 페이지 경로: ${window.location.pathname} (게시판 여부: ${isBoard})`);
+
+    if (!isBoard) {
+      console.warn("⚠️ [Review-it] 게시판이 아니므로 수집을 중단합니다. (메인/상품페이지 제외)");
+      return;
     }
 
-    console.log("🚀 [Review-it] 리뷰 데이터 스캔 시작...");
-    
     const readPage = document.querySelector('.xans-board-read, #board_read');
     if (readPage) {
+      console.log("📄 상세 페이지 감지 - 분석 시작");
       await handleReadPage(readPage);
     } else {
+      console.log("📋 목록 페이지 감지 - 분석 시작");
       await handleListPage();
     }
   }
 
-  // --- 상세 페이지 수집 ---
   async function handleReadPage(container) {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const articleNo = urlParams.get('no') || window.location.pathname.split('/').filter(Boolean).pop();
-      if (!articleNo || isNaN(articleNo)) return;
 
-      const writerEl = container.querySelector('.name, .writer');
-      const writer = writerEl ? writerEl.innerText.split('(')[0].trim() : "고객";
-      const subject = container.querySelector('h3, .subject')?.innerText.trim() || "리뷰";
-      
+      // 제목, 작성자, 평점 요소를 더 넓게 탐색
+      const subject = (container.querySelector('h3') || container.querySelector('.subject') || { innerText: '' }).innerText.trim();
+      const writer = (container.querySelector('.name') || container.querySelector('.writer') || { innerText: '고객' }).innerText.split('(')[0].trim();
+
+      // 별점(평점) 추출 로직 보강
+      let stars = 5;
+      const starEl = container.querySelector('[class*="star"], [class*="rating"]');
+      if (starEl) {
+        const scoreMatch = starEl.className.match(/\d+/);
+        if (scoreMatch) stars = parseInt(scoreMatch[0]);
+        // 카페24 특유의 별점 이미지 alt값이나 width값 대응
+        const starImg = starEl.querySelector('img');
+        if (starImg && starImg.alt.includes('점')) stars = parseInt(starImg.alt);
+      }
+
+      console.log(`📝 분석 결과 - 번호: ${articleNo}, 제목: ${subject}, 작성자: ${writer}, 평점: ${stars}`);
+
       const contentArea = container.querySelector('.detail, .content, #board_detail');
       let imageUrls = [];
       if (contentArea) {
         const imgs = contentArea.querySelectorAll('img:not([src*="star"]):not([src*="icon"])');
         imageUrls = Array.from(imgs).map(img => img.getAttribute('src'))
-          .filter(src => src && src.length > 10 && !src.includes('clear.gif'))
+          .filter(src => src && src.length > 10)
           .map(src => src.startsWith('http') ? src : (src.startsWith('//') ? 'https:' + src : window.location.origin + src));
       }
 
       await postToDB({
         mall_id: CONFIG.mallId,
         article_no: String(articleNo),
-        subject: subject,
+        subject: subject || "내용 없음",
         content: contentArea?.innerText.trim().substring(0, 500) || "",
         writer: writer,
-        stars: 5,
+        stars: stars,
         image_urls: imageUrls.length > 0 ? imageUrls : [CONFIG.defaultImg]
       });
-    } catch (e) { console.error("상세페이지 에러:", e); }
+    } catch (e) { console.error("❌ 상세페이지 분석 중 에러:", e); }
   }
 
-  // --- 목록 페이지 수집 ---
   async function handleListPage() {
-    // [맥점 2] 아무 링크나 잡지 않고, 실제 게시판 목록 영역 내부의 링크만 스캔
-    const boardListContainer = document.querySelector('.xans-board-list, .board_list, tbody');
-    if (!boardListContainer) return;
+    const listContainer = document.querySelector('.xans-board-list, .board_list, .ec-base-table');
+    if (!listContainer) {
+      console.error("❌ 목록 테이블을 찾을 수 없습니다.");
+      return;
+    }
 
-    const allLinks = boardListContainer.querySelectorAll('a[href*="no="], a[href*="/article/"]');
-    const processedNos = new Set();
+    const links = listContainer.querySelectorAll('a[href*="no="], a[href*="/article/"]');
+    console.log(`🔗 발견된 잠재적 리뷰 링크: ${links.length}개`);
 
-    for (let link of allLinks) {
+    for (let link of links) {
+      const subject = link.innerText.trim();
+      if (subject.length < 2 || subject === "삭제된 게시글입니다.") continue;
+
       const href = link.getAttribute('href');
-      // 제목이 비어있거나 너무 짧으면 불량 링크로 간주하고 패스
-      if (!href || link.innerText.trim().length < 2) continue;
-
       const match = href.match(/no=(\d+)/) || href.match(/\/(\d+)\/?$/);
       if (!match) continue;
 
       const articleNo = match[1];
-      if (processedNos.has(articleNo) || !articleNo || isNaN(articleNo)) continue;
-      processedNos.add(articleNo);
-
       const row = link.closest('tr') || link.closest('li');
-      const thumb = row?.querySelector('img[src*="/web/upload/"], .thumb img, .thumbnail img');
-      const writer = row?.querySelector('.writer, .name')?.innerText.split('(')[0].trim() || '고객';
+
+      // 목록에서 별점 이미지 찾기
+      let stars = 5;
+      const starImg = row?.querySelector('img[src*="star"]');
+      if (starImg && starImg.alt) {
+        const score = starImg.alt.match(/\d+/);
+        if (score) stars = parseInt(score[0]);
+      }
 
       await postToDB({
         mall_id: CONFIG.mallId,
         article_no: String(articleNo),
-        subject: link.innerText.trim(),
-        content: "리뷰 목록 수집",
-        writer: writer,
-        stars: 5,
-        image_urls: thumb ? [thumb.src] : [CONFIG.defaultImg]
+        subject: subject,
+        content: "목록 수집 데이터",
+        writer: row?.querySelector('.name, .writer')?.innerText.split('(')[0].trim() || "고객",
+        stars: stars,
+        image_urls: [CONFIG.defaultImg]
       });
     }
   }
 
-  // --- DB 전송 ---
   async function postToDB(data) {
-    // [맥점 3] 필수 데이터(게시글 번호, 제목)가 없으면 전송 자체를 차단 (400 에러 방지)
-    if (!data.article_no || data.article_no === 'undefined' || !data.subject) {
-        return; 
+    if (!data.article_no || data.article_no === 'undefined' || data.subject === "내용 없음") {
+      console.warn(`🚫 [${data.article_no}] 전송 부적합: 제목이나 번호가 없음`);
+      return;
     }
 
     try {
@@ -111,23 +127,14 @@
           'apikey': CONFIG.sbKey,
           'Authorization': `Bearer ${CONFIG.sbKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates' 
+          'Prefer': 'resolution=merge-duplicates'
         },
-        body: JSON.stringify({
-          ...data,
-          is_visible: true,
-          created_at: new Date().toISOString()
-        })
+        body: JSON.stringify({ ...data, is_visible: true, created_at: new Date().toISOString() })
       });
 
-      if (res.ok) {
-        console.log(`✅ [${data.article_no}] 동기화 성공`);
-      } else {
-        console.log(`⚠️ [${data.article_no}] DB 거절 (코드: ${res.status})`);
-      }
-    } catch (e) {
-      console.error("네트워크 오류:", e);
-    }
+      if (res.ok) console.log(`🚀 [${data.article_no}] DB 전송 성공! (${data.subject})`);
+      else console.error(`❌ [${data.article_no}] DB 거절: ${res.status}`);
+    } catch (e) { console.error("❌ 네트워크 오류:", e); }
   }
 
   setTimeout(syncReview, 2500);
