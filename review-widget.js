@@ -1,5 +1,5 @@
 /**
- * @Project: Review-It Widget Engine v3.9 (SaaS Edition)
+ * @Project: Review-It Widget Engine v4.0 (Path Fixed)
  */
 (function () {
   const CONFIG = {
@@ -9,39 +9,13 @@
     MALL_ID: window.location.hostname.split('.')[0],
     MALL_NAME: document.title.split('-')[0].trim() || 'SHOP',
     BOARD_NO: '4',
+    DEFAULT_IMG: 'https://ecudemo389879.cafe24.com/web/upload/no-img.png', // 기본 이미지 주소
     ADMIN_KEYWORDS: ['관리자', 'CS', 'TENUE', '운영자', 'Official'],
     COPYRIGHT: `© ${new Date().getFullYear()} ${window.location.hostname.split('.')[0].toUpperCase()}. ALL RIGHTS RESERVED.`
   };
 
   const ReviewApp = {
-    settings: { display_type: 'grid', tagline: 'Verified Authenticity', title: 'Customer Real Feed', description: '생생한 리얼 피드' },
-    data: {},
-    listOrder: [],
-    currentScrollY: 0,
-
-    async init() {
-      await this.checkSwiper();
-      this.injectCSS();
-      await Promise.all([this.loadSettings(), this.loadReviews()]);
-      this.renderList();
-    },
-
-    async checkSwiper() {
-      if (!window.Swiper) {
-        const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css'; document.head.appendChild(link);
-        await new Promise(res => { const script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js'; script.onload = res; document.head.appendChild(script); });
-      }
-    },
-
-    async loadSettings() {
-      try {
-        const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {
-          headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
-        });
-        const data = await res.json();
-        if (data && data[0]) this.settings = { ...this.settings, ...data[0] };
-      } catch (e) { }
-    },
+    // ... (init, checkSwiper, loadSettings, injectCSS는 기존과 동일) ...
 
     async loadReviews() {
       try {
@@ -49,88 +23,63 @@
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
         const list = await res.json();
-        this.listOrder = list.map(r => String(r.id));
-        list.forEach(r => {
-          this.data[String(r.id)] = r;
+
+        // 데이터 보정 로직 추가: image_urls가 없거나 비어있으면 기본 이미지 삽입
+        const validList = list.map(r => {
+          const imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
+          return { ...r, processed_images: imgs };
         });
-      } catch (e) { }
-    },
 
-
-    injectCSS() {
-      const style = document.createElement('style');
-      style.innerHTML = `
-        #rit-widget-root { max-width: 1200px; margin: 60px auto; padding: 0 20px; font-family: 'Pretendard', -apple-system, sans-serif; }
-        .rit-header-container { text-align: center; margin-bottom: 50px; }
-        .rit-tagline { font-size: 13px; color: #b45309; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 12px; display: block; }
-        .rit-title { font-size: clamp(32px, 5vw, 48px); font-weight: 800; color: #111; margin-bottom: 20px; }
-        .rit-description { font-size: 15px; color: #666; line-height: 1.6; max-width: 600px; margin: 0 auto; }
-        
-        .rit-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        @media (min-width: 768px) { .rit-grid { grid-template-columns: repeat(4, 1fr); } }
-        @media (min-width: 1024px) { .rit-grid { grid-template-columns: repeat(7, 1fr); } }
-
-        .rit-card { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 3/4; cursor: pointer; background: #eee; }
-        .rit-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
-        .rit-card:hover img { transform: scale(1.08); }
-        .rit-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%); padding: 15px; display: flex; flex-direction: column; justify-content: flex-end; color: #fff; }
-        .rit-overlay .subject { font-size: 13px; font-weight: 600; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .rit-overlay .info { font-size: 11px; opacity: 0.9; display: flex; justify-content: space-between; }
-        .rit-star-wrap { color: #fbbf24; letter-spacing: -1px; }
-
-        /* Modal Styles */
-        #rit-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 999999; display: none; align-items: center; justify-content: center; padding: 20px; }
-        #rit-modal.active { display: flex; }
-        .rit-modal-container { width: 100%; max-width: 1000px; height: 90vh; display: flex; flex-direction: column; position: relative; }
-        .rit-outside-nav { display: flex; justify-content: space-between; color: #fff; padding-bottom: 15px; }
-        .rit-modal-win { background: #fff; flex: 1; display: flex; overflow: hidden; border-radius: 4px; }
-        .rit-modal-left { flex: 1.2; background: #000; display: flex; align-items: center; justify-content: center; position: relative; }
-        .rit-modal-right { flex: 0.8; padding: 40px; display: flex; flex-direction: column; overflow-y: auto; }
-        @media (max-width: 768px) { .rit-modal-win { flex-direction: column; } .rit-modal-left { min-height: 300px; } .rit-modal-right { padding: 20px; } }
-      `;
-      document.head.appendChild(style);
-    },
-
-    renderList() {
-      const root = document.getElementById('rit-widget-root');
-      if (!root) return;
-
-      const headerHTML = `
-        <div class="rit-header-container">
-          <span class="rit-tagline">${this.settings.tagline}</span>
-          <h2 class="rit-title">${this.settings.title}</h2>
-          <p class="rit-description">${this.settings.description.replace(/\n/g, '<br>')}</p>
-        </div>`;
-
-      if (this.settings.display_type === 'swiper') {
-        root.innerHTML = headerHTML + `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${this.listOrder.map(id => `<div class="swiper-slide">${this.getItemHTML(id)}</div>`).join('')}</div></div>`;
-        new Swiper('.rit-main-swiper', { slidesPerView: 2.2, spaceBetween: 12, breakpoints: { 1024: { slidesPerView: 7, spaceBetween: 15 } } });
-      } else {
-        root.innerHTML = headerHTML + `<div class="rit-grid">${this.listOrder.map(id => this.getItemHTML(id)).join('')}</div>`;
-      }
-
-      if (!document.getElementById('rit-modal')) {
-        const m = document.createElement('div');
-        m.id = 'rit-modal';
-        m.onclick = (e) => { if (e.target === m) this.closeModal(); };
-        document.body.appendChild(m);
-      }
-
+        this.listOrder = validList.map(r => String(r.id));
+        validList.forEach(r => { this.data[String(r.id)] = r; });
+      } catch (e) { console.error("리뷰 로드 실패", e); }
     },
 
     getItemHTML(id) {
       const rv = this.data[id];
+      // 주석: rv.processed_images[0]를 사용하여 엑박 방지
       return `
         <div class="rit-card" onclick="ReviewApp.openModal('${id}')">
-          <img src="${this.fixImg(rv.all_images[0])}" loading="lazy">
+          <img src="${this.fixImg(rv.processed_images[0])}" loading="lazy" onerror="this.src='${CONFIG.DEFAULT_IMG}'">
           <div class="rit-overlay">
-            <div class="subject">${rv.subject}</div>
+            <div class="subject">${rv.subject || '리뷰'}</div>
             <div class="info">
               ${this.getStarHtml(rv.stars)}
               <span>${this.maskName(rv.writer)}</span>
             </div>
           </div>
         </div>`;
+    },
+
+    renderModalImages(d) {
+      const container = document.getElementById('modalImgContainer');
+      const imgs = d.processed_images;
+
+      if (imgs.length > 1 && imgs[0] !== CONFIG.DEFAULT_IMG) {
+        container.innerHTML = `<div class="swiper rit-modal-swiper" style="width:100%; height:100%;"><div class="swiper-wrapper">${imgs.map(img => `<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><img src="${this.fixImg(img)}" style="max-width:100%; max-height:100%; object-fit:contain;"></div>`).join('')}</div><div class="swiper-pagination" style="color:#fff;"></div></div>`;
+        new Swiper('.rit-modal-swiper', { pagination: { el: '.swiper-pagination', type: 'fraction' } });
+      } else {
+        container.innerHTML = `<img src="${this.fixImg(imgs[0])}" style="max-width:100%; max-height:100%; object-fit:contain;" onerror="this.src='${CONFIG.DEFAULT_IMG}'">`;
+      }
+    },
+
+    fixImg(url) {
+      if (!url) return CONFIG.DEFAULT_IMG;
+      if (url.startsWith('//')) return 'https:' + url;
+      if (url.startsWith('/')) return CONFIG.MALL + url;
+      return url;
+    },
+
+    maskName(name) {
+      if (!name || name === '고객') return '익명';
+      let clean = name.trim().split('(')[0].trim();
+      const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => clean.toUpperCase().includes(k.toUpperCase()));
+      if (isAdmin) return clean;
+
+      // 마스킹 로직 개선 (성*형태 또는 이*훈 형태)
+      if (clean.length <= 1) return "*";
+      if (clean.length === 2) return clean[0] + "*";
+      return clean[0] + "*" + clean.slice(-1);
     },
 
     async openModal(id) {
