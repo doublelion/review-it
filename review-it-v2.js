@@ -1,3 +1,11 @@
+/**
+ * @Project: Review-It Collector (SaaS)
+ * @Version: 2.1
+ * @Last_Updated: 2026-04-24 18:35
+ * @Author: REVIEW-IT
+ * @Description: 400 Bad Request 해결 (jsonb 필드 보정) 및 409 Conflict 방지
+ */
+
 (function () {
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
