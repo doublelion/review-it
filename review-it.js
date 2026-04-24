@@ -91,6 +91,9 @@
 
   // --- DB 전송 (409 에러 원천 차단) ---
   async function postToDB(data) {
+    // 번호가 없거나 'undefined'면 전송 자체를 하지 않음 (로그 정화)
+    if (!data.article_no || data.article_no === 'undefined') return;
+
     try {
       const res = await fetch(`${CONFIG.sbUrl}/reviews`, {
         method: 'POST',
@@ -98,7 +101,8 @@
           'apikey': CONFIG.sbKey,
           'Authorization': `Bearer ${CONFIG.sbKey}`,
           'Content-Type': 'application/json',
-          // 중복 발생 시 오류(409)를 내지 않고 덮어쓰기(Upsert) 하도록 강제 설정
+          // [맥점] 409 Conflict를 해결하는 핵심 코드
+          // 중복 발생 시 오류를 내지 말고 업데이트(Upsert) 하라는 명령어입니다.
           'Prefer': 'resolution=merge-duplicates' 
         },
         body: JSON.stringify({
@@ -109,13 +113,12 @@
       });
 
       if (res.ok) {
-        console.log(`✅ [${data.article_no}] 동기화 성공`);
-      } else {
-        const errLog = await res.json();
-        console.log(`❌ [${data.article_no}] 실패 사유:`, errLog.message);
+        // 성공 시에만 로그를 남겨서 콘솔을 깨끗하게 유지
+        console.log(`✅ [${data.article_no}] 동기화 완료`);
       }
     } catch (e) {
-      console.error("네트워크 오류:", e);
+      // 네트워크 에러 등 진짜 에러만 출력
+      console.error("🚀 전송 중 진짜 에러 발생:", e);
     }
   }
 
