@@ -200,7 +200,10 @@
                 </div>
                 <div class="flex-1">
                   <div class="text-sm font-bold text-gray-900 mb-1">${rv.subject || '제목없음'}</div>
-                  <div class="text-xs text-gray-500 line-clamp-2">${(rv.content || "").replace(/<[^>]*>?/gm, '')}</div>
+                  // 변경 (안전한 파싱)
+const safeDesc = rv.content ? String(rv.content).replace(/<[^>]*>?/gm, '') : '내용 없음';
+// HTML 렌더링 부분:
+<div class="text-xs text-gray-500 line-clamp-2">${safeDesc}</div>
                 </div>
               </div>
             </td>
@@ -315,7 +318,7 @@
       };
 
       try {
-        const res = await fetch(`${SB_URL}/rest/v1/widget_settings`, {
+        const res = await fetch(`${SB_URL}/rest/v1/widget_settings?mall_id=eq.${mallId}`, {
           method: 'POST',
           headers: {
             'apikey': SB_KEY,

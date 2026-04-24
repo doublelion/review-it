@@ -21,43 +21,42 @@
 
     for (let el of reviewElements) {
       try {
-        // 2. 데이터 추출
         const articleNo = el.getAttribute('data-article-no') || el.querySelector('a')?.href.match(/no=(\d+)/)?.[1];
-        const subject = el.querySelector('.subject, .title')?.innerText.trim();
-        const content = el.querySelector('.content, .view_content_raw')?.value || el.querySelector('.displaynone')?.innerText;
-        const writer = el.querySelector('.writer, .user-id')?.innerText.trim();
-        const stars = parseInt(el.querySelector('.star-rating, .star-rate')?.className.match(/\d+/)?.[0]) || 5;
-        const date = el.querySelector('.date, .write-date')?.innerText.trim();
 
-        // 이미지 추출 (여러 장일 경우 배열로)
-        const imgs = Array.from(el.querySelectorAll('img')).map(img => img.src).filter(src => src.includes('/web/upload/'));
+        // 1. 제목 추출 강화
+        const subject = el.querySelector('.subject, .title, td.title, .summary')?.innerText.trim() || '제목 없음';
 
-        if (!articleNo || !subject) continue;
+        // 2. 내용 추출 강화 (중요!)
+        // 카페24는 내용이 숨겨져 있거나(displaynone), 다른 클래스에 있는 경우가 많습니다.
+        const contentEl = el.querySelector('.content, .view_content_raw, .post-content, td.content, .detail, .displaynone');
+        let content = contentEl ? (contentEl.innerHTML || contentEl.innerText) : '';
 
-        // 3. Supabase 전송 (Upsert: 중복이면 업데이트, 없으면 삽입)
-        const payload = {
-          mall_id: CONFIG.mallId,
-          article_no: String(articleNo),
-          subject: subject,
-          content: content,
-          writer: writer,
-          stars: stars,
-          date: date,
-          image_urls: imgs,
-          is_visible: true // 기본값 노출
-        };
+        // 만약 여전히 비어있다면, 제목이라도 넣어서 NULL 에러 방지
+        if (!content || content.trim() === "") content = subject;
 
+        // 3. 작성자 및 별점
+        const writer = el.querySelector('.writer, .user-id, td.writer')?.innerText.trim() || '익명';
+        const stars = parseInt(el.querySelector('.star-rating, .star-rate, [class*="star"]')?.className.match(/\d+/)?.[0]) || 5;
+
+        // 4. 전송 (Prefer 헤더 오타 수정 확인!)
         const response = await fetch(`${CONFIG.sbUrl}/reviews`, {
           method: 'POST',
           headers: {
             'apikey': CONFIG.sbKey,
             'Authorization': `Bearer ${CONFIG.sbKey}`,
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
+            'Prefer': 'resolution=merge-duplicates' // ✅ merge-counter가 아님!
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            mall_id: CONFIG.mallId,
+            article_no: String(articleNo),
+            subject: subject,
+            content: content, // 이제 절대 NULL이 아님
+            writer: writer,
+            stars: stars,
+            is_visible: true
+          })
         });
-
         if (response.ok) {
           console.log(`✅ Sync Success: [${articleNo}] ${subject.substring(0, 10)}...`);
         }

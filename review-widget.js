@@ -200,7 +200,10 @@
               </div>
               ${this.getStarHtml(d.stars)}
               <h3 style="font-size:20px; font-weight:700; margin: 15px 0;">${d.subject}</h3>
-              <div style="font-size:15px; line-height:1.8; color:#444; flex:1; overflow-y:auto;">${d.content.replace(/<img[^>]*>/g, "")}</div>
+              const safeContent = d.content ? String(d.content).replace(/<img[^>]*>/g, "") : "내용이 없습니다.";
+
+// 그리고 HTML 렌더링 부분에 safeContent 변수를 넣습니다.
+<div style="font-size:15px; line-height:1.8; color:#444; flex:1; overflow-y:auto;">${safeContent}</div>
               <div style="margin-top:30px; border-top:1px solid #eee; padding-top:20px;">
                 <button onclick="location.href='/product/detail.html?product_no=${d.article_no}'" 
                         style="width:100%; padding:15px; background:#111; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">제품 보러가기</button>
