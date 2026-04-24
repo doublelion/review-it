@@ -1,124 +1,81 @@
 (function () {
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
-    sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // 발급받은 Anon Key 입력
-    mallId: 'ecudemo389879'      // 몰 아이디
+    // 기획자님이 주신 실제 키 적용
+    sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', 
+    mallId: 'ecudemo389879'
   };
 
-  const sentMap = new Map();
+  async function syncAll() {
+    // 1. 카페24 리스트의 각 리뷰 행(tr)을 모두 잡습니다.
+    const reviewRows = document.querySelectorAll('.review-item, .xans-record-');
+    console.log(`🔎 [REVIEW-IT] ${reviewRows.length}개의 리뷰 항목 감지됨.`);
+    
+    for (const row of reviewRows) {
+      // 2. 제목이 들어있는 a 태그 찾기
+      const linkEl = row.querySelector('a[href*="/article/"], a[href*="/product/read.html"]');
+      if (!linkEl) continue;
 
-  async function sync() {
-    // 1. 상세 페이지 감지 (카페24 표준)
-    if (!document.querySelector('.xans-board-readpackage, .xans-board-read, #board_read')) return;
+      // 3. 글번호(article_no) 추출
+      const href = linkEl.getAttribute('href');
+      const articleNoMatch = href.match(/\/(\d+)\/?(?:\?.*)?$/) || href.match(/no=(\d+)/);
+      if (!articleNoMatch) continue;
+      const articleNo = articleNoMatch[1];
 
-    const articleNo = getArticleNo();
-    if (!articleNo || sentMap.has(articleNo)) return;
+      // 4. 제목(subject) 추출 - a태그 안의 순수 텍스트만 (댓글수 제외)
+      let subject = linkEl.childNodes[0]?.textContent?.trim() || linkEl.innerText.trim();
+      subject = subject.replace(/\[\d+\]$/, '').trim(); // [1] 같은 댓글수 제거
 
-    console.log('📸 [REVIEW-IT] 데이터 수집 시작:', articleNo);
+      // 5. 작성자(writer) 추출
+      const writerEl = row.querySelector('td:nth-child(5), .writer, .name');
+      const writer = writerEl ? writerEl.innerText.split('(')[0].trim() : '고객';
 
-    // 2. 데이터 추출
-    const data = extractData(articleNo);
+      // 6. 별점(stars) 추출
+      const starImg = row.querySelector('img[alt*="점"]');
+      const stars = starImg ? parseInt(starImg.alt.replace(/[^0-9]/g, '')) : 5;
 
-    // 3. 유효성 검증
-    if (!data.subject || data.content.length < 5) {
-      console.log('⛔ [REVIEW-IT] 내용 부족으로 스킵');
-      return;
+      // 7. 데이터 패키징
+      const payload = {
+        mall_id: CONFIG.mallId,
+        article_no: articleNo,
+        subject: subject || "내용 없음",
+        writer: writer,
+        stars: stars,
+        content: "리스트 수집 데이터", // 리스트 페이지 특성상 본문은 생략
+        is_visible: true,
+        updated_at: new Date().toISOString()
+      };
+
+      await sendToSupabase(payload);
     }
-
-    // 4. 전송
-    await send(data);
-    sentMap.set(articleNo, true);
   }
 
-  function getArticleNo() {
-    const url = new URL(location.href);
-    return url.searchParams.get('no') || location.pathname.match(/\/(\d+)\/?$/)?.[1];
-  }
-
-  function extractData(articleNo) {
-    // 1. 본문 영역 (상세페이지 전용)
-    const contentEl = document.querySelector('.fr-view-article, .detail, #prdReviewContent, .boardView .content');
-
-    // 2. 제목 추출 로직 (리스트의 a태그 vs 상세의 h3)
-    // 리스트 페이지의 a 태그 내 제목을 먼저 찾고, 없으면 상세페이지 h3를 찾습니다.
-    const listTitleLink = document.querySelector(`a[href*="/${articleNo}/"]`);
-    let titleText = "";
-
-    if (listTitleLink) {
-      // a 태그 안에 있는 텍스트 중 댓글 수([1]) 등 불필요한 태그를 제외하고 순수 텍스트만 추출
-      titleText = listTitleLink.childNodes[0]?.textContent?.trim() || listTitleLink.innerText.trim();
-    } else {
-      const subjectEl = document.querySelector('.head h3, .subject, .boardView .title, h3');
-      titleText = subjectEl?.innerText.trim() || "";
-    }
-
-    // 3. 작성자 (IP 제거 로직)
-    const writerEl = document.querySelector('.description .name, .name, .boardView .writer');
-    const rawWriter = writerEl?.innerText || '고객';
-    const cleanWriter = rawWriter.split('(')[0].replace(/ip:/gi, '').trim();
-
-    // 4. 별점 추출
-    const ratingImg = document.querySelector('.etcArea img[src*="star-rating"], .point img[src*="star"]');
-    let starCount = 5;
-    if (ratingImg) {
-      const altText = ratingImg.alt || '';
-      const match = altText.match(/\d/);
-      if (match) starCount = parseInt(match[0]);
-    }
-
-    // 5. 이미지 추출
-    const imgs = contentEl
-      ? Array.from(contentEl.querySelectorAll('img'))
-        .map(i => i.src)
-        .filter(src => {
-          return src &&
-            src.length > 30 &&
-            (src.includes('/web/upload/') || src.includes('file_directory')) &&
-            !src.includes('icon') &&
-            !src.includes('clear.gif');
-        })
-      : [];
-
-    return {
-      mall_id: CONFIG.mallId,
-      article_no: String(articleNo),
-      subject: titleText,      // 수정된 제목 변수 적용
-      content: contentEl?.innerText.trim() || '',
-      writer: cleanWriter,
-      stars: starCount,
-      image_urls: imgs,
-      is_visible: true
-    };
-  }
-
-  async function send(data) {
+  async function sendToSupabase(data) {
     try {
-      const res = await fetch(
-        `${CONFIG.sbUrl}/reviews`,
-        {
-          method: 'POST',
-          headers: {
-            apikey: CONFIG.sbKey,
-            Authorization: `Bearer ${CONFIG.sbKey}`,
-            'Content-Type': 'application/json',
-            // 중요: unique_mall_article 제약조건을 이용한 Upsert 처리
-            'Prefer': 'resolution=merge-duplicates'
-          },
-          body: JSON.stringify(data)
-        }
-      );
+      const res = await fetch(`${CONFIG.sbUrl}/reviews`, {
+        method: 'POST',
+        headers: {
+          'apikey': CONFIG.sbKey,
+          'Authorization': `Bearer ${CONFIG.sbKey}`,
+          'Content-Type': 'application/json',
+          // 409 에러 방지의 핵심: 중복 시 업데이트(UPSERT) 수행
+          'Prefer': 'resolution=merge-duplicates' 
+        },
+        body: JSON.stringify(data)
+      });
 
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(err);
+      if (res.ok) {
+        console.log(`✅ [${data.article_no}] 수집 완료: ${data.subject.substring(0, 15)}...`);
+      } else {
+        const errorText = await res.text();
+        console.error(`❌ [${data.article_no}] 전송 실패:`, errorText);
       }
-
-      console.log(`✅ [REVIEW-IT] 전송 성공: ${data.article_no} (${data.stars}점)`);
     } catch (e) {
-      console.error('🔥 [REVIEW-IT] 오류 발생:', e.message);
+      console.error('🔥 네트워크 오류:', e);
     }
   }
 
-  // 카페24 렌더링 속도를 고려하여 2초 후 실행
-  setTimeout(sync, 2000);
+  // 카페24의 동적 요소를 기다리기 위해 2.5초 후 실행
+  console.log('🚀 [REVIEW-IT] 수집기 가동 중...');
+  setTimeout(syncAll, 2500);
 })();
