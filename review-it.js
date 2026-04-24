@@ -36,47 +36,57 @@
   }
 
   function extractData(articleNo) {
-    // 본문 영역
+    // 1. 본문 영역 (상세페이지 전용)
     const contentEl = document.querySelector('.fr-view-article, .detail, #prdReviewContent, .boardView .content');
-    
-    // 제목
-    const subjectEl = document.querySelector('.head h3, .subject, .boardView .title, h3');
 
-    // 작성자 (IP 제거 로직 포함)
+    // 2. 제목 추출 로직 (리스트의 a태그 vs 상세의 h3)
+    // 리스트 페이지의 a 태그 내 제목을 먼저 찾고, 없으면 상세페이지 h3를 찾습니다.
+    const listTitleLink = document.querySelector(`a[href*="/${articleNo}/"]`);
+    let titleText = "";
+
+    if (listTitleLink) {
+      // a 태그 안에 있는 텍스트 중 댓글 수([1]) 등 불필요한 태그를 제외하고 순수 텍스트만 추출
+      titleText = listTitleLink.childNodes[0]?.textContent?.trim() || listTitleLink.innerText.trim();
+    } else {
+      const subjectEl = document.querySelector('.head h3, .subject, .boardView .title, h3');
+      titleText = subjectEl?.innerText.trim() || "";
+    }
+
+    // 3. 작성자 (IP 제거 로직)
     const writerEl = document.querySelector('.description .name, .name, .boardView .writer');
     const rawWriter = writerEl?.innerText || '고객';
     const cleanWriter = rawWriter.split('(')[0].replace(/ip:/gi, '').trim();
 
-    // 별점 (SQL의 stars 컬럼과 매칭)
+    // 4. 별점 추출
     const ratingImg = document.querySelector('.etcArea img[src*="star-rating"], .point img[src*="star"]');
-    let starCount = 5; // 기본값
+    let starCount = 5;
     if (ratingImg) {
       const altText = ratingImg.alt || '';
       const match = altText.match(/\d/);
       if (match) starCount = parseInt(match[0]);
     }
 
-    // 이미지 추출 (SQL의 image_urls jsonb 컬럼과 매칭)
+    // 5. 이미지 추출
     const imgs = contentEl
       ? Array.from(contentEl.querySelectorAll('img'))
-          .map(i => i.src)
-          .filter(src => {
-            return src && 
-                   src.length > 30 && 
-                   (src.includes('/web/upload/') || src.includes('file_directory')) && 
-                   !src.includes('icon') && 
-                   !src.includes('clear.gif');
-          })
+        .map(i => i.src)
+        .filter(src => {
+          return src &&
+            src.length > 30 &&
+            (src.includes('/web/upload/') || src.includes('file_directory')) &&
+            !src.includes('icon') &&
+            !src.includes('clear.gif');
+        })
       : [];
 
     return {
       mall_id: CONFIG.mallId,
       article_no: String(articleNo),
-      subject: subjectEl?.innerText.trim() || '',
+      subject: titleText,      // 수정된 제목 변수 적용
       content: contentEl?.innerText.trim() || '',
       writer: cleanWriter,
-      stars: starCount,        // SQL stars 컬럼명 일치
-      image_urls: imgs,        // SQL image_urls 컬럼명 일치 (배열로 전달하면 jsonb가 자동 처리)
+      stars: starCount,
+      image_urls: imgs,
       is_visible: true
     };
   }
@@ -92,7 +102,7 @@
             Authorization: `Bearer ${CONFIG.sbKey}`,
             'Content-Type': 'application/json',
             // 중요: unique_mall_article 제약조건을 이용한 Upsert 처리
-            'Prefer': 'resolution=merge-duplicates' 
+            'Prefer': 'resolution=merge-duplicates'
           },
           body: JSON.stringify(data)
         }
