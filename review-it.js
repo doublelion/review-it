@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Collector v2.5 (Anti-Failure Edition)
- * @Description: 목록/상세 수집 로직 강화 및 이미지 경로 강제 보정
+ * @Project: Review-It Collector v2.6 (Final Stable)
+ * @Description: 409 Conflict 해결 및 게시글 번호 추출 로직 강화
  */
 (function () {
   const CONFIG = {
@@ -11,127 +11,113 @@
   };
 
   async function syncReview() {
-    console.log("🚀 [Review-it] 수집 엔진 가동...");
-    // 상세 페이지 판별 로직 강화
-    const isReadPage = window.location.href.includes('/read.html') || document.querySelector('.xans-board-read');
-
-    if (isReadPage) {
-      console.log("📄 상세 페이지 분석 중...");
-      await handleReadPage();
+    console.log("🚀 [Review-it] 데이터 스캔 시작...");
+    
+    // 상세 페이지 여부 확인
+    const readPage = document.querySelector('.xans-board-read, #board_read');
+    if (readPage) {
+      await handleReadPage(readPage);
     } else {
-      console.log("📋 목록 페이지 스캔 중...");
       await handleListPage();
     }
   }
 
-  // --- 상세 페이지 수집 (정밀도 향상) ---
-  async function handleReadPage() {
+  // --- 상세 페이지 수집 ---
+  async function handleReadPage(container) {
     try {
-      const container = document.querySelector('.xans-board-read, #board_read, .ec-base-table.typeWrite');
-      if (!container) return;
-
       const urlParams = new URLSearchParams(window.location.search);
+      // 번호 추출 로직 강화 (쿼리스트링 우선, 없으면 경로에서)
       const articleNo = urlParams.get('no') || window.location.pathname.split('/').filter(Boolean).pop();
+      if (!articleNo || isNaN(articleNo)) return;
 
-      // 작성자 추출 (IP 제거)
-      let writerEl = container.querySelector('.name, .writer');
-      let writer = writerEl ? writerEl.innerText.split('(')[0].trim() : "고객";
-
-      // 이미지 추출 (본문 영역 이미지 전체 스캔)
-      const contentArea = container.querySelector('.detail, .content, .fr-view, #board_detail');
+      const writerEl = container.querySelector('.name, .writer');
+      const writer = writerEl ? writerEl.innerText.split('(')[0].trim() : "고객";
+      const subject = container.querySelector('h3, .subject')?.innerText.trim() || "리뷰";
+      
+      const contentArea = container.querySelector('.detail, .content, #board_detail');
       let imageUrls = [];
       if (contentArea) {
         const imgs = contentArea.querySelectorAll('img:not([src*="star"]):not([src*="icon"])');
-        imageUrls = Array.from(imgs)
-          .map(img => img.getAttribute('src'))
-          .filter(src => src && src.length > 10 && !src.includes('clear.gif'));
+        imageUrls = Array.from(imgs).map(img => img.getAttribute('src'))
+          .filter(src => src && src.length > 10 && !src.includes('clear.gif'))
+          .map(src => src.startsWith('http') ? src : (src.startsWith('//') ? 'https:' + src : window.location.origin + src));
       }
-
-      // 경로 보정
-      imageUrls = imageUrls.map(src => {
-        if (src.startsWith('http')) return src;
-        if (src.startsWith('//')) return 'https:' + src;
-        return window.location.origin + src;
-      });
-
-      if (imageUrls.length === 0) imageUrls = [CONFIG.defaultImg];
 
       await postToDB({
         mall_id: CONFIG.mallId,
         article_no: String(articleNo),
-        subject: container.querySelector('h3, .subject')?.innerText.trim() || "리뷰",
-        content: contentArea?.innerText.trim() || "",
+        subject: subject,
+        content: contentArea?.innerText.trim().substring(0, 500) || "",
         writer: writer,
         stars: 5,
-        image_urls: imageUrls
+        image_urls: imageUrls.length > 0 ? imageUrls : [CONFIG.defaultImg]
       });
     } catch (e) { console.error("상세페이지 에러:", e); }
   }
 
-  // --- 목록 페이지 수집 (정규식 완화) ---
+  // --- 목록 페이지 수집 ---
   async function handleListPage() {
-    // 모든 리뷰 관련 링크 수집
-    const allLinks = document.querySelectorAll('a[href*="/article/"], a[href*="no="], a[href*="/board/product/read"]');
+    // 카페24의 다양한 링크 패턴 대응
+    const allLinks = document.querySelectorAll('a[href*="no="], a[href*="/article/"]');
     const processedNos = new Set();
 
     for (let link of allLinks) {
       const href = link.getAttribute('href');
-      if (!href) continue;
+      if (!href || link.innerText.trim().length < 2) continue;
 
-      // 숫자(게시글 번호)만 추출하는 더 강력한 정규식
-      const match = href.match(/no=(\d+)/) || href.match(/\/(\d+)\/?$/) || href.match(/read\.html\/(.+)\/(\d+)\//);
+      // 정규식: no=숫자 혹은 /번호/ 형태 추출
+      const match = href.match(/no=(\d+)/) || href.match(/\/(\d+)\/?$/);
       if (!match) continue;
 
-      const articleNo = match[match.length - 1]; // 매칭된 결과 중 마지막 숫자 그룹
-      if (processedNos.has(articleNo)) continue;
+      const articleNo = match[1];
+      if (processedNos.has(articleNo) || articleNo === "undefined") continue;
       processedNos.add(articleNo);
 
-      const row = link.closest('tr') || link.closest('li') || link.parentElement;
-
-      // 목록 썸네일 (없으면 기본 이미지)
-      const thumb = row.querySelector('img[src*="/web/upload/"], .thumb img, .thumbnail img');
-      let imageUrls = thumb ? [thumb.src] : [CONFIG.defaultImg];
+      const row = link.closest('tr') || link.closest('li');
+      const thumb = row?.querySelector('img[src*="/web/upload/"], .thumb img, .thumbnail img');
+      const writer = row?.querySelector('.writer, .name')?.innerText.split('(')[0].trim() || '고객';
 
       await postToDB({
         mall_id: CONFIG.mallId,
         article_no: String(articleNo),
-        subject: link.innerText.trim() || "리뷰 제목",
+        subject: link.innerText.trim(),
         content: "",
-        writer: row.querySelector('.writer, .name')?.innerText.split('(')[0].trim() || '고객',
+        writer: writer,
         stars: 5,
-        image_urls: imageUrls
+        image_urls: thumb ? [thumb.src] : [CONFIG.defaultImg]
       });
     }
   }
 
-  // 수집기 파일의 postToDB 부분을 이렇게 수정해보세요
+  // --- DB 전송 (409 에러 원천 차단) ---
   async function postToDB(data) {
-    // 번호가 없으면 전송 중단
-    if (!data.article_no || data.article_no === 'undefined') return;
+    try {
+      const res = await fetch(`${CONFIG.sbUrl}/reviews`, {
+        method: 'POST',
+        headers: {
+          'apikey': CONFIG.sbKey,
+          'Authorization': `Bearer ${CONFIG.sbKey}`,
+          'Content-Type': 'application/json',
+          // 중복 발생 시 오류(409)를 내지 않고 덮어쓰기(Upsert) 하도록 강제 설정
+          'Prefer': 'resolution=merge-duplicates' 
+        },
+        body: JSON.stringify({
+          ...data,
+          is_visible: true,
+          created_at: new Date().toISOString()
+        })
+      });
 
-    const res = await fetch(`${CONFIG.sbUrl}/reviews`, {
-      method: 'POST',
-      headers: {
-        'apikey': CONFIG.sbKey,
-        'Authorization': `Bearer ${CONFIG.sbKey}`,
-        'Content-Type': 'application/json',
-        // 핵심: 409 오류를 내지 않고, 중복되면 덮어쓰기(Upsert) 하라는 설정
-        'Prefer': 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify({
-        ...data,
-        is_visible: true,
-        created_at: new Date().toISOString()
-      })
-    });
-
-    if (res.ok) {
-      console.log(`✅ [${data.article_no}] 동기화 성공`);
-    } else if (res.status === 409) {
-      // 409가 떠도 사실상 업데이트 된 것이니 성공으로 간주하거나 무시하도록 처리
-      console.log(`ℹ️ [${data.article_no}] 이미 존재함 (건너뜀)`);
+      if (res.ok) {
+        console.log(`✅ [${data.article_no}] 동기화 성공`);
+      } else {
+        const errLog = await res.json();
+        console.log(`❌ [${data.article_no}] 실패 사유:`, errLog.message);
+      }
+    } catch (e) {
+      console.error("네트워크 오류:", e);
     }
   }
 
-  setTimeout(syncReview, 2500); // 렌더링 대기 시간 살짝 증가
+  setTimeout(syncReview, 2500);
 })();
