@@ -64,18 +64,7 @@
     async loadSettings() {
       try {
 
-        console.log('🔥 mall_id:', CONFIG.MALL_ID);
-
-        if (!CONFIG.MALL_ID || CONFIG.MALL_ID === 'default') {
-          console.error('❌ mall_id 비정상:', CONFIG.MALL_ID);
-          return;
-        }
-
-        const url = `${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`;
-        if (!CONFIG.MALL_ID || CONFIG.MALL_ID === 'default') return;
-        console.log('🔥 API 요청:', url);
-
-        const res = await fetch(url, {
+        const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {
           headers: {
             'apikey': CONFIG.KEY,
             'Authorization': `Bearer ${CONFIG.KEY}`
@@ -85,12 +74,12 @@
         const data = await res.json();
         if (data && data[0]) {
           this.settings = { ...this.settings, ...data[0] };
+          console.log("✅ 설정 로드 성공:", this.settings.display_type);
         } else {
-          console.log("기본 설정 데이터가 없어 기본값을 사용합니다.");
+          console.log("ℹ️ 설정 데이터가 없어 기본값을 유지합니다.");
         }
-
       } catch (e) {
-        console.error("Setting load fail", e);
+        console.error("❌ Setting load fail:", e);
       }
     },
 
