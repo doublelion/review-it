@@ -24,28 +24,34 @@
         });
         const list = await res.json();
 
-        // 데이터 보정 로직 추가: image_urls가 없거나 비어있으면 기본 이미지 삽입
-        const validList = list.map(r => {
-          const imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
-          return { ...r, processed_images: imgs };
-        });
+        this.listOrder = list.map(r => String(r.id));
+        list.forEach(r => {
+          // [맥점 1 해결] DB 컬럼명 혼선 방지 (image_urls와 all_images 통합)
+          const rawImgs = r.image_urls || r.all_images || [];
+          r.safe_images = rawImgs.length > 0 ? rawImgs : ['/web/upload/no-img.png'];
 
-        this.listOrder = validList.map(r => String(r.id));
-        validList.forEach(r => { this.data[String(r.id)] = r; });
-      } catch (e) { console.error("리뷰 로드 실패", e); }
+          this.data[String(r.id)] = r;
+        });
+      } catch (e) { console.error("데이터 로드 실패", e); }
     },
 
     getItemHTML(id) {
       const rv = this.data[id];
-      // 주석: rv.processed_images[0]를 사용하여 엑박 방지
+      const writerDisplay = (rv.writer && rv.writer.includes('*')) ? rv.writer : this.maskName(rv.writer);
+
+      // DB에 저장된 첫 번째 이미지를 가져오되, 없으면 기본 경로
+      const firstImg = (rv.image_urls && rv.image_urls.length > 0) ? rv.image_urls[0] : '/web/upload/no-img.png';
+
       return `
         <div class="rit-card" onclick="ReviewApp.openModal('${id}')">
-          <img src="${this.fixImg(rv.processed_images[0])}" loading="lazy" onerror="this.src='${CONFIG.DEFAULT_IMG}'">
+          <img src="${this.fixImg(firstImg)}" 
+               onerror="this.src='${CONFIG.MALL}/web/upload/no-img.png'" 
+               loading="lazy">
           <div class="rit-overlay">
-            <div class="subject">${rv.subject || '리뷰'}</div>
+            <div class="subject">${rv.subject || '리뷰 내용'}</div>
             <div class="info">
               ${this.getStarHtml(rv.stars)}
-              <span>${this.maskName(rv.writer)}</span>
+              <span>${writerDisplay}</span>
             </div>
           </div>
         </div>`;
@@ -53,21 +59,39 @@
 
     renderModalImages(d) {
       const container = document.getElementById('modalImgContainer');
-      const imgs = d.processed_images;
+      // DB 필드명 image_urls 기준으로 통합
+      const imgs = (d.image_urls && d.image_urls.length > 0) ? d.image_urls : ['/web/upload/no-img.png'];
 
-      if (imgs.length > 1 && imgs[0] !== CONFIG.DEFAULT_IMG) {
-        container.innerHTML = `<div class="swiper rit-modal-swiper" style="width:100%; height:100%;"><div class="swiper-wrapper">${imgs.map(img => `<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><img src="${this.fixImg(img)}" style="max-width:100%; max-height:100%; object-fit:contain;"></div>`).join('')}</div><div class="swiper-pagination" style="color:#fff;"></div></div>`;
+      if (imgs.length > 1 && imgs[0] !== '/web/upload/no-img.png') {
+        container.innerHTML = `
+          <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
+            <div class="swiper-wrapper">
+              ${imgs.map(img => `
+                <div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;">
+                  <img src="${this.fixImg(img)}" onerror="this.src='${CONFIG.MALL}/web/upload/no-img.png'" style="max-width:100%; max-height:100%; object-fit:contain;">
+                </div>`).join('')}
+            </div>
+            <div class="swiper-pagination" style="color:#fff;"></div>
+          </div>`;
         new Swiper('.rit-modal-swiper', { pagination: { el: '.swiper-pagination', type: 'fraction' } });
       } else {
-        container.innerHTML = `<img src="${this.fixImg(imgs[0])}" style="max-width:100%; max-height:100%; object-fit:contain;" onerror="this.src='${CONFIG.DEFAULT_IMG}'">`;
+        container.innerHTML = `<img src="${this.fixImg(imgs[0])}" onerror="this.src='${CONFIG.MALL}/web/upload/no-img.png'" style="max-width:100%; max-height:100%; object-fit:contain;">`;
       }
     },
 
     fixImg(url) {
-      if (!url) return CONFIG.DEFAULT_IMG;
-      if (url.startsWith('//')) return 'https:' + url;
-      if (url.startsWith('/')) return CONFIG.MALL + url;
-      return url;
+      // 이미지 URL이 없거나, placeholder 주소인 경우 카페24 기본 이미지 반환
+      if (!url || url.includes('placeholder') || url.includes('undefined')) {
+        return '/web/upload/no-img.png';
+      }
+      // 카페24 내부 경로(/web/...) 대응
+      let fixedUrl = url;
+      if (url.startsWith('//')) {
+        fixedUrl = 'https:' + url;
+      } else if (url.startsWith('/')) {
+        fixedUrl = CONFIG.MALL + url;
+      }
+      return fixedUrl;
     },
 
     maskName(name) {
