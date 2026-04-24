@@ -63,12 +63,23 @@
 
     async loadSettings() {
       try {
+        // ✅ 수정: mall_id를 사용하여 쿼리합니다.
         const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {
-          headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
+          headers: {
+            'apikey': CONFIG.KEY,
+            'Authorization': `Bearer ${CONFIG.KEY}`
+          }
         });
+
         const data = await res.json();
-        if (data && data[0]) this.settings = { ...this.settings, ...data[0] };
-      } catch (e) { console.error("Setting fail", e); }
+        if (data && data[0]) {
+          this.settings = { ...this.settings, ...data[0] };
+        } else {
+          console.log("기본 설정 데이터가 없어 기본값을 사용합니다.");
+        }
+      } catch (e) {
+        console.error("Setting load fail", e);
+      }
     },
 
     async loadReviews() {
