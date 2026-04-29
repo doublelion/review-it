@@ -6,7 +6,7 @@
   const CONFIG = {
     URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
     KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-    MALL_ID: 'ecudemo389879', // 몰 아이디 고정
+    MALL_ID: CAFE24API.MALL_ID || 'ecudemo389879', // 동적 할당으로 변경
     MALL_ORIGIN: window.location.origin,
     BOARD_NO: '4', // 상품후기 게시판 번호
     ADMIN_KEYWORDS: ['관리자', 'CS', '운영자', 'Official'],
@@ -178,6 +178,10 @@
     }
   };
 
-  window.ReviewApp = ReviewApp;
-  ReviewApp.init();
+  // 실행 시점 보정
+  if (document.readyState === 'complete') {
+    ReviewApp.init();
+  } else {
+    window.addEventListener('load', () => ReviewApp.init());
+  }
 })();
