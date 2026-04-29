@@ -31,13 +31,13 @@
 
     if (payload.length === 0) return console.error("❌ 수집할 리뷰를 찾지 못했습니다. 게시판 페이지가 맞나요?");
 
-    const res = await fetch(`${CONFIG.sbUrl}/reviews`, {
+    await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, { // 👈 파라미터 추가
       method: 'POST',
       headers: {
         'apikey': CONFIG.sbKey,
         'Authorization': `Bearer ${CONFIG.sbKey}`,
         'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates'
+        'Prefer': 'resolution=merge-duplicates' // 👈 중복 시 병합(업데이트) 요청
       },
       body: JSON.stringify(payload)
     });
