@@ -58,13 +58,23 @@
 
     async loadReviews() {
       try {
-        const res = await fetch(`${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true&order=created_at.desc&limit=10`, {
-          headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
+        const res = await fetch(`${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true&order=created_at.desc`, {
+          headers: {
+            'apikey': CONFIG.KEY,
+            'Authorization': `Bearer ${CONFIG.KEY}`,
+            'Content-Type': 'application/json'
+          }
         });
         const list = await res.json();
+        console.log('📦 로드된 데이터:', list); // 데이터가 정말 오는지 콘솔에서 확인용
+
+        if (list.length === 0) return; // 데이터 없으면 중단
+
         this.listOrder = list.map(r => String(r.id));
         list.forEach(r => { this.data[String(r.id)] = r; });
-      } catch (e) { console.error("데이터 로드 실패", e); }
+      } catch (e) {
+        console.error("❌ 데이터 로드 실패", e);
+      }
     },
 
     renderWidget() {
@@ -126,7 +136,7 @@
 
       const modalContainer = document.getElementById('rit-modal');
       const content = document.getElementById('rit-modal-content');
-      
+
       content.innerHTML = `
         <div class="rit-modal-container">
           <div class="rit-modal-left" id="modalImgContainer">
@@ -165,7 +175,7 @@
       let clean = name.trim();
       if (clean.length <= 1) return "*";
       if (clean.length === 2) return clean[0] + "*";
-      return clean[0] + "*" + clean.slice(-1);
+      return clean[0] + "*" + clean.slice(-1); ㄹ
     },
 
     getStarHtml(score) {
