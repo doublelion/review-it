@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Widget Engine v6.5
- * @Features: 모달 내부 GRID VIEW 오버레이, Deep Scan(이미지추출), 모달 노출 버그 수정
+ * @Project: Review-It Widget Engine v6.6
+ * @Features: 모달 내부 GRID VIEW 오버레이, Deep Scan(이미지추출), 위젯 동적 세팅 및 텍스트 커스텀 반영
  */
 (function (window) {
   const CONFIG = {
@@ -20,14 +20,37 @@
     listOrder: [],
     currentScrollY: 0,
     modalImgSwiper: null,
+    settings: {
+      display_type: 'swiper',
+      tagline: 'Verified Authenticity',
+      title: 'PEOPLE CHOICE',
+      description: '"당신의 선택에 확신을 더하는 기록"<br>실제 구매 고객들이 직접 기록한 트뉘만의 리얼 피드'
+    },
 
     async init() {
       this.injectCSS();
+      await this.loadWidgetSettings(); // 관리자 설정 불러오기 추가
       await this.loadReviews();
       this.renderWidget();
     },
 
-    // [중요] 이미지가 없을 때 상세페이지에서 직접 추출
+    // 위젯 세팅 불러오기
+    async loadWidgetSettings() {
+      try {
+        const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {
+          headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
+        });
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const s = data[0];
+          if (s.display_type) this.settings.display_type = s.display_type;
+          if (s.tagline) this.settings.tagline = s.tagline;
+          if (s.title) this.settings.title = s.title;
+          if (s.description) this.settings.description = s.description.replace(/\n/g, '<br>'); // 줄바꿈 반영
+        }
+      } catch (e) { console.error("위젯 세팅 로드 실패", e); }
+    },
+
     async _deepScan(articleNo) {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
@@ -74,31 +97,35 @@
       const container = document.getElementById('rit-widget-container');
       if (!container) return;
 
-      container.innerHTML = `
+      // 동적 문구 적용
+      let html = `
         <div class="rit-header-area">
-          <span class="rit-sub">Verified Authenticity</span>
-          <h2>PEOPLE <span class="rit-thin">CHOICE</span></h2>
+          <span class="rit-sub">${this.settings.tagline}</span>
+          <h2>${this.settings.title}</h2>
           <div class="rit-line"></div>
-          <p class="rit-desc">"당신의 선택에 확신을 더하는 기록"<br>실제 구매 고객들이 직접 기록한 트뉘만의 리얼 피드</p>
+          <p class="rit-desc">${this.settings.description}</p>
         </div>
-        
-        <div class="swiper rit-main-swiper">
-          <div class="swiper-wrapper">
-            ${this.listOrder.map(id => `
-              <div class="swiper-slide rit-card" onclick="ReviewApp.openModal('${id}')">
-                <img src="${this.data[id].all_images[0]}" class="rit-main-img">
-                <div class="rit-card-overlay">
-                  <div class="rit-subject">${this.data[id].subject}</div>
-                  <div class="rit-meta">
-                    <span>${this.maskName(this.data[id].writer)}</span>
-                    <span class="rit-bar"></span>
-                    <div class="rit-stars"><img src="${CONFIG.STAR_PATH}${this.data[id].stars || 5}.svg"></div>
-                  </div>
-                </div>
-              </div>`).join('')}
-          </div>
-        </div>
+      `;
 
+      // 동적 뷰 타입 (Grid vs Swiper) 적용
+      if (this.settings.display_type === 'grid') {
+        html += `
+          <div class="rit-main-grid-layout">
+            ${this.listOrder.map(id => this.getCardHTML(id)).join('')}
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="swiper rit-main-swiper">
+            <div class="swiper-wrapper">
+              ${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // 모달 HTML 추가 (기존과 동일)
+      html += `
         <div id="ritModal" class="rit-modal-container">
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
           <div class="rit-modal-window">
@@ -133,16 +160,37 @@
         </div>
       `;
 
-      new Swiper('.rit-main-swiper', {
-        slidesPerView: 2.2, spaceBetween: 16, autoplay: { delay: 3500 },
-        breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 24 } }
-      });
+      container.innerHTML = html;
+
+      // Swiper 적용 조건
+      if (this.settings.display_type !== 'grid') {
+        new Swiper('.rit-main-swiper', {
+          slidesPerView: 2.2, spaceBetween: 16, autoplay: { delay: 3500 },
+          breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 24 } }
+        });
+      }
+    },
+
+    getCardHTML(id) {
+      return `
+        <div class="rit-card" onclick="ReviewApp.openModal('${id}')">
+          <img src="${this.data[id].all_images[0]}" class="rit-main-img">
+          <div class="rit-card-overlay">
+            <div class="rit-subject">${this.data[id].subject}</div>
+            <div class="rit-meta">
+              <span>${this.maskName(this.data[id].writer)}</span>
+              <span class="rit-bar"></span>
+              <div class="rit-stars"><img src="${CONFIG.STAR_PATH}${this.data[id].stars || 5}.svg"></div>
+            </div>
+          </div>
+        </div>
+      `;
     },
 
     openModal(id) {
       this.currentScrollY = window.pageYOffset;
       const modal = document.getElementById('ritModal');
-      modal.style.display = 'flex'; // 강제 flex 노출
+      modal.style.display = 'flex';
 
       document.body.style.cssText = `position:fixed; top:-${this.currentScrollY}px; width:100%; overflow:hidden;`;
       this.renderDetail(id);
@@ -153,7 +201,6 @@
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
 
-      // 이미지
       document.getElementById('ritModalImg').innerHTML = `
         <div class="swiper rit-inner-swiper">
           <div class="swiper-wrapper">
@@ -163,7 +210,6 @@
         </div>`;
       this.modalImgSwiper = new Swiper('.rit-inner-swiper', { pagination: { el: '.rit-pagination', type: 'fraction' } });
 
-      // 텍스트 매핑
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-line">
           <span class="rit-writer">${this.maskName(d.writer)}</span>
@@ -226,10 +272,14 @@
         .rit-sub { font-size: 11px; color: #b5835a; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; }
         .rit-header-area h2 { font-size: 38px; font-weight: 800; margin: 15px 0; }
         .rit-thin { font-weight: 200; color: #ccc; }
-        .rit-line { w: 40px; h: 1px; background: #eee; margin: 20px auto; }
+        .rit-line { width: 40px; height: 1px; background: #eee; margin: 20px auto; }
         .rit-desc { font-size: 14px; color: #888; line-height: 1.6; font-weight: 300; }
 
-        .rit-card { aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; position: relative; cursor: pointer; background: #f4f4f4; }
+        /* 새로 추가된 Main Grid 스타일 */
+        .rit-main-grid-layout { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        @media (min-width: 1024px) { .rit-main-grid-layout { grid-template-columns: repeat(5, 1fr); gap: 24px; } }
+
+        .rit-card { aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; position: relative; cursor: pointer; background: #f4f4f4; width: 100%; }
         .rit-main-img { width: 100%; height: 100%; object-fit: cover; transition: 0.6s; }
         .rit-card:hover .rit-main-img { transform: scale(1.1); }
         .rit-card-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent 60%); display: flex; flex-direction: column; justify-content: flex-end; padding: 20px; color: #fff; }
@@ -237,7 +287,6 @@
         .rit-meta { display: flex; align-items: center; gap: 8px; font-size: 10px; opacity: 0.7; }
         .rit-bar { width: 1px; height: 8px; background: #fff; }
 
-        /* 모달 시스템 - 핵심수정 */
         .rit-modal-container { position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; }
         .rit-modal-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); }
         .rit-modal-window { position: relative; width: 95%; max-width: 1100px; height: 85vh; background: #fff; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
@@ -254,13 +303,11 @@
         .rit-modal-left img { width: 100%; height: 100%; object-fit: contain; }
         .rit-modal-right { width: 55%; padding: 40px; overflow-y: auto; }
         
-        /* 그리드 오버레이 */
         .rit-grid-overlay { position: absolute; inset: 0; background: #fff; z-index: 100; overflow-y: auto; padding: 30px; }
         .rit-grid-layout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         .rit-grid-box { aspect-ratio: 1/1; cursor: pointer; border-radius: 4px; overflow: hidden; }
         .rit-grid-box img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* 텍스트 요소 */
         .rit-meta-line { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .rit-writer { font-weight: 800; font-size: 13px; }
         .rit-bar-v { color: #eee; }

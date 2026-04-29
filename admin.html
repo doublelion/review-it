@@ -63,8 +63,7 @@
 
 <body class="bg-[#f8f9fa] min-h-screen p-4 md:p-10">
   <div class="max-w-6xl mx-auto">
-    <div
-      class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6">
       <div>
         <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Review-It 관리자</h1>
         <p class="text-gray-500 mt-1">
@@ -87,8 +86,7 @@
           <span class="rit-label mb-2">위젯 노출 타입</span>
           <div class="rit-switch-group w-full flex justify-between">
             <button onclick="updateWidgetType('grid')" id="btn-grid" class="rit-btn-toggle flex-1">나열형(Grid)</button>
-            <button onclick="updateWidgetType('swiper')" id="btn-swiper"
-              class="rit-btn-toggle flex-1">슬라이드(Swiper)</button>
+            <button onclick="updateWidgetType('swiper')" id="btn-swiper" class="rit-btn-toggle flex-1">슬라이드(Swiper)</button>
           </div>
         </div>
         <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -97,24 +95,20 @@
               <span class="w-1 h-4 bg-blue-500 rounded-full"></span>위젯 헤더 문구 커스텀
             </h3>
             <button onclick="saveHeaderSettings()"
-              class="px-4 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700 transition shadow-sm">설정
-              저장</button>
+              class="px-4 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700 transition shadow-sm">설정 저장</button>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Tagline (상단 소제목)</label>
-              <input type="text" id="input-tagline"
-                class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none">
+              <input type="text" id="input-tagline" class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none">
             </div>
             <div>
               <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Main Title (메인 제목)</label>
-              <input type="text" id="input-title"
-                class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none">
+              <input type="text" id="input-title" class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none">
             </div>
             <div class="md:col-span-2">
               <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Description (상세 설명)</label>
-              <textarea id="input-description" rows="2"
-                class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none resize-none"></textarea>
+              <textarea id="input-description" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none resize-none"></textarea>
             </div>
           </div>
         </div>
@@ -136,11 +130,9 @@
     </div>
 
     <div class="flex justify-center items-center mt-8 gap-4 mb-10">
-      <button onclick="changePage(-1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50"
-        id="prev-btn">이전</button>
+      <button onclick="changePage(-1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50" id="prev-btn">이전</button>
       <span id="page-info" class="text-sm font-medium text-gray-600 font-mono italic">Page 1</span>
-      <button onclick="changePage(1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50"
-        id="next-btn">다음</button>
+      <button onclick="changePage(1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50" id="next-btn">다음</button>
     </div>
   </div>
 
@@ -164,18 +156,19 @@
           headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
         });
         const data = await res.json();
-        if (data && data[0]) {
+        if (data && data.length > 0) {
           const s = data[0];
           document.getElementById('input-tagline').value = s.tagline || '';
           document.getElementById('input-title').value = s.title || '';
           document.getElementById('input-description').value = s.description || '';
           refreshSettingUI(s.display_type || 'grid');
+        } else {
+          refreshSettingUI('swiper'); // 기본값
         }
       } catch (err) { console.error("설정 로드 실패:", err); }
     }
 
-    // 2. 통합 저장 함수 (POST + Upsert)
-    // '설정 저장' 버튼과 '위젯 타입' 변경 시 모두 이 함수를 사용하도록 통일합니다.
+    // 2. 통합 저장 함수 (POST + Upsert) : 400 에러 해결을 위해 on_conflict 추가
     async function saveHeaderSettings(targetType = null) {
       try {
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
@@ -185,17 +178,17 @@
           display_type: currentType,
           tagline: document.getElementById('input-tagline').value,
           title: document.getElementById('input-title').value,
-          description: document.getElementById('input-description').value,
-          updated_at: new Date().toISOString()
+          description: document.getElementById('input-description').value
         };
 
-        const res = await fetch(`${SB_URL}/widget_settings`, {
+        // 중요: Upsert를 위해 on_conflict=mall_id 쿼리 파라미터 추가
+        const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
           method: 'POST',
           headers: {
             'apikey': SB_KEY,
             'Authorization': `Bearer ${SB_KEY}`,
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates' // mall_id가 같으면 덮어쓰기
+            'Prefer': 'resolution=merge-duplicates'
           },
           body: JSON.stringify(payload)
         });
@@ -204,6 +197,8 @@
           if (!targetType) alert('설정이 저장되었습니다.');
           loadSettings();
         } else {
+          const errorData = await res.json();
+          console.error("저장 실패 원인:", errorData);
           throw new Error('저장 실패');
         }
       } catch (err) {
@@ -212,13 +207,13 @@
       }
     }
 
-    // 3. 위젯 타입 업데이트 함수 수정
+    // 3. 위젯 타입 업데이트
     async function updateWidgetType(type) {
       refreshSettingUI(type);
-      await saveHeaderSettings(type); // 타입을 바꿀 때도 즉시 저장
+      await saveHeaderSettings(type);
     }
 
-    // 4. 리뷰 데이터 로드 (Range 처리)
+    // 4. 리뷰 데이터 로드
     async function loadAdminData() {
       try {
         const from = currentPage * itemsPerPage;
@@ -240,7 +235,7 @@
       } catch (err) { console.error("리뷰 로드 실패:", err); }
     }
 
-    // 5. 리스트 렌더링 (안전한 파싱 적용)
+    // 5. 리스트 렌더링
     function renderList(data) {
       const list = document.getElementById('admin-list');
       if (!data || data.length === 0) {
@@ -297,7 +292,6 @@
     }
     async function toggleVisibility(id, currentStatus) {
       try {
-        // 보안 및 정확한 매핑을 위해 mall_id를 조건에 추가합니다.
         await fetch(`${SB_URL}/reviews?id=eq.${id}&mall_id=eq.${MALL_ID}`, {
           method: 'PATCH',
           headers: {
