@@ -1,84 +1,67 @@
 /**
- * @Project: Review-It Collector v7.3
- * @Feature: 아이디 정밀 파싱 (특수문자/숫자/중복마스킹 제거) 및 SQL 스키마 동기화
+ * @Project: Review-It Collector v7.5 (Full-Sync)
+ * @Feature: 목록 페이지 썸네일 + 실제 본문(일부) 수집 + 아이디 정제
  */
 (function () {
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     mallId: 'ecudemo389879',
-    boardNo: '4' // 카페24 리뷰 게시판 번호
+    boardNo: '4'
   };
 
   async function sync() {
-    console.log('🚀 [REVIEW-IT] 데이터 수집 및 아이디 정제 시작...');
+    console.log('🚀 [REVIEW-IT] 고정밀 데이터 수집 시작...');
 
-    // 1. 카페24 게시판 목록 레코드 선택 (다양한 스킨 대응)
     const items = document.querySelectorAll('.xans-record-, tr[id^="record"], .boardList tr');
     const payload = [];
 
-    items.forEach(el => {
-      // [A] 게시글 링크 및 번호 추출
+    for (const el of items) {
+      // 1. 게시글 링크 및 번호
       const link = el.querySelector('a[href*="article_no="], a[href*="/article/"]');
-      if (!link) return;
+      if (!link) continue;
 
       const articleNoMatch = link.href.match(/article_no=(\d+)/) || link.href.match(/\/(\d+)\/?$/);
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
-      if (!articleNo) return;
+      if (!articleNo) continue;
 
-      // [B] 별점 추출 (이미지 및 텍스트 대응)
+      // 2. 별점 추출
       let extractedStars = 5;
-      const starImg = el.querySelector('img[src*="star"], img[src*="rating"], img[src*="icon_star"]');
+      const starImg = el.querySelector('img[src*="star"], img[src*="rating"]');
       if (starImg) {
-        const match = starImg.src.match(/star(\d)/) || starImg.src.match(/rating(\d)/) || starImg.src.match(/icon_star(\d)/);
+        const match = starImg.src.match(/star(\d)/) || starImg.src.match(/rating(\d)/);
         if (match) extractedStars = parseInt(match[1]);
-      } else {
-        const starText = el.querySelector('.point, .rating, .score')?.innerText;
-        if (starText) {
-          const num = starText.replace(/[^0-9]/g, "");
-          if (num) extractedStars = parseInt(num);
-        }
       }
 
-      // [C] 작성자(아이디) 정밀 파싱 수정 ⭐️
-      // 현재 DOM 구조상 5번째 td가 작성자(TENUE)입니다.
+      // 3. 작성자 정제
       const writerEl = el.querySelector('.writer, .name, td:nth-child(5)');
-      let rawWriter = writerEl ? writerEl.innerText.trim() : "고객";
+      let cleanWriter = writerEl ? writerEl.innerText.trim().replace(/[*]/g, '') : "고객";
 
-      // 만약 작성자 칸에 '조회' 같은 텍스트가 섞여 나온다면 아래 로직 추가
-      let cleanWriter = rawWriter
-        .replace(/조회.*/g, '') // 혹시 모를 잔여 텍스트 제거
-        .split('[')[0]
-        .split('(')[0]
-        .replace(/[*]/g, '')
-        .trim();
+      // 4. [중요] 목록에 있는 썸네일 이미지 미리 수집
+      const thumbImg = el.querySelector('img[src*="/thumb/"], img[src*="/product/"]');
+      let thumbUrl = thumbImg ? thumbImg.src : null;
+      if (thumbUrl && thumbUrl.startsWith('//')) thumbUrl = 'https:' + thumbUrl;
 
-      // [D] 제목 추출
-      const subjectText = link.innerText.trim() || "포토 리뷰입니다.";
+      // 5. [개선] 목록에 본문 미리보기가 있는 경우 수집 (없으면 기본값)
+      const summaryEl = el.querySelector('.displaynone, .summary, .content-preview'); // 카페24 스킨별 상이
+      const summaryText = summaryEl ? summaryEl.innerText.trim() : "포토 리뷰입니다.";
 
-      // [E] 페이로드 구성 (SQL 스키마 필드명과 일치)
       payload.push({
         mall_id: CONFIG.mallId,
         article_no: String(articleNo),
         board_no: CONFIG.boardNo,
-        subject: subjectText,
-        content: "구매해 주셔서 감사합니다!", // 초기값 (위젯 딥스캔 시 실제 내용으로 업데이트)
-        writer: cleanWriter || "고객",
+        subject: link.innerText.trim() || "리뷰입니다.",
+        content: summaryText, 
+        writer: cleanWriter,
         stars: extractedStars,
-        image_urls: [], // 빈 배열 전송 (위젯 엔진이 딥스캔 수행)
+        image_urls: thumbUrl ? [thumbUrl] : [], // 썸네일이라도 DB에 저장
         is_visible: true
       });
-    });
-
-    if (payload.length === 0) {
-      console.warn("⚠️ 수집할 리뷰를 찾지 못했습니다. 리뷰 게시판 목록(List) 페이지인지 확인해주세요.");
-      return;
     }
 
-    // [F] 중복 제거 (article_no 기준)
-    const uniquePayload = Array.from(new Map(payload.map(item => [item.article_no, item])).values());
+    if (payload.length === 0) return;
 
-    // [G] Supabase 전송 (UPSERT 방식)
+    // Supabase Upsert
     try {
       const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
         method: 'POST',
@@ -86,22 +69,16 @@
           'apikey': CONFIG.sbKey,
           'Authorization': `Bearer ${CONFIG.sbKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates' // 중복 시 업데이트
+          'Prefer': 'resolution=merge-duplicates'
         },
-        body: JSON.stringify(uniquePayload)
+        body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
-        console.log(`✅ 성공: ${uniquePayload.length}개의 리뷰 아이디가 깨끗하게 동기화되었습니다.`);
-      } else {
-        const errorData = await res.json();
-        console.error("❌ 저장 실패:", errorData);
-      }
+      if (res.ok) console.log(`✅ ${payload.length}건 동기화 완료`);
     } catch (e) {
-      console.error("❌ 네트워크 오류:", e);
+      console.error("❌ 오류:", e);
     }
   }
 
-  // 실행
   sync();
 })();
