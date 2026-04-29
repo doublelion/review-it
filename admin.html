@@ -58,6 +58,21 @@
       background: #000;
       color: #fff;
     }
+
+    /* 버튼 정리 */
+    .btn-save-main {
+      background: #2563eb;
+      color: white;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    .btn-save-main:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
   </style>
 </head>
 
@@ -96,24 +111,22 @@
             <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
               <span class="w-1 h-4 bg-blue-500 rounded-full"></span>위젯 헤더 문구 커스텀
             </h3>
-            <button onclick="saveHeaderSettings()"
-              class="px-4 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700 transition shadow-sm">설정
-              저장</button>
+            <button onclick="saveHeaderSettings()" class="btn-save-main text-sm">설정 저장</button>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Tagline (상단 소제목)</label>
-              <input type="text" id="input-tagline"
+              <input type="text" id="input-tagline" placeholder="예: CUSTOMER REVIEW"
                 class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none">
             </div>
             <div>
               <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Main Title (메인 제목)</label>
-              <input type="text" id="input-title"
+              <input type="text" id="input-title" placeholder="예: 리얼 포토 피드"
                 class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none">
             </div>
             <div class="md:col-span-2">
               <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Description (상세 설명)</label>
-              <textarea id="input-description" rows="2"
+              <textarea id="input-description" rows="2" placeholder="위젯 하단에 노출될 설명 문구를 입력하세요."
                 class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none resize-none"></textarea>
             </div>
           </div>
@@ -156,46 +169,44 @@
     const itemsPerPage = 15;
     let currentSearchKeyword = '';
 
-    // [추가] 이미지 필터링 함수: 별점, 아이콘, 트위치 로고 제거
+    // 이미지 필터링 (별점 아이콘 등 제거)
     function getCleanThumbnail(imageUrls) {
       if (!imageUrls || imageUrls.length === 0) return '';
       const spamKeywords = /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty/i;
-
-      // 이미지 배열 중 스팸 키워드가 없는 첫 번째 이미지를 반환
       const validImg = imageUrls.find(url => !spamKeywords.test(url) && !url.includes('.gif'));
-      return validImg || imageUrls[0]; // 없으면 첫 번째라도 반환
+      return validImg || imageUrls[0];
     }
 
+    // 설정 로드
     async function loadSettings() {
       try {
         const res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
-          method: 'GET',
           headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
         });
         const data = await res.json();
         if (data && data.length > 0) {
           const s = data[0];
-          document.getElementById('input-tagline').value = s.tagline || '';
+          if (document.getElementById('input-tagline')) document.getElementById('input-tagline').value = s.tagline || '';
           document.getElementById('input-title').value = s.title || '';
           document.getElementById('input-description').value = s.description || '';
           refreshSettingUI(s.display_type || 'grid');
-        } else {
-          refreshSettingUI('swiper');
         }
       } catch (err) { console.error("설정 로드 실패:", err); }
     }
 
+    // 설정 저장 (오류 수정 핵심 로직)
     async function saveHeaderSettings(targetType = null) {
       try {
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
 
-        // 중요: 보낼 때 SQL 스키마와 일치하는 컬럼만 전송 (description 포함)
+        // SQL 스키마에 맞춰 페이로드 구성
         const payload = {
           mall_id: MALL_ID,
           display_type: currentType,
-          tagline: document.getElementById('input-tagline').value,
           title: document.getElementById('input-title').value,
-          description: document.getElementById('input-description').value
+          description: document.getElementById('input-description').value,
+          // tagline이 DB에 없을 경우를 대비해 필요시에만 포함하거나 스키마에 추가해야 함
+          tagline: document.getElementById('input-tagline').value
         };
 
         const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
@@ -210,16 +221,30 @@
         });
 
         if (res.ok) {
-          if (!targetType) alert('설정이 저장되었습니다.');
+          if (!targetType) alert('설정이 성공적으로 저장되었습니다.');
         } else {
-          const errorData = await res.json();
-          console.error("저장 실패 원인:", errorData);
-          throw new Error('저장 실패');
+          const errRes = await res.json();
+          // 만약 tagline 컬럼 오류가 나면 tagline 제외하고 재시도 (방어코드)
+          if (errRes.message && errRes.message.includes('tagline')) {
+            console.warn("DB에 tagline 컬럼이 없습니다. 제외하고 저장합니다.");
+            delete payload.tagline;
+            await saveHeaderSettingsRetry(payload);
+          } else {
+            throw new Error(errRes.message);
+          }
         }
       } catch (err) {
-        console.error(err);
-        alert('설정 저장 중 오류가 발생했습니다. (DB 컬럼 확인 필요)');
+        alert('저장 실패: ' + err.message);
       }
+    }
+
+    async function saveHeaderSettingsRetry(payload) {
+      await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify(payload)
+      });
+      alert('설정이 저장되었습니다. (주의: DB에 tagline 컬럼이 없어 해당 항목은 제외됨)');
     }
 
     async function updateWidgetType(type) {
@@ -227,72 +252,58 @@
       await saveHeaderSettings(type);
     }
 
+    // 리뷰 데이터 로드
     async function loadAdminData() {
       try {
         const from = currentPage * itemsPerPage;
         const to = from + itemsPerPage - 1;
-
-        // 게시판 4번 글만 가져오도록 쿼리에 board_no=eq.4 추가 (데이터에 board_no 컬럼이 있는 경우)
         let query = `${SB_URL}/reviews?mall_id=eq.${MALL_ID}&select=*&order=created_at.desc`;
-
-        // [수정] 다른 게시판 글 배제 (board_no가 필드에 있다면 추가)
-        // query += `&board_no=eq.4`; 
-
         if (currentSearchKeyword) query += `&or=(subject.ilike.*${currentSearchKeyword}*,writer.ilike.*${currentSearchKeyword}*)`;
 
         const res = await fetch(query, {
           headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Range': `${from}-${to}`, 'Prefer': 'count=exact' }
         });
 
-        const rangeHeader = res.headers.get('content-range');
-        const total = rangeHeader ? rangeHeader.split('/')[1] : 0;
+        const total = res.headers.get('content-range')?.split('/')[1] || 0;
         document.getElementById('total-count').innerText = total;
-
-        const data = await res.json();
-        renderList(data);
+        renderList(await res.json());
         updatePagination(total);
-      } catch (err) { console.error("리뷰 로드 실패:", err); }
+      } catch (err) { console.error("로드 실패:", err); }
     }
 
     function renderList(data) {
       const list = document.getElementById('admin-list');
       if (!data || data.length === 0) {
-        list.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400">수집된 리뷰가 없습니다.</td></tr>`;
+        list.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400">데이터가 없습니다.</td></tr>`;
         return;
       }
-      list.innerHTML = data.map(rv => {
-        // [수정] 필터링 함수를 통해 별점 이미지를 제외한 '진짜 상품 이미지'만 가져옴
-        const imgSrc = getCleanThumbnail(rv.image_urls);
-        const safeDesc = rv.content ? String(rv.content).replace(/<[^>]*>?/gm, '') : '내용 없음';
-
-        return `
-          <tr class="hover:bg-blue-50/30 transition-colors">
-            <td class="p-5 font-semibold text-gray-700 text-sm">${rv.writer || '익명'}</td>
-            <td class="p-5">
-              <div class="flex items-start gap-4">
-                <div class="img-box rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
-                  ${imgSrc ? `<img src="${imgSrc}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-gray-300">NO IMG</span>`}
-                </div>
-                <div class="flex-1">
-                  <div class="text-sm font-bold text-gray-900 mb-1">${rv.subject || '제목없음'}</div>
-                  <div class="text-xs text-gray-500 line-clamp-2">${safeDesc}</div>
-                </div>
+      list.innerHTML = data.map(rv => `
+        <tr class="hover:bg-blue-50/30 transition-colors">
+          <td class="p-5 font-semibold text-gray-700 text-sm">${rv.writer || '익명'}</td>
+          <td class="p-5">
+            <div class="flex items-start gap-4">
+              <div class="img-box rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
+                <img src="${getCleanThumbnail(rv.image_urls) || 'https://ecudemo389879.cafe24.com/web/upload/no-img.png'}" class="w-full h-full object-cover">
               </div>
-            </td>
-            <td class="p-5 text-center">
-              <div class="inline-flex items-center px-2 py-1 bg-amber-50 rounded-md">
-                <span class="text-amber-500 text-xs mr-1">★</span>
-                <span class="text-amber-700 font-bold text-sm">${rv.stars || 5}</span>
+              <div class="flex-1">
+                <div class="text-sm font-bold text-gray-900 mb-1">${rv.subject || '제목없음'}</div>
+                <div class="text-xs text-gray-500 line-clamp-2">${rv.content ? rv.content.replace(/<[^>]*>?/gm, '') : ''}</div>
               </div>
-            </td>
-            <td class="p-5 text-center">
-              <button onclick="toggleVisibility('${rv.id}', ${rv.is_visible})" 
-                class="w-24 py-2 rounded-full text-[11px] font-black transition-all ${rv.is_visible ? 'bg-blue-600 text-white' : 'bg-white border text-gray-400'}">
-                ${rv.is_visible ? '노출중' : '대기중'}
-              </button>
-            </td>
-          </tr>`;
-      }).join('');
+            </div>
+          </td>
+          <td class="p-5 text-center">
+            <div class="inline-flex items-center px-2 py-1 bg-amber-50 rounded-md">
+              <span class="text-amber-500 text-xs mr-1">★</span>
+              <span class="text-amber-700 font-bold text-sm">${rv.stars || 5}</span>
+            </div>
+          </td>
+          <td class="p-5 text-center">
+            <button onclick="toggleVisibility('${rv.id}', ${rv.is_visible})" 
+              class="w-24 py-2 rounded-full text-[11px] font-black transition-all ${rv.is_visible ? 'bg-blue-600 text-white' : 'bg-white border text-gray-400'}">
+              ${rv.is_visible ? '노출중' : '대기중'}
+            </button>
+          </td>
+        </tr>`).join('');
     }
 
     function handleSearch() { currentSearchKeyword = document.getElementById('search-input').value; currentPage = 0; loadAdminData(); }
@@ -309,14 +320,12 @@
       if (target) target.classList.add('active');
     }
     async function toggleVisibility(id, currentStatus) {
-      try {
-        await fetch(`${SB_URL}/reviews?id=eq.${id}&mall_id=eq.${MALL_ID}`, {
-          method: 'PATCH',
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ is_visible: !currentStatus })
-        });
-        loadAdminData();
-      } catch (err) { console.error("노출 상태 변경 실패:", err); }
+      await fetch(`${SB_URL}/reviews?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_visible: !currentStatus })
+      });
+      loadAdminData();
     }
 
     window.onload = () => { loadSettings(); loadAdminData(); };
