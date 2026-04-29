@@ -320,12 +320,20 @@
       if (target) target.classList.add('active');
     }
     async function toggleVisibility(id, currentStatus) {
-      await fetch(`${SB_URL}/reviews?id=eq.${id}`, {
-        method: 'PATCH',
-        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_visible: !currentStatus })
-      });
-      loadAdminData();
+      try {
+        const res = await fetch(`${SB_URL}/reviews?id=eq.${id}&mall_id=eq.${MALL_ID}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_visible: !currentStatus })
+        });
+        if (res.ok) loadAdminData();
+      } catch (err) {
+        console.error("노출 상태 변경 실패:", err);
+      }
     }
 
     window.onload = () => { loadSettings(); loadAdminData(); };

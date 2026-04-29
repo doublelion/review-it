@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Widget Engine v7.2
- * @Update: SQL 스키마 기반 필드 동기화 및 버튼 레이아웃 최적화
+ * @Project: Review-It Widget Engine v7.3
+ * @Update: SQL 스키마 필드 동기화, 마스킹 로직 강화, 모달 UI 최적화
  */
 (function (window) {
   const CONFIG = {
@@ -11,7 +11,7 @@
     DEFAULT_IMG: 'https://ecudemo389879.cafe24.com/web/upload/no-img.png',
     STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
     ADMIN_KEYWORDS: ['TENUE', '관리자', 'Official'],
-    // 불필요한 별점, 아이콘, 트위치 로고 등 필터링
+    // 불필요한 별점, 아이콘, 트위치 로고 등 필터링 정규식
     SPAM_KEYWORDS: /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty/i
   };
 
@@ -27,12 +27,12 @@
 
     async init() {
       this.injectCSS();
-      await this.loadWidgetSettings(); // DB 설정 로드
-      await this.loadReviews();        // 리뷰 로드
-      this.renderWidget();             // 위젯 생성
+      await this.loadWidgetSettings(); // 1. DB 설정 로드
+      await this.loadReviews();        // 2. 리뷰 데이터 로드
+      this.renderWidget();             // 3. 위젯 렌더링
     },
 
-    // [1] 관리자 설정 로드 (스키마 기반)
+    // [1] 관리자 설정 로드
     async loadWidgetSettings() {
       try {
         const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {
@@ -41,7 +41,6 @@
         const data = await res.json();
         if (data && data.length > 0) {
           const s = data[0];
-          // 제공해주신 SQL 필드명에 맞춤
           if (s.display_type) this.settings.display_type = s.display_type;
           if (s.title) this.settings.title = s.title;
           if (s.description) this.settings.description = s.description.replace(/\n/g, '<br>');
@@ -49,28 +48,37 @@
       } catch (e) { console.error("설정 로드 실패:", e); }
     },
 
-    // [2] 작성자 마스킹 (중복 기호 및 HTML 제거)
+    // [2] 작성자 마스킹 (아이디 정밀 클리닝 포함) ⭐️
     maskName(name) {
-      if (!name) return "고객";
-      let n = name.replace(/<[^>]*>/g, "").replace(/[*]/g, "").trim().split('(')[0].trim();
-      if (CONFIG.ADMIN_KEYWORDS.some(k => n.toUpperCase().includes(k.toUpperCase()))) return "TENUE Official";
-      if (n.length <= 1) return "*";
+      if (!name || name === "고객") return "고객";
+      // 관리자 키워드 포함 시 Official 명칭 부여
+      if (CONFIG.ADMIN_KEYWORDS.some(k => name.toUpperCase().includes(k.toUpperCase()))) {
+        return "TENUE Official";
+      }
+
+      // 수집 시 묻어온 별표(*) 제거 후 재마스킹
+      let n = name.replace(/[*]/g, '').trim();
+
+      if (n.length <= 1) return n + "*";
       if (n.length === 2) return n[0] + "*";
-      return n[0] + "*".repeat(n.length - 2) + n.slice(-1);
+      // 3글자 이상: 앞 2글자 유지 후 나머지 마스킹 (예: 김테뉴 -> 김테**)
+      return n.substring(0, 2) + "*".repeat(Math.min(n.length - 2, 2));
     },
 
-    // [3] 이미지 추출 및 스팸 필터링
+    // [3] 이미지 딥스캔 및 스팸 필터링
     async _deepScan(articleNo) {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent');
+        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area');
+
         const imgs = Array.from((contentArea || doc).querySelectorAll('img')).map(img => {
           let src = img.getAttribute('src');
           if (!src || CONFIG.SPAM_KEYWORDS.test(src) || src.includes('.gif')) return null;
           return src.startsWith('//') ? 'https:' + src : src;
         }).filter(src => src !== null);
+
         return imgs;
       } catch (e) { return []; }
     },
@@ -85,17 +93,23 @@
 
         await Promise.all(list.map(async (r) => {
           const id = String(r.id);
+          // 이미지가 DB에 없으면 딥스캔 실행
           let imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : await this._deepScan(r.article_no);
+
+          // 스팸 키워드 최종 필터링
           r.all_images = imgs.filter(src => !CONFIG.SPAM_KEYWORDS.test(src));
           if (r.all_images.length === 0) r.all_images = [CONFIG.DEFAULT_IMG];
+
           this.data[id] = r;
           this.listOrder.push(id);
         }));
+
+        // 시간순 정렬 유지
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error("데이터 로드 에러:", e); }
     },
 
-    // [4] 메인 위젯 렌더링
+    // [4] 렌더링 로직
     renderWidget() {
       const container = document.getElementById('rit-widget-container');
       if (!container) return;
@@ -120,7 +134,7 @@
         `;
       }
 
-      // 모달 UI 구조 (닫기/그리드 버튼 정리)
+      // 모달 기본 구조 삽입
       html += `
         <div id="ritModal" class="rit-modal-container">
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
@@ -155,6 +169,7 @@
 
       container.innerHTML = html;
 
+      // Swiper 활성화 (슬라이드 모드일 때만)
       if (this.settings.display_type !== 'grid') {
         new Swiper('.rit-main-swiper', {
           slidesPerView: 2.2, spaceBetween: 15,
@@ -182,7 +197,8 @@
 
     openModal(id) {
       this.currentScrollY = window.pageYOffset;
-      document.getElementById('ritModal').style.display = 'flex';
+      const modal = document.getElementById('ritModal');
+      modal.style.display = 'flex';
       document.body.style.cssText = `position:fixed; top:-${this.currentScrollY}px; width:100%; overflow:hidden;`;
       this.renderDetail(id);
     },
@@ -192,6 +208,7 @@
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
 
+      // 모달 내 이미지 슬라이더
       document.getElementById('ritModalImg').innerHTML = `
         <div class="swiper rit-modal-swiper">
           <div class="swiper-wrapper">${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}</div>
@@ -199,6 +216,7 @@
         </div>`;
       new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
 
+      // 상세 텍스트 영역
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-top-meta">
           <span class="rit-name-tag">${this.maskName(d.writer)}</span>
@@ -207,7 +225,8 @@
           <span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span>
         </div>`;
       document.getElementById('ritSubject').innerText = d.subject;
-      document.getElementById('ritContent').innerHTML = d.content.replace(/<img[^>]*>/g, "");
+      document.getElementById('ritContent').innerHTML = d.content.replace(/<img[^>]*>/g, ""); // 본문 내 이미지는 제거 (슬라이더에서 보여줌)
+
       this.loadComments(d.article_no);
     },
 
@@ -230,15 +249,16 @@
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const items = doc.querySelectorAll('.boardComment li, .commentList li');
+        const items = doc.querySelectorAll('.boardComment li, .commentList li, .replyArea li');
         const list = document.getElementById('ritCommList');
+
         if (items.length > 0) {
           list.innerHTML = Array.from(items).map(item => {
             const wr = item.querySelector('.name')?.innerText || "고객";
             const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => wr.includes(k));
             return `<div class="rit-comm-item ${isAdmin ? 'is-admin' : ''}">
               <div class="rit-comm-name">${isAdmin ? 'TENUE Official' : this.maskName(wr)}</div>
-              <div class="rit-comm-body">${item.querySelector('.comment')?.innerHTML || ""}</div>
+              <div class="rit-comm-body">${item.querySelector('.comment')?.innerHTML || item.querySelector('.content')?.innerHTML || ""}</div>
             </div>`;
           }).join('');
         } else { list.innerHTML = '<p class="rit-no-comm">등록된 답변이 없습니다.</p>'; }
@@ -255,7 +275,7 @@
       const css = `
         #rit-widget-container { max-width: 1300px; margin: 60px auto; padding: 0 20px; font-family: 'Pretendard', sans-serif; }
         .rit-header-area { text-align: center; margin-bottom: 40px; }
-        .rit-header-area h2 { font-size: 30px; font-weight: 800; margin: 10px 0; letter-spacing: -0.02em; }
+        .rit-header-area h2 { font-size: 30px; font-weight: 800; margin: 10px 0; letter-spacing: -0.02em; text-transform: uppercase; }
         .rit-line { width: 30px; height: 1px; background: #333; margin: 15px auto; }
         .rit-desc { font-size: 14px; color: #777; line-height: 1.6; }
 
@@ -277,7 +297,7 @@
         .rit-modal-header { height: 54px; background: #000; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; color: #fff; }
         .rit-logo-text { font-size: 11px; letter-spacing: 0.1em; opacity: 0.5; }
         .rit-header-buttons { display: flex; align-items: center; gap: 15px; }
-        .btn-rit-grid { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .btn-rit-grid { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
         .btn-rit-grid:hover { background: #fff; color: #000; }
         .btn-rit-close { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
 
@@ -293,33 +313,37 @@
         .rit-divider { color: #eee; }
         .rit-star-img { height: 13px; }
         .rit-date-tag { margin-left: auto; color: #ccc; font-size: 11px; }
-        #ritSubject { font-size: 22px; font-weight: 800; margin-bottom: 20px; line-height: 1.4; letter-spacing: -0.03em; }
-        .rit-body-text { font-size: 15px; line-height: 1.8; color: #444; margin-bottom: 30px; }
+        #ritSubject { font-size: 20px; font-weight: 800; margin-bottom: 20px; line-height: 1.4; letter-spacing: -0.03em; color: #111; }
+        .rit-body-text { font-size: 14px; line-height: 1.8; color: #555; margin-bottom: 30px; }
 
         .rit-grid-overlay { position: absolute; inset: 0; background: #fff; z-index: 20; overflow-y: auto; padding: 25px; }
         .rit-grid-box-wrap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         .rit-grid-thumb { aspect-ratio: 1/1; cursor: pointer; border-radius: 6px; overflow: hidden; }
-        .rit-grid-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .rit-grid-thumb img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
+        .rit-grid-thumb:hover img { opacity: 0.7; }
 
         .rit-comm-head { display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 25px; margin-bottom: 15px; font-size: 12px; font-weight: 800; }
-        .rit-comm-head a { color: #bbb; text-decoration: underline; font-weight: 400; }
+        .rit-comm-head a { color: #bbb; text-decoration: underline; font-weight: 400; font-size: 11px; }
         .rit-comm-item { padding: 14px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px; }
         .rit-comm-item.is-admin { background: #fffaf0; border: 1px solid #f3e5ab; }
-        .rit-comm-name { font-weight: 800; font-size: 11px; margin-bottom: 5px; }
+        .rit-comm-name { font-weight: 800; font-size: 11px; margin-bottom: 5px; color: #222; }
         .rit-comm-body { color: #666; font-size: 12px; line-height: 1.6; }
 
-        .rit-fraction { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 11px; z-index: 10; }
+        .rit-fraction { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 11px; z-index: 10; font-family: monospace; }
         .rit-hidden { display: none; }
 
         @media (max-width: 768px) {
           .rit-flex-container { flex-direction: column; }
           .rit-img-side, .rit-txt-side { width: 100%; }
           .rit-img-side { height: 45%; }
+          .rit-txt-side { padding: 25px; }
           .rit-grid-box-wrap { grid-template-columns: repeat(2, 1fr); }
           .rit-header-area h2 { font-size: 24px; }
         }
       `;
-      const style = document.createElement('style'); style.innerHTML = css; document.head.appendChild(style);
+      const style = document.createElement('style');
+      style.innerHTML = css;
+      document.head.appendChild(style);
     }
   };
 
