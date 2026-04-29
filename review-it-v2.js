@@ -40,16 +40,17 @@
         }
       }
 
-      // [C] 작성자(아이디) 정밀 파싱 ⭐️
-      // 스크린샷 이슈 해결: 이름 뒤의 [1], (2) 또는 이미 마스킹된 * 기호들을 모두 제거하여 순수 이름만 추출
-      const writerEl = el.querySelector('.writer, .name, td:nth-child(3)');
+      // [C] 작성자(아이디) 정밀 파싱 수정 ⭐️
+      // 현재 DOM 구조상 5번째 td가 작성자(TENUE)입니다.
+      const writerEl = el.querySelector('.writer, .name, td:nth-child(5)');
       let rawWriter = writerEl ? writerEl.innerText.trim() : "고객";
 
-      // 대괄호, 소괄호, 별표 제거 로직
+      // 만약 작성자 칸에 '조회' 같은 텍스트가 섞여 나온다면 아래 로직 추가
       let cleanWriter = rawWriter
-        .split('[')[0]  // '아이디[1]' -> '아이디'
-        .split('(')[0]  // '아이디(2)' -> '아이디'
-        .replace(/[*]/g, '') // '아*이*디' -> '아이디'
+        .replace(/조회.*/g, '') // 혹시 모를 잔여 텍스트 제거
+        .split('[')[0]
+        .split('(')[0]
+        .replace(/[*]/g, '')
         .trim();
 
       // [D] 제목 추출

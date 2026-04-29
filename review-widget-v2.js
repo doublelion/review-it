@@ -41,6 +41,7 @@
         if (data && data.length > 0) {
           const s = data[0];
           if (s.display_type) this.settings.display_type = s.display_type;
+          if (s.tagline) this.settings.tagline = s.tagline; // 추가
           if (s.title) this.settings.title = s.title;
           if (s.description) this.settings.description = s.description.replace(/\n/g, '<br>');
         }
@@ -48,22 +49,45 @@
     },
 
     // [2] 작성자 마스킹 및 제목 혼합 방지 (v7.5 강화) ⭐️
+    // ReviewApp 내 주요 수정 메서드만 발췌 (전체 소스에 교체 적용하세요)
+
     maskName(name) {
       if (!name || name === "고객") return "고객";
+      // 관리자 키워드 체크
       if (CONFIG.ADMIN_KEYWORDS.some(k => String(name).toUpperCase().includes(k.toUpperCase()))) {
         return "TENUE Official";
       }
-
-      // 아이디 정제 (기존 별표 및 특수기호 제거)
-      let n = String(name).split('[')[0].split('(')[0].replace(/[*]/g, '').trim();
-
-      // 수집 오류로 제목이 들어온 경우 (너무 길면 치환)
-      if (n.length > 15) return "고객";
+      // 수집 시 섞여 들어온 제목형 텍스트 방어 로직 ⭐️
+      let n = String(name).split('[')[0].replace(/[*]/g, '').trim();
+      if (n.length > 10) return "고객"; // 너무 길면 수집 오류로 판단
 
       if (n.length <= 1) return n + "*";
       if (n.length === 2) return n[0] + "*";
-      // 3글자 이상: 앞 2글자 유지 후 나머지는 **로 고정 (예: 김테뉴 -> 김테**)
       return n.substring(0, 2) + "**";
+    },
+
+    injectCSS() {
+      const css = `
+    /* ... 기존 CSS ... */
+    .rit-img-side { width: 48%; background: #000; position: relative !important; height: 100%; overflow: hidden; }
+    .rit-modal-swiper { height: 100%; width: 100%; }
+    .rit-modal-swiper img { width: 100%; height: 100%; object-fit: cover !important; }
+    
+    /* 프랙션 위치 고정 ⭐️ */
+    .rit-fraction { 
+      position: absolute !important; 
+      bottom: 25px !important; 
+      left: 50% !important; 
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7); 
+      color: #fff; 
+      padding: 4px 14px; 
+      border-radius: 20px;
+      font-size: 11px; 
+      z-index: 999; 
+      pointer-events: none;
+    }
+  `;
     },
 
     // [3] 이미지 딥스캔
@@ -113,6 +137,7 @@
 
       let html = `
         <div class="rit-header-area">
+          <div class="rit-tagline" style="font-size:12px; letter-spacing:2px; color:#999; margin-bottom:5px;">${this.settings.tagline || 'PEOPLE CHOICE'}</div>
           <h2>${this.settings.title}</h2>
           <div class="rit-line"></div>
           <p class="rit-desc">${this.settings.description}</p>
