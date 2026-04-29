@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Widget Engine v7.3
- * @Update: SQL 스키마 필드 동기화, 마스킹 로직 강화, 모달 UI 최적화
+ * @Project: Review-It Widget Engine v7.5
+ * @Update: 프랙션 위치 고정, 마스킹 로직 강화, HTML 태그 정제 최적화
  */
 (function (window) {
   const CONFIG = {
@@ -11,7 +11,6 @@
     DEFAULT_IMG: 'https://ecudemo389879.cafe24.com/web/upload/no-img.png',
     STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
     ADMIN_KEYWORDS: ['TENUE', '관리자', 'Official'],
-    // 불필요한 별점, 아이콘, 트위치 로고 등 필터링 정규식
     SPAM_KEYWORDS: /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty/i
   };
 
@@ -22,14 +21,14 @@
     settings: {
       display_type: 'grid',
       title: 'TENUE REVIEW',
-      description: '"당신의 선택에 확신을 더하는 기록" 리얼 피드를 확인해보세요.'
+      description: '"당신의 선택에 확신을 더하는 기록"'
     },
 
     async init() {
       this.injectCSS();
-      await this.loadWidgetSettings(); // 1. DB 설정 로드
-      await this.loadReviews();        // 2. 리뷰 데이터 로드
-      this.renderWidget();             // 3. 위젯 렌더링
+      await this.loadWidgetSettings();
+      await this.loadReviews();
+      this.renderWidget();
     },
 
     // [1] 관리자 설정 로드
@@ -48,24 +47,26 @@
       } catch (e) { console.error("설정 로드 실패:", e); }
     },
 
-    // [2] 작성자 마스킹 (아이디 정밀 클리닝 포함) ⭐️
+    // [2] 작성자 마스킹 및 제목 혼합 방지 (v7.5 강화) ⭐️
     maskName(name) {
       if (!name || name === "고객") return "고객";
-      // 관리자 키워드 포함 시 Official 명칭 부여
-      if (CONFIG.ADMIN_KEYWORDS.some(k => name.toUpperCase().includes(k.toUpperCase()))) {
+      if (CONFIG.ADMIN_KEYWORDS.some(k => String(name).toUpperCase().includes(k.toUpperCase()))) {
         return "TENUE Official";
       }
 
-      // 수집 시 묻어온 별표(*) 제거 후 재마스킹
-      let n = name.replace(/[*]/g, '').trim();
+      // 아이디 정제 (기존 별표 및 특수기호 제거)
+      let n = String(name).split('[')[0].split('(')[0].replace(/[*]/g, '').trim();
+
+      // 수집 오류로 제목이 들어온 경우 (너무 길면 치환)
+      if (n.length > 15) return "고객";
 
       if (n.length <= 1) return n + "*";
       if (n.length === 2) return n[0] + "*";
-      // 3글자 이상: 앞 2글자 유지 후 나머지 마스킹 (예: 김테뉴 -> 김테**)
-      return n.substring(0, 2) + "*".repeat(Math.min(n.length - 2, 2));
+      // 3글자 이상: 앞 2글자 유지 후 나머지는 **로 고정 (예: 김테뉴 -> 김테**)
+      return n.substring(0, 2) + "**";
     },
 
-    // [3] 이미지 딥스캔 및 스팸 필터링
+    // [3] 이미지 딥스캔
     async _deepScan(articleNo) {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
@@ -93,10 +94,7 @@
 
         await Promise.all(list.map(async (r) => {
           const id = String(r.id);
-          // 이미지가 DB에 없으면 딥스캔 실행
           let imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : await this._deepScan(r.article_no);
-
-          // 스팸 키워드 최종 필터링
           r.all_images = imgs.filter(src => !CONFIG.SPAM_KEYWORDS.test(src));
           if (r.all_images.length === 0) r.all_images = [CONFIG.DEFAULT_IMG];
 
@@ -104,12 +102,11 @@
           this.listOrder.push(id);
         }));
 
-        // 시간순 정렬 유지
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
       } catch (e) { console.error("데이터 로드 에러:", e); }
     },
 
-    // [4] 렌더링 로직
+    // [4] 메인 위젯 렌더링
     renderWidget() {
       const container = document.getElementById('rit-widget-container');
       if (!container) return;
@@ -134,7 +131,6 @@
         `;
       }
 
-      // 모달 기본 구조 삽입
       html += `
         <div id="ritModal" class="rit-modal-container">
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
@@ -142,10 +138,7 @@
             <div class="rit-modal-header">
               <span class="rit-logo-text">TENUE REVIEW</span>
               <div class="rit-header-buttons">
-                <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z"/></svg>
-                  GRID VIEW
-                </button>
+                <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">GRID VIEW</button>
                 <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
               </div>
             </div>
@@ -169,7 +162,6 @@
 
       container.innerHTML = html;
 
-      // Swiper 활성화 (슬라이드 모드일 때만)
       if (this.settings.display_type !== 'grid') {
         new Swiper('.rit-main-swiper', {
           slidesPerView: 2.2, spaceBetween: 15,
@@ -197,8 +189,7 @@
 
     openModal(id) {
       this.currentScrollY = window.pageYOffset;
-      const modal = document.getElementById('ritModal');
-      modal.style.display = 'flex';
+      document.getElementById('ritModal').style.display = 'flex';
       document.body.style.cssText = `position:fixed; top:-${this.currentScrollY}px; width:100%; overflow:hidden;`;
       this.renderDetail(id);
     },
@@ -208,15 +199,15 @@
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
 
-      // 모달 내 이미지 슬라이더
+      // 이미지 슬라이더 및 프랙션 (CSS 수정으로 위치 교정)
       document.getElementById('ritModalImg').innerHTML = `
         <div class="swiper rit-modal-swiper">
           <div class="swiper-wrapper">${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}</div>
           <div class="rit-fraction"></div>
         </div>`;
+
       new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
 
-      // 상세 텍스트 영역
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-top-meta">
           <span class="rit-name-tag">${this.maskName(d.writer)}</span>
@@ -224,8 +215,10 @@
           <img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img">
           <span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span>
         </div>`;
+
       document.getElementById('ritSubject').innerText = d.subject;
-      document.getElementById('ritContent').innerHTML = d.content.replace(/<img[^>]*>/g, ""); // 본문 내 이미지는 제거 (슬라이더에서 보여줌)
+      // 본문 텍스트 내 HTML 태그 및 이미지 완전 제거
+      document.getElementById('ritContent').innerHTML = d.content.replace(/<img[^>]*>/g, "").replace(/<[^>]*>?/gm, '');
 
       this.loadComments(d.article_no);
     },
@@ -258,7 +251,7 @@
             const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => wr.includes(k));
             return `<div class="rit-comm-item ${isAdmin ? 'is-admin' : ''}">
               <div class="rit-comm-name">${isAdmin ? 'TENUE Official' : this.maskName(wr)}</div>
-              <div class="rit-comm-body">${item.querySelector('.comment')?.innerHTML || item.querySelector('.content')?.innerHTML || ""}</div>
+              <div class="rit-comm-body">${item.querySelector('.comment')?.innerText || ""}</div>
             </div>`;
           }).join('');
         } else { list.innerHTML = '<p class="rit-no-comm">등록된 답변이 없습니다.</p>'; }
@@ -275,7 +268,7 @@
       const css = `
         #rit-widget-container { max-width: 1300px; margin: 60px auto; padding: 0 20px; font-family: 'Pretendard', sans-serif; }
         .rit-header-area { text-align: center; margin-bottom: 40px; }
-        .rit-header-area h2 { font-size: 30px; font-weight: 800; margin: 10px 0; letter-spacing: -0.02em; text-transform: uppercase; }
+        .rit-header-area h2 { font-size: 30px; font-weight: 800; text-transform: uppercase; }
         .rit-line { width: 30px; height: 1px; background: #333; margin: 15px auto; }
         .rit-desc { font-size: 14px; color: #777; line-height: 1.6; }
 
@@ -287,63 +280,49 @@
         .rit-card:hover .rit-card-img { transform: scale(1.08); }
         .rit-card-info { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%); display: flex; flex-direction: column; justify-content: flex-end; padding: 18px; color: #fff; }
         .rit-card-subject { font-size: 13px; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .rit-card-meta { display: flex; align-items: center; justify-content: space-between; font-size: 11px; opacity: 0.9; }
-        .rit-stars-small img { height: 11px; }
 
         .rit-modal-container { position: fixed; inset: 0; z-index: 10000; display: none; align-items: center; justify-content: center; }
         .rit-modal-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
-        .rit-modal-window { position: relative; width: 95%; max-width: 1000px; height: 85vh; background: #fff; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+        .rit-modal-window { position: relative; width: 95%; max-width: 1100px; height: 85vh; background: #fff; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; }
         
-        .rit-modal-header { height: 54px; background: #000; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; color: #fff; }
-        .rit-logo-text { font-size: 11px; letter-spacing: 0.1em; opacity: 0.5; }
-        .rit-header-buttons { display: flex; align-items: center; gap: 15px; }
-        .btn-rit-grid { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
-        .btn-rit-grid:hover { background: #fff; color: #000; }
-        .btn-rit-close { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
+        .rit-modal-header { height: 54px; background: #000; display: flex; justify-content: space-between; align-items: center; padding: 0 25px; color: #fff; }
+        .btn-rit-grid { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 11px; font-weight: 700; padding: 6px 15px; border-radius: 4px; cursor: pointer; }
+        .btn-rit-close { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
 
         .rit-modal-body { flex: 1; position: relative; overflow: hidden; }
         .rit-flex-container { display: flex; height: 100%; }
-        .rit-img-side { width: 48%; background: #000; }
-        .rit-img-side img { width: 100%; height: 100%; object-fit: contain; }
-        @media (min-width: 1024px) { .rit-img-side img { object-fit: cover; } }
+        
+        /* 이미지 영역 & 프랙션 고정 수정 ⭐️ */
+        .rit-img-side { width: 48%; background: #000; position: relative; height: 100%; }
+        .rit-img-side .swiper { height: 100%; width: 100%; }
+        .rit-img-side img { width: 100%; height: 100%; object-fit: cover; }
+        .rit-fraction { 
+          position: absolute; bottom: 30px !important; left: 50% !important; transform: translateX(-50%);
+          background: rgba(0,0,0,0.6); color: #fff; padding: 5px 15px; border-radius: 20px;
+          font-size: 11px; z-index: 100; font-family: monospace; 
+        }
+
         .rit-txt-side { width: 52%; padding: 40px; overflow-y: auto; }
+        .rit-top-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+        .rit-name-tag { font-weight: 800; font-size: 14px; }
+        .rit-star-img { height: 14px; }
+        #ritSubject { font-size: 22px; font-weight: 800; margin-bottom: 25px; line-height: 1.4; color: #111; }
+        .rit-body-text { font-size: 15px; line-height: 1.8; color: #555; margin-bottom: 40px; white-space: pre-wrap; }
 
-        .rit-top-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        .rit-name-tag { font-weight: 800; font-size: 13px; }
-        .rit-divider { color: #eee; }
-        .rit-star-img { height: 13px; }
-        .rit-date-tag { margin-left: auto; color: #ccc; font-size: 11px; }
-        #ritSubject { font-size: 20px; font-weight: 800; margin-bottom: 20px; line-height: 1.4; letter-spacing: -0.03em; color: #111; }
-        .rit-body-text { font-size: 14px; line-height: 1.8; color: #555; margin-bottom: 30px; }
-
-        .rit-grid-overlay { position: absolute; inset: 0; background: #fff; z-index: 20; overflow-y: auto; padding: 25px; }
-        .rit-grid-box-wrap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        .rit-grid-thumb { aspect-ratio: 1/1; cursor: pointer; border-radius: 6px; overflow: hidden; }
-        .rit-grid-thumb img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
-        .rit-grid-thumb:hover img { opacity: 0.7; }
-
-        .rit-comm-head { display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 25px; margin-bottom: 15px; font-size: 12px; font-weight: 800; }
-        .rit-comm-head a { color: #bbb; text-decoration: underline; font-weight: 400; font-size: 11px; }
-        .rit-comm-item { padding: 14px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px; }
+        .rit-comm-item { padding: 15px; background: #f8f8f8; border-radius: 10px; margin-bottom: 12px; }
         .rit-comm-item.is-admin { background: #fffaf0; border: 1px solid #f3e5ab; }
-        .rit-comm-name { font-weight: 800; font-size: 11px; margin-bottom: 5px; color: #222; }
-        .rit-comm-body { color: #666; font-size: 12px; line-height: 1.6; }
+        .rit-comm-name { font-weight: 800; font-size: 12px; margin-bottom: 5px; }
+        .rit-comm-body { color: #666; font-size: 13px; line-height: 1.6; }
 
-        .rit-fraction { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 11px; z-index: 10; font-family: monospace; }
         .rit-hidden { display: none; }
-
         @media (max-width: 768px) {
           .rit-flex-container { flex-direction: column; }
           .rit-img-side, .rit-txt-side { width: 100%; }
           .rit-img-side { height: 45%; }
-          .rit-txt-side { padding: 25px; }
-          .rit-grid-box-wrap { grid-template-columns: repeat(2, 1fr); }
-          .rit-header-area h2 { font-size: 24px; }
+          .rit-txt-side { padding: 30px; }
         }
       `;
-      const style = document.createElement('style');
-      style.innerHTML = css;
-      document.head.appendChild(style);
+      const style = document.createElement('style'); style.innerHTML = css; document.head.appendChild(style);
     }
   };
 
