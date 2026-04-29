@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Widget Engine v7.8 (Total Integration)
- * @Update: 프랙션 고정 + 마스킹 강화 + 별점 가독성 + 그리드뷰 레이어 + 동적 세팅 완벽 통합
+ * @Project: Review-It Widget Engine v8.0
+ * @Update: 실시간 본문 전체 복구(Full Content Scan) + 우측 헤더 투명화 + 모바일 최적화
  */
 (function (window) {
   const CONFIG = {
@@ -10,7 +10,7 @@
     BOARD_NO: '4',
     DEFAULT_IMG: 'https://ecudemo389879.cafe24.com/web/upload/no-img.png',
     STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
-    ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'], // TENUE는 DB에서 직접 가져오므로 제거하여 범용성 확보
+    ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'],
     SPAM_KEYWORDS: /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty/i
   };
 
@@ -32,7 +32,6 @@
       this.renderWidget();
     },
 
-    // [1] 관리자 설정 로드 (tagline 포함 누락 방지)
     async loadWidgetSettings() {
       try {
         const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {
@@ -41,50 +40,61 @@
         const data = await res.json();
         if (data && data.length > 0) {
           const s = data[0];
-          // 기존 세팅 덮어쓰기
           if (s.display_type) this.settings.display_type = s.display_type;
           if (s.tagline) this.settings.tagline = s.tagline;
           if (s.title) this.settings.title = s.title;
           if (s.description) this.settings.description = s.description.replace(/\n/g, '<br>');
         }
-      } catch (e) { console.error("설정 로드 실패:", e); }
+      } catch (e) { }
     },
 
-    // [2] 작성자 마스킹 및 제목 혼합 방어 (v7.5 강화 로직 유지)
     maskName(name) {
       if (!name || name === "고객") return "고객";
-
-      // 관리자 키워드 체크 (매칭되면 마스킹 없이 반환)
       if (CONFIG.ADMIN_KEYWORDS.some(k => String(name).includes(k))) return name;
-
-      // 제목형 텍스트 방어 (10자 이상이면 수집 오류로 판단)
       let n = String(name).split('[')[0].replace(/[*]/g, '').trim();
       if (n.length > 10) return "고객";
-
       if (n.length <= 1) return n + "*";
       if (n.length === 2) return n[0] + "*";
       return n.substring(0, 2) + "**";
     },
 
-    // [3] 이미지 딥스캔
+    // [핵심] 게시글 본문 전체(긴 텍스트)를 실시간으로 긁어오는 정밀 스캔 함수
+    async _fetchFullContent(articleNo) {
+      try {
+        const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        // 카페24의 일반적인 본문 영역 선택자들
+        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content');
+        if (!contentArea) return null;
+
+        // 이미지 태그와 버튼 등 불필요한 요소 제거 후 순수 텍스트/줄바꿈만 추출
+        let cleanHTML = contentArea.innerHTML
+          .replace(/<img[^>]*>/g, "") // 이미지 제거
+          .replace(/<button[^>]*>.*?<\/button>/g, "") // 버튼 제거
+          .replace(/<script[^>]*>.*?<\/script>/g, "") // 스크립트 제거
+          .trim();
+
+        return cleanHTML;
+      } catch (e) { return null; }
+    },
+
     async _deepScan(articleNo) {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area');
-
         const imgs = Array.from((contentArea || doc).querySelectorAll('img')).map(img => {
           let src = img.getAttribute('src');
           if (!src || CONFIG.SPAM_KEYWORDS.test(src) || src.includes('.gif')) return null;
           return src.startsWith('//') ? 'https:' + src : src;
         }).filter(src => src !== null);
-
         return imgs;
       } catch (e) { return []; }
     },
 
-    // [4] 리뷰 데이터 로드
     async loadReviews() {
       try {
         const res = await fetch(`${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true&order=created_at.desc`, {
@@ -92,26 +102,21 @@
         });
         const list = await res.json();
         this.data = {}; this.listOrder = [];
-
         await Promise.all(list.map(async (r) => {
           const id = String(r.id);
           let imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : await this._deepScan(r.article_no);
           r.all_images = imgs.filter(src => !CONFIG.SPAM_KEYWORDS.test(src));
           if (r.all_images.length === 0) r.all_images = [CONFIG.DEFAULT_IMG];
-
           this.data[id] = r;
           this.listOrder.push(id);
         }));
-
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-      } catch (e) { console.error("데이터 로드 에러:", e); }
+      } catch (e) { }
     },
 
-    // [5] 메인 위젯 렌더링
     renderWidget() {
       const container = document.getElementById('rit-widget-container');
       if (!container) return;
-
       let html = `
         <div class="rit-header-area">
           <div class="rit-tagline">${this.settings.tagline}</div>
@@ -120,19 +125,11 @@
           <p class="rit-desc">${this.settings.description}</p>
         </div>
       `;
-
       if (this.settings.display_type === 'grid') {
         html += `<div class="rit-main-grid-layout">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`;
       } else {
-        html += `
-          <div class="swiper rit-main-swiper">
-            <div class="swiper-wrapper">
-              ${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
-            </div>
-          </div>
-        `;
+        html += `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`;
       }
-
       html += `
         <div id="ritModal" class="rit-modal-container">
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
@@ -150,7 +147,7 @@
                 <div class="rit-txt-side">
                   <div id="ritMetaArea"></div>
                   <h3 id="ritSubject"></h3>
-                  <div id="ritContent" class="rit-body-text"></div>
+                  <div id="ritContent" class="rit-body-text">불러오는 중...</div>
                   <div id="ritProductCard"></div>
                 </div>
               </div>
@@ -161,65 +158,37 @@
           </div>
         </div>
       `;
-
       container.innerHTML = html;
-
       if (this.settings.display_type !== 'grid') {
-        new Swiper('.rit-main-swiper', {
-          slidesPerView: 2.2, spaceBetween: 15,
-          autoplay: { delay: 4000 },
-          breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 25 } }
-        });
+        new Swiper('.rit-main-swiper', { slidesPerView: 2.2, spaceBetween: 15, autoplay: { delay: 4000 }, breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 25 } } });
       }
     },
 
     getCardHTML(id) {
       const d = this.data[id];
-      return `
-        <div class="rit-card" onclick="ReviewApp.openModal('${id}')">
-          <img src="${d.all_images[0]}" class="rit-card-img" loading="lazy">
-          <div class="rit-card-info">
-            <div class="rit-card-subject">${d.subject}</div>
-            <div class="rit-card-meta">
-              <span>${this.maskName(d.writer)}</span>
-              <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
-            </div>
-          </div>
-        </div>
-      `;
+      return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')"><img src="${d.all_images[0]}" class="rit-card-img" loading="lazy"><div class="rit-card-info"><div class="rit-card-subject">${d.subject}</div><div class="rit-card-meta"><span>${this.maskName(d.writer)}</span><div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div></div></div></div>`;
     },
 
-    openModal(id) {
+    async openModal(id) {
       this.currentScrollY = window.pageYOffset;
       document.getElementById('ritModal').style.display = 'flex';
       document.body.style.cssText = `position:fixed; top:-${this.currentScrollY}px; width:100%; overflow:hidden;`;
-      this.renderDetail(id);
+      await this.renderDetail(id);
     },
 
-    renderDetail(id) {
+    async renderDetail(id) {
       const d = this.data[id];
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
-
-      // 이미지 슬라이더 및 프랙션 (위치 고정 반영)
-      document.getElementById('ritModalImg').innerHTML = `
-        <div class="swiper rit-modal-swiper">
-          <div class="swiper-wrapper">${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}</div>
-          <div class="rit-fraction"></div>
-        </div>`;
-
+      document.getElementById('ritModalImg').innerHTML = `<div class="swiper rit-modal-swiper"><div class="swiper-wrapper">${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}</div><div class="rit-fraction"></div></div>`;
       new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
 
-      document.getElementById('ritMetaArea').innerHTML = `
-        <div class="rit-top-meta">
-          <span class="rit-name-tag">${this.maskName(d.writer)}</span>
-          <span class="rit-divider">|</span>
-          <div class="rit-star-box"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
-          <span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span>
-        </div>`;
-
+      document.getElementById('ritMetaArea').innerHTML = `<div class="rit-top-meta"><span class="rit-name-tag">${this.maskName(d.writer)}</span><span class="rit-divider">|</span><div class="rit-star-box"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div><span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span></div>`;
       document.getElementById('ritSubject').innerText = d.subject;
-      document.getElementById('ritContent').innerHTML = d.content.replace(/<img[^>]*>/g, "").replace(/<[^>]*>?/gm, '');
+
+      // [복구 로직 실행] DB의 짧은 요약 대신 실제 게시글의 긴 본문을 가져와서 꽂아줌
+      const fullContent = await this._fetchFullContent(d.article_no);
+      document.getElementById('ritContent').innerHTML = fullContent || d.content.replace(/<[^>]*>?/gm, '');
 
       this.loadComments(d.article_no);
     },
@@ -229,10 +198,7 @@
       const gi = document.getElementById('ritGridInner');
       if (gv.classList.contains('rit-hidden')) {
         gv.classList.remove('rit-hidden');
-        gi.innerHTML = this.listOrder.map(id => `
-          <div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')">
-            <img src="${this.data[id].all_images[0]}">
-          </div>`).join('');
+        gi.innerHTML = this.listOrder.map(id => `<div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')"><img src="${this.data[id].all_images[0]}"></div>`).join('');
       } else { gv.classList.add('rit-hidden'); }
     },
 
@@ -245,14 +211,10 @@
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const items = doc.querySelectorAll('.boardComment li, .commentList li, .replyArea li');
         const list = document.getElementById('ritCommList');
-
         if (items.length > 0) {
           list.innerHTML = Array.from(items).map(item => {
             const wr = item.querySelector('.name')?.innerText || "고객";
-            return `<div class="rit-comm-item">
-              <div class="rit-comm-name">${this.maskName(wr)}</div>
-              <div class="rit-comm-body">${item.querySelector('.comment')?.innerText || ""}</div>
-            </div>`;
+            return `<div class="rit-comm-item"><div class="rit-comm-name">${this.maskName(wr)}</div><div class="rit-comm-body">${item.querySelector('.comment')?.innerText || ""}</div></div>`;
           }).join('');
         } else { list.innerHTML = '<p class="rit-no-comm">등록된 답변이 없습니다.</p>'; }
       } catch (e) { pCard.innerHTML = ''; }
@@ -266,7 +228,6 @@
 
     injectCSS() {
       const css = `
-        /* 위젯 전체 레이아웃 */
         #rit-widget-container { max-width: 1300px; margin: 60px auto; padding: 0 20px; font-family: 'Pretendard', sans-serif; }
         .rit-header-area { text-align: center; margin-bottom: 40px; }
         .rit-tagline { font-size:12px; letter-spacing:2px; color:#999; margin-bottom:5px; text-transform:uppercase; }
@@ -274,7 +235,6 @@
         .rit-line { width: 30px; height: 1px; background: #333; margin: 15px auto; }
         .rit-desc { font-size: 14px; color: #777; line-height: 1.6; }
 
-        /* 카드 그리드 및 Swiper */
         .rit-main-grid-layout { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
         @media (min-width: 1024px) { .rit-main-grid-layout { grid-template-columns: repeat(5, 1fr); gap: 20px; } }
         .rit-card { aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; position: relative; cursor: pointer; background: #f0f0f0; }
@@ -283,64 +243,60 @@
         .rit-card-info { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%); display: flex; flex-direction: column; justify-content: flex-end; padding: 18px; color: #fff; }
         .rit-card-subject { font-size: 13px; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .rit-card-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
-
-        /* ⭐️ 별점 가독성 보정 (어두운 카드 배경 위에서 잘 보이게) */
         .rit-stars-small img { height: 12px; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5)); background: rgba(255,255,255,0.2); padding: 2px 4px; border-radius: 4px; }
 
-        /* 모달 시스템 */
+        /* 모달 시스템 - 투명 헤더 적용 */
         .rit-modal-container { position: fixed; inset: 0; z-index: 10000; display: none; align-items: center; justify-content: center; }
         .rit-modal-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
         .rit-modal-window { position: relative; width: 95%; max-width: 1100px; height: 85vh; background: #fff; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; }
-        .rit-modal-header { height: 54px; background: #000; display: flex; justify-content: space-between; align-items: center; padding: 0 25px; color: #fff; z-index: 1000; }
-        .rit-logo-text { font-size: 14px; font-weight: 700; letter-spacing: 1px; }
-        .btn-rit-grid { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 11px; font-weight: 700; padding: 6px 15px; border-radius: 4px; cursor: pointer; margin-right:10px; }
-        .btn-rit-close { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
+        
+        /* ⭐️ 투명 헤더 & 이미지 위 버튼 배치 */
+        .rit-modal-header { position: absolute; top: 0; left: 0; width: 100%; height: 60px; background: transparent; display: flex; justify-content: space-between; align-items: center; padding: 0 25px; color: #fff; z-index: 1000; pointer-events: none; }
+        .rit-logo-text { font-size: 14px; font-weight: 700; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .rit-header-buttons { pointer-events: auto; }
+        .btn-rit-grid { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 11px; font-weight: 700; padding: 6px 15px; border-radius: 4px; cursor: pointer; margin-right:10px; backdrop-filter: blur(5px); }
+        .btn-rit-close { background: rgba(0,0,0,0.4); border: none; color: #fff; font-size: 20px; cursor: pointer; width:34px; height:34px; border-radius:50%; line-height:34px; text-align:center; backdrop-filter: blur(5px); }
 
         .rit-modal-body { flex: 1; position: relative; overflow: hidden; }
         .rit-flex-container { display: flex; height: 100%; }
-        
-        /* ⭐️ 이미지 영역 & 프랙션 고정 */
         .rit-img-side { width: 48%; background: #000; position: relative; height: 100%; overflow: hidden; }
         .rit-modal-swiper { height: 100%; width: 100%; }
         .rit-modal-swiper img { width: 100%; height: 100%; object-fit: cover !important; }
         .rit-fraction { 
           position: absolute !important; bottom: 30px !important; left: 50% !important; transform: translateX(-50%);
-          background: rgba(0,0,0,0.7); color: #fff; padding: 4px 14px; border-radius: 20px;
+          background: rgba(0,0,0,0.6); color: #fff; padding: 4px 14px; border-radius: 20px;
           font-size: 11px; z-index: 999; pointer-events: none; font-family: monospace;
         }
 
-        /* 텍스트 영역 */
-        .rit-txt-side { width: 52%; padding: 40px; overflow-y: auto; background: #fff; }
+        /* 텍스트 영역 가독성 개선 */
+        .rit-txt-side { width: 52%; padding: 60px 40px 40px; overflow-y: auto; background: #fff; }
         .rit-top-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-        .rit-name-tag { font-weight: 800; font-size: 15px; color: #111; }
-        .rit-star-box img { height: 16px; filter: brightness(0); } /* 흰 배경이므로 검게 노출 */
+        .rit-name-tag { font-weight: 400; font-size: 11px; color: #111; }
+        .rit-star-box img { height: 15px; filter: brightness(0); }
         .rit-date-tag { font-size: 12px; color: #999; }
-        #ritSubject { font-size: 22px; font-weight: 800; margin-bottom: 25px; line-height: 1.4; color: #111; }
-        .rit-body-text { font-size: 15px; line-height: 1.8; color: #444; margin-bottom: 40px; white-space: pre-wrap; }
+        #ritSubject { font-size: 20px; font-weight: 800; margin-bottom: 25px; line-height: 1.4; color: #111; }
+        .rit-body-text { font-size: 14.5px; line-height: 1.8; color: #444; margin-bottom: 40px; white-space: pre-wrap; }
 
         /* 댓글 영역 */
         .rit-comm-head { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px; }
-        .rit-comm-head span { font-weight: 800; font-size: 13px; }
-        .rit-comm-head a { font-size:11px; color:#999; text-decoration:none; border:1px solid #eee; padding:3px 8px; border-radius:4px; }
+        .rit-comm-head span { font-weight: 400; font-size: 11px; }
+        .rit-comm-head a { font-size:11px; color:#999; text-decoration:none; }
         .rit-comm-item { padding: 15px; background: #f8f8f8; border-radius: 10px; margin-bottom: 12px; }
-        .rit-comm-name { font-weight: 800; font-size: 12px; margin-bottom: 5px; }
+        .rit-comm-name { font-weight: 800; font-size: 11px; margin-bottom: 5px; }
         .rit-comm-body { color: #666; font-size: 13px; line-height: 1.6; }
 
-        /* ⭐️ 그리드 뷰 레이어 (상세 뷰를 완벽히 덮음) */
-        .rit-grid-overlay { position: absolute; inset: 0; background: #fff; z-index: 50; overflow-y: auto; padding: 30px; }
+        .rit-grid-overlay { position: absolute; inset: 0; background: #fff; z-index: 50; overflow-y: auto; padding: 70px 30px 30px; }
         .rit-grid-box-wrap { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
         .rit-grid-thumb { aspect-ratio: 1; border-radius: 8px; overflow: hidden; cursor: pointer; }
         .rit-grid-thumb img { width:100%; height:100%; object-fit:cover; }
-
         .rit-hidden { display: none !important; }
 
-        /* 모바일 대응 */
         @media (max-width: 768px) {
+          .rit-modal-header { background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent); }
           .rit-flex-container { flex-direction: column; }
           .rit-img-side { height: 45%; width: 100%; }
           .rit-txt-side { width: 100%; padding: 25px; }
           .rit-modal-window { height: 90vh; width: 95%; }
-          #ritSubject { font-size: 18px; }
         }
       `;
       const style = document.createElement('style'); style.innerHTML = css; document.head.appendChild(style);
