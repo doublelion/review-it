@@ -44,8 +44,13 @@
           if (s.tagline) this.settings.tagline = s.tagline;
           if (s.title) this.settings.title = s.title;
           if (s.description) this.settings.description = s.description.replace(/\n/g, '<br>');
+
+          // 어드민에서 설정한 노출 개수 및 그리드 줄 수 데이터 맵핑
+          if (s.display_limit !== undefined) this.settings.display_limit = s.display_limit;
+          if (s.grid_rows_desktop !== undefined) this.settings.grid_rows_desktop = s.grid_rows_desktop;
+          if (s.grid_rows_mobile !== undefined) this.settings.grid_rows_mobile = s.grid_rows_mobile;
         }
-      } catch (e) { }
+      } catch (e) { console.error("설정 로드 에러:", e); }
     },
 
     maskName(name) {
@@ -272,16 +277,28 @@
           display: grid;
           gap: 15px;
           grid-template-columns: repeat(2, 1fr);
-          grid-template-rows: repeat(${moRows}, 1fr); /* 모바일 설정 반영 */
           overflow: hidden;
         }
+        
+        /* [핵심 픽스 2] 모바일: 설정된 줄 수(moRows * 2개) 초과 시 숨김 처리 */
+        .rit-main-grid-layout > div:nth-child(n + ${moRows * 2 + 1}) {
+          display: none;
+        }
+
         @media (min-width: 1024px) {
           .rit-main-grid-layout {
             grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(${pcRows}, 1fr); /* PC 설정 반영 */
+          }
+          /* PC: 모바일 숨김 설정을 덮어쓰고, PC 줄 수(pcRows * 5개) 초과 시 숨김 처리 */
+          .rit-main-grid-layout > div:nth-child(n) {
+            display: block;
+          }
+          .rit-main-grid-layout > div:nth-child(n + ${pcRows * 5 + 1}) {
+            display: none;
           }
         }
       `;
+
       // 중복 로드 방지
       if (document.getElementById('rit-css-link')) return;
 
@@ -289,7 +306,6 @@
       link.id = 'rit-css-link';
       link.rel = 'stylesheet';
       link.type = 'text/css';
-      // CSS 파일이 업로드된 실제 URL 경로를 입력하세요.
       link.href = 'https://review-it-tau.vercel.app/review-it.css';
       link.media = 'all';
 
