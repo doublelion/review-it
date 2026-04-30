@@ -5,7 +5,6 @@
  */
 (function (window) {
   const getDynamicConfig = () => {
-    // 카페24 상점 ID 자동 추출 (전역 객체 또는 호스트네임 기반)
     const mallId = (window.CAFE24API && window.CAFE24API.getMallId)
       ? window.CAFE24API.getMallId()
       : window.location.hostname.split('.')[0];
@@ -132,7 +131,6 @@
 
       const gridClass = `rit-pc-r${this.settings.grid_rows_desktop} rit-mo-r${this.settings.grid_rows_mobile}`;
 
-      // [핵심] 누락되었던 타이틀과 태그라인을 settings에서 직접 바인딩하여 출력
       let html = `
         <div class="rit-header-area">
           <div class="rit-tagline">${this.settings.tagline}</div>
@@ -269,7 +267,7 @@
       }
       styleTag.innerHTML = `
         #rit-widget-container { padding: 40px 0; margin: 0 auto; text-align: center; }
-        .rit-tagline { font-size: 12px; color: #888; letter-spacing: 2px; margin-bottom: 8px; font-family: 'Inter', sans-serif; }
+        .rit-tagline { font-size: 12px; letter-spacing: 2px; margin-bottom: 8px; font-family: 'Inter', sans-serif; }
         .rit-main-title { font-size: 26px; font-weight: 800; color: #111; margin: 0; font-family: 'Inter', sans-serif; }
         .rit-line { width: 35px; height: 2px; background: #000; margin: 18px auto; }
         .rit-desc { font-size: 14px; color: #666; margin-bottom: 30px; }

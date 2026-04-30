@@ -27,7 +27,7 @@
   text-align: left;
 }
 #rit-widget-container {
-  max-width: 1300px;
+  /* max-width: 1300px; */
   margin: 0px auto 60px;
   padding-left: 20px;
   padding-right: 20px;
@@ -43,13 +43,13 @@
 .rit-tagline {
   font-size: 12px;
   letter-spacing: 2px;
-  color: #999;
+  color: #b45309;
   margin-bottom: 5px;
   text-transform: uppercase;
 }
 
 .rit-header-area h2 {
-  font-size: 30px;
+  font-size: 45px;
   font-weight: 800;
   text-transform: uppercase;
   margin: 0;
@@ -58,7 +58,7 @@
 .rit-line {
   width: 30px;
   height: 1px;
-  background: #333;
+  background: #cbcbcb;
   margin: 15px auto;
 }
 
@@ -78,7 +78,7 @@
   .rit-main-grid-layout {
     grid-template-columns: repeat(5, 1fr);
     gap: 20px;
-    /* max-width: 1480px; */
+    max-width: 1480px;
     margin-left: auto;
     margin-right: auto;
   }
