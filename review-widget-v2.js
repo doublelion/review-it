@@ -141,6 +141,13 @@
     renderWidget() {
       const container = document.getElementById('rit-widget-container');
       if (!container) return;
+
+      // [스마트 로직] 데스크탑 줄 수와 모바일 줄 수를 조합한 고유 타입을 부여합니다.
+      const pcRows = this.settings.grid_rows_desktop || 1;
+      const moRows = this.settings.grid_rows_mobile || 2;
+      const gridTypeClass = `rit-pc-r${pcRows} rit-mo-r${moRows}`;
+
+
       let html = `
         <div class="rit-header-area">
           <div class="rit-tagline">${this.settings.tagline}</div>
@@ -150,46 +157,47 @@
         </div>
       `;
       if (this.settings.display_type === 'grid') {
-        html += `<div class="rit-main-grid-layout">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`;
+        html += `<div class="rit-main-grid-layout ${gridTypeClass}">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`;
       } else {
         html += `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`;
       }
+      // renderWidget 함수 내부 모달 구조 수정
       html += `
-        <div id="ritModal" class="rit-modal-container">
-          <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
-          <div class="rit-modal-window">
-            <div class="rit-modal-header">
-              <span class="rit-logo-text">${this.settings.title}</span>
-              <div class="rit-header-buttons">
-                <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
-                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <rect x="2" y="2" width="9" height="9" rx="1" />
-                    <rect x="13" y="2" width="9" height="9" rx="1" />
-                    <rect x="2" y="13" width="9" height="9" rx="1" />
-                    <rect x="13" y="13" width="9" height="9" rx="1" />
-                  </svg>
-                  GRID VIEW
-                </button>
-                <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
-              </div>
-            </div>
-            <div class="rit-modal-body">
-              <div id="ritDetailView" class="rit-flex-container">
-                <div id="ritModalImg" class="rit-img-side"></div>
-                <div class="rit-txt-side">
-                  <div id="ritMetaArea"></div>
-                  <h3 id="ritSubject"></h3>
-                  <div id="ritContent" class="rit-body-text">불러오는 중...</div>
-                  <div id="ritProductCard"></div>
-                </div>
-              </div>
-              <div id="ritGridView" class="rit-grid-overlay rit-hidden">
-                <div id="ritGridInner" class="rit-grid-box-wrap"></div>
-              </div>
-            </div>
+  <div id="ritModal" class="rit-modal-container">
+    <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
+    <div class="rit-modal-window"> <!-- CSS의 .rit-modal-window와 일치 -->
+      <div class="rit-modal-header">
+        <span class="rit-logo-text">${this.settings.title}</span>
+        <div class="rit-header-buttons">
+          <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+              <rect x="2" y="2" width="9" height="9" rx="1" />
+              <rect x="13" y="2" width="9" height="9" rx="1" />
+              <rect x="2" y="13" width="9" height="9" rx="1" />
+              <rect x="13" y="13" width="9" height="9" rx="1" />
+            </svg>
+            GRID VIEW
+          </button>
+          <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
+        </div>
+      </div>
+      <div class="rit-modal-body">
+        <div id="ritDetailView" class="rit-flex-container">
+          <div id="ritModalImg" class="rit-img-side"></div>
+          <div class="rit-txt-side">
+            <div id="ritMetaArea"></div>
+            <h3 id="ritSubject"></h3>
+            <div id="ritContent" class="rit-body-text">불러오는 중...</div>
+            <div id="ritProductCard"></div>
           </div>
         </div>
-      `;
+        <div id="ritGridView" class="rit-grid-overlay rit-hidden">
+          <div id="ritGridInner" class="rit-grid-box-wrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+`;
       container.innerHTML = html;
       if (this.settings.display_type !== 'grid') {
         new Swiper('.rit-main-swiper', { slidesPerView: 2.2, spaceBetween: 15, autoplay: { delay: 4000 }, breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 25 } } });
@@ -198,13 +206,13 @@
 
     getCardHTML(id) {
       const d = this.data[id];
-      return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')"><img src="${d.all_images[0]}" class="rit-card-img" loading="lazy"><div class="rit-card-info"><div class="rit-card-subject">${d.subject}</div><div class="rit-card-meta"><span>${this.maskName(d.writer)}</span><div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div></div></div></div>`;
+      return `< div class="rit-card" onclick = "ReviewApp.openModal('${id}')" > <img src="${d.all_images[0]}" class="rit-card-img" loading="lazy"><div class="rit-card-info"><div class="rit-card-subject">${d.subject}</div><div class="rit-card-meta"><span>${this.maskName(d.writer)}</span><div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div></div></div></>`;
     },
 
     async openModal(id) {
       this.currentScrollY = window.pageYOffset;
       document.getElementById('ritModal').style.display = 'flex';
-      document.body.style.cssText = `position:fixed; top:-${this.currentScrollY}px; width:100%; overflow:hidden;`;
+      document.body.style.cssText = `position: fixed; top: -${this.currentScrollY} px; width: 100 %; overflow: hidden; `;
       await this.renderDetail(id);
     },
 
@@ -212,10 +220,10 @@
       const d = this.data[id];
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
-      document.getElementById('ritModalImg').innerHTML = `<div class="swiper rit-modal-swiper"><div class="swiper-wrapper">${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}</div><div class="rit-fraction"></div></div>`;
+      document.getElementById('ritModalImg').innerHTML = `< div class="swiper rit-modal-swiper" ><div class="swiper-wrapper">${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}</div><div class="rit-fraction"></div></ > `;
       new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
 
-      document.getElementById('ritMetaArea').innerHTML = `<div class="rit-top-meta"><span class="rit-name-tag">${this.maskName(d.writer)}</span><span class="rit-divider">|</span><div class="rit-star-box"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div><span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span></div>`;
+      document.getElementById('ritMetaArea').innerHTML = `< div class="rit-top-meta" ><span class="rit-name-tag">${this.maskName(d.writer)}</span><span class="rit-divider">|</span><div class="rit-star-box"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div><span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span></ > `;
       document.getElementById('ritSubject').innerText = d.subject;
 
       // [복구 로직 실행] DB의 짧은 요약 대신 실제 게시글의 긴 본문을 가져와서 꽂아줌
@@ -230,15 +238,15 @@
       const gi = document.getElementById('ritGridInner');
       if (gv.classList.contains('rit-hidden')) {
         gv.classList.remove('rit-hidden');
-        gi.innerHTML = this.listOrder.map(id => `<div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')"><img src="${this.data[id].all_images[0]}"></div>`).join('');
+        gi.innerHTML = this.listOrder.map(id => `< div class="rit-grid-thumb" onclick = "ReviewApp.renderDetail('${id}')" > <img src="${this.data[id].all_images[0]}"></>`).join('');
       } else { gv.classList.add('rit-hidden'); }
     },
 
     async loadComments(articleNo) {
       const pCard = document.getElementById('ritProductCard');
-      pCard.innerHTML = `<div class="rit-comm-head"><span>COMMENTS</span><a href="/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}" target="_blank">리뷰 원문보기</a></div><div id="ritCommList"></div>`;
+      pCard.innerHTML = `< div class="rit-comm-head" ><span>COMMENTS</span><a href="/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}" target="_blank">리뷰 원문보기</a></ > <div id="ritCommList"></div>`;
       try {
-        const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
+        const res = await fetch(`/ board / product / read.html ? board_no = ${CONFIG.BOARD_NO}& no=${articleNo} `);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const items = doc.querySelectorAll('.boardComment li, .commentList li, .replyArea li');
@@ -246,7 +254,7 @@
         if (items.length > 0) {
           list.innerHTML = Array.from(items).map(item => {
             const wr = item.querySelector('.name')?.innerText || "고객";
-            return `<div class="rit-comm-item"><div class="rit-comm-name">${this.maskName(wr)}</div><div class="rit-comm-body">${item.querySelector('.comment')?.innerText || ""}</div></div>`;
+            return `< div class="rit-comm-item" ><div class="rit-comm-name">${this.maskName(wr)}</div><div class="rit-comm-body">${item.querySelector('.comment')?.innerText || ""}</div></ > `;
           }).join('');
         } else { list.innerHTML = '<p class="rit-no-comm">등록된 답변이 없습니다.</p>'; }
       } catch (e) { pCard.innerHTML = ''; }
@@ -259,11 +267,6 @@
     },
 
     injectCSS() {
-      const pcRows = this.settings.grid_rows_desktop || 1;
-      const moRows = this.settings.grid_rows_mobile || 2;
-      const pcLimit = pcRows * 5;
-      const moLimit = moRows * 2;
-
       const styleId = 'rit-dynamic-style';
       let styleTag = document.getElementById(styleId);
       if (!styleTag) {
@@ -272,35 +275,39 @@
         document.head.appendChild(styleTag);
       }
 
+      // 1줄부터 3줄까지 모든 케이스를 미리 정의하여 어떤 설정에도 즉시 대응합니다.
       styleTag.innerHTML = `
-        .rit-main-grid-layout {
-          display: grid;
-          gap: 15px;
-          grid-template-columns: repeat(2, 1fr);
-        }
+        /* [공통 기본 설정] */
+        .rit - main - grid - layout {
+        display: grid;
+        gap: 15px;
+        grid - template - columns: repeat(2, 1fr);
+      }
+    .rit - main - grid - layout > div { display: block;
+}
 
-        /* 1. 모바일 전용: 1023px 이하에서만 5번째부터 숨김 */
-        @media (max-width: 1023px) {
-          .rit-main-grid-layout > div:nth-child(n + ${moLimit + 1}) {
-            display: none !important;
-          }
-        }
+    /* [모바일 제어: 1023px 이하] */
+    @media(max - width: 1023px) {
+      .rit - mo - r1 > div: nth - child(n + 3) { display: none!important; } /* 1줄: 2개 노출 */
+      .rit - mo - r2 > div: nth - child(n + 5) { display: none!important; } /* 2줄: 4개 노출 */
+      .rit - mo - r3 > div: nth - child(n + 7) { display: none!important; } /* 3줄: 6개 노출 */
+}
 
-        /* 2. PC 전용: 1024px 이상에서만 설정된 개수 이후부터 숨김 */
-        @media (min-width: 1024px) {
-          .rit-main-grid-layout {
-            grid-template-columns: repeat(5, 1fr);
-          }
-          /* PC 환경에서는 모바일의 숨김 규칙이 아예 적용되지 않도록 보장 */
-          .rit-main-grid-layout > div {
-            display: block !important;
-          }
-          /* PC 설정값(예: 10개) 이후만 정밀하게 숨김 */
-          .rit-main-grid-layout > div:nth-child(n + ${pcLimit + 1}) {
-            display: none !important;
-          }
-        }
-      `;
+/* [PC 제어: 1024px 이상] */
+@media(min - width: 1024px) {
+      .rit - main - grid - layout {
+    grid - template - columns: repeat(5, 1fr);
+  }
+
+      /* PC 환경으로 넘어오면 일단 모바일의 숨김 처리를 강제로 해제합니다. */
+      .rit - main - grid - layout > div { display: block!important; }
+
+      /* 그 후, 설정된 타입별로 정확히 숨김 처리합니다. */
+      .rit - pc - r1 > div: nth - child(n + 6) { display: none!important; }  /* 1줄: 5개 노출 */
+      .rit - pc - r2 > div: nth - child(n + 11) { display: none!important; } /* 2줄: 10개 노출 */
+      .rit - pc - r3 > div: nth - child(n + 16) { display: none!important; } /* 3줄: 15개 노출 */
+}
+`;
 
 
       // 외부 CSS 파일 로드 (변경 없음)
