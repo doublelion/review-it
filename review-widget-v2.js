@@ -114,6 +114,13 @@
     renderWidget() {
       const container = document.getElementById('rit-widget-container');
       if (!container) return;
+
+      // [스마트 로직] 데스크탑 줄 수와 모바일 줄 수를 조합한 고유 타입을 부여합니다.
+      const pcRows = this.settings.grid_rows_desktop || 1;
+      const moRows = this.settings.grid_rows_mobile || 2;
+      const gridTypeClass = `rit-pc-r${pcRows} rit-mo-r${moRows}`;
+
+
       let html = `
         <div class="rit-header-area">
           <div class="rit-tagline">${this.settings.tagline}</div>
@@ -123,23 +130,23 @@
         </div>
       `;
       if (this.settings.display_type === 'grid') {
-        html += `<div class="rit-main-grid-layout">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`;
+        html += `<div class="rit-main-grid-layout ${gridTypeClass}">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`;
       } else {
         html += `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`;
       }
-
-      // 모달 본체: .rit-modal-window 클래스 유지 및 내부 구조 최적화
       html += `
         <div id="ritModal" class="rit-modal-container">
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
-          <div class="rit-modal-window"> 
+          <div class="rit-modal-window">
             <div class="rit-modal-header">
               <span class="rit-logo-text">${this.settings.title}</span>
               <div class="rit-header-buttons">
                 <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
                   <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <rect x="2" y="2" width="9" height="9" rx="1" /><rect x="13" y="2" width="9" height="9" rx="1" />
-                    <rect x="2" y="13" width="9" height="9" rx="1" /><rect x="13" y="13" width="9" height="9" rx="1" />
+                    <rect x="2" y="2" width="9" height="9" rx="1" />
+                    <rect x="13" y="2" width="9" height="9" rx="1" />
+                    <rect x="2" y="13" width="9" height="9" rx="1" />
+                    <rect x="13" y="13" width="9" height="9" rx="1" />
                   </svg>
                   GRID VIEW
                 </button>
