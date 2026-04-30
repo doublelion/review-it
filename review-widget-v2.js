@@ -1,6 +1,6 @@
 /**
  * @Project: Review-It Widget Engine v8.0
- * @Update: 실시간 본문 전체 복구(Full Content Scan) + 우측 헤더 투명화 + 모바일 최적화
+ * @Update: 실시간 본문 복구 + 모달 레이아웃 최적화 + 관리자 설정 연동
  */
 (function (window) {
   const CONFIG = {
@@ -68,12 +68,7 @@
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail');
         if (!contentArea) return null;
-        let cleanHTML = contentArea.innerHTML
-          .replace(/<img[^>]*>/g, "")
-          .replace(/<button[^>]*>.*?<\/button>/g, "")
-          .replace(/<script[^>]*>.*?<\/script>/g, "")
-          .trim();
-        return cleanHTML;
+        return contentArea.innerHTML.replace(/<img[^>]*>|<button[^>]*>.*?<\/button>|<script[^>]*>.*?<\/script>/g, "").trim();
       } catch (e) { return null; }
     },
 
@@ -112,9 +107,8 @@
           this.data[id] = r;
           this.listOrder.push(id);
         }));
-
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-      } catch (e) { console.error("리뷰 로드 에러:", e); }
+      } catch (e) { console.error("로드 에러:", e); }
     },
 
     renderWidget() {
@@ -133,39 +127,37 @@
       } else {
         html += `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`;
       }
+
+      // 모달 본체: .rit-modal-window 클래스 유지 및 내부 구조 최적화
       html += `
         <div id="ritModal" class="rit-modal-container">
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
-          <div class="rit-modal-window">
-            <div id="rit-modal-content" class="rit-modal-content">
-              <div class="rit-modal-header">
-                <span class="rit-logo-text">${this.settings.title}</span>
-                <div class="rit-header-buttons">
-                  <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
-                    <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                      <rect x="2" y="2" width="9" height="9" rx="1" />
-                      <rect x="13" y="2" width="9" height="9" rx="1" />
-                      <rect x="2" y="13" width="9" height="9" rx="1" />
-                      <rect x="13" y="13" width="9" height="9" rx="1" />
-                    </svg>
-                    GRID VIEW
-                  </button>
-                  <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
+          <div class="rit-modal-window"> 
+            <div class="rit-modal-header">
+              <span class="rit-logo-text">${this.settings.title}</span>
+              <div class="rit-header-buttons">
+                <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
+                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="9" height="9" rx="1" /><rect x="13" y="2" width="9" height="9" rx="1" />
+                    <rect x="2" y="13" width="9" height="9" rx="1" /><rect x="13" y="13" width="9" height="9" rx="1" />
+                  </svg>
+                  GRID VIEW
+                </button>
+                <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
+              </div>
+            </div>
+            <div class="rit-modal-body">
+              <div id="ritDetailView" class="rit-flex-container">
+                <div id="ritModalImg" class="rit-img-side"></div>
+                <div class="rit-txt-side">
+                  <div id="ritMetaArea"></div>
+                  <h3 id="ritSubject"></h3>
+                  <div id="ritContent" class="rit-body-text">불러오는 중...</div>
+                  <div id="ritProductCard"></div>
                 </div>
               </div>
-              <div class="rit-modal-body">
-                <div id="ritDetailView" class="rit-flex-container">
-                  <div id="ritModalImg" class="rit-img-side"></div>
-                  <div class="rit-txt-side">
-                    <div id="ritMetaArea"></div>
-                    <h3 id="ritSubject"></h3>
-                    <div id="ritContent" class="rit-body-text">불러오는 중...</div>
-                    <div id="ritProductCard"></div>
-                  </div>
-                </div>
-                <div id="ritGridView" class="rit-grid-overlay rit-hidden">
-                  <div id="ritGridInner" class="rit-grid-box-wrap"></div>
-                </div>
+              <div id="ritGridView" class="rit-grid-overlay rit-hidden">
+                <div id="ritGridInner" class="rit-grid-box-wrap"></div>
               </div>
             </div>
           </div>
@@ -238,8 +230,6 @@
     injectCSS() {
       const pcRows = this.settings.grid_rows_desktop || 1;
       const moRows = this.settings.grid_rows_mobile || 2;
-      const pcLimit = pcRows * 5;
-      const moLimit = moRows * 2;
       const styleId = 'rit-dynamic-style';
       let styleTag = document.getElementById(styleId);
       if (!styleTag) {
@@ -249,11 +239,11 @@
       }
       styleTag.innerHTML = `
         .rit-main-grid-layout { display: grid; gap: 15px; grid-template-columns: repeat(2, 1fr); }
-        @media (max-width: 1023px) { .rit-main-grid-layout > div:nth-child(n + ${moLimit + 1}) { display: none !important; } }
+        @media (max-width: 1023px) { .rit-main-grid-layout > div:nth-child(n + ${moRows * 2 + 1}) { display: none !important; } }
         @media (min-width: 1024px) {
           .rit-main-grid-layout { grid-template-columns: repeat(5, 1fr); }
           .rit-main-grid-layout > div { display: block !important; }
-          .rit-main-grid-layout > div:nth-child(n + ${pcLimit + 1}) { display: none !important; }
+          .rit-main-grid-layout > div:nth-child(n + ${pcRows * 5 + 1}) { display: none !important; }
         }
       `;
       if (!document.getElementById('rit-css-link')) {
