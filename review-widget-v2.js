@@ -235,10 +235,18 @@
     },
 
     injectCSS() {
-      const css = `
-       
-      `;
-      const style = document.createElement('style'); style.innerHTML = css; document.head.appendChild(style);
+      // 중복 로드 방지
+      if (document.getElementById('rit-css-link')) return;
+
+      const link = document.createElement('link');
+      link.id = 'rit-css-link';
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      // CSS 파일이 업로드된 실제 URL 경로를 입력하세요.
+      link.href = 'https://review-it-tau.vercel.app/review-it.css';
+      link.media = 'all';
+
+      document.head.appendChild(link);
     }
   };
 
