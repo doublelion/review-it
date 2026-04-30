@@ -125,7 +125,7 @@
 
 .rit-stars-small img {
   height: 12px;
-  filter: invert(1), drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+  filter: invert(1) drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
   background: rgba(255, 255, 255, 0.2);
   padding: 2px 4px;
   border-radius: 4px;
