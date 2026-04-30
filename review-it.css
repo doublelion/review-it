@@ -78,6 +78,9 @@
   .rit-main-grid-layout {
     grid-template-columns: repeat(5, 1fr);
     gap: 20px;
+    /* max-width: 1480px; */
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
@@ -172,10 +175,13 @@
 }
 
 .rit-logo-text {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
+  opacity: .6;
+  color: white;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-transform: uppercase;
 }
 
 .rit-header-buttons {
