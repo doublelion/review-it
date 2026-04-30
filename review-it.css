@@ -393,8 +393,8 @@
   }
 
   .rit-modal-window {
-    height: 90vh;
-    width: 95%;
+    height: 100vh;
+    width: 100%;
   }
 }
 
@@ -587,6 +587,9 @@
 
 /* 모바일 대응 */
 @media (max-width: 767px) {
+  .rit-modal-header {
+    
+  }
   .rit-modal-content {
     flex-direction: column;
     height: 90vh;
