@@ -163,41 +163,41 @@
       }
       // renderWidget 함수 내부 모달 구조 수정
       html += `
-  <div id="ritModal" class="rit-modal-container">
-    <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
-    <div class="rit-modal-window"> <!-- CSS의 .rit-modal-window와 일치 -->
-      <div class="rit-modal-header">
-        <span class="rit-logo-text">${this.settings.title}</span>
-        <div class="rit-header-buttons">
-          <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
-            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-              <rect x="2" y="2" width="9" height="9" rx="1" />
-              <rect x="13" y="2" width="9" height="9" rx="1" />
-              <rect x="2" y="13" width="9" height="9" rx="1" />
-              <rect x="13" y="13" width="9" height="9" rx="1" />
-            </svg>
-            GRID VIEW
-          </button>
-          <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
-        </div>
-      </div>
-      <div class="rit-modal-body">
-        <div id="ritDetailView" class="rit-flex-container">
-          <div id="ritModalImg" class="rit-img-side"></div>
-          <div class="rit-txt-side">
-            <div id="ritMetaArea"></div>
-            <h3 id="ritSubject"></h3>
-            <div id="ritContent" class="rit-body-text">불러오는 중...</div>
-            <div id="ritProductCard"></div>
+        <div id="ritModal" class="rit-modal-container">
+          <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
+          <div class="rit-modal-window"> <!-- CSS의 .rit-modal-window와 일치 -->
+            <div class="rit-modal-header">
+              <span class="rit-logo-text">${this.settings.title}</span>
+              <div class="rit-header-buttons">
+                <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
+                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="9" height="9" rx="1" />
+                    <rect x="13" y="2" width="9" height="9" rx="1" />
+                    <rect x="2" y="13" width="9" height="9" rx="1" />
+                    <rect x="13" y="13" width="9" height="9" rx="1" />
+                  </svg>
+                  GRID VIEW
+                </button>
+                <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
+              </div>
+            </div>
+            <div class="rit-modal-body">
+              <div id="ritDetailView" class="rit-flex-container">
+                <div id="ritModalImg" class="rit-img-side"></div>
+                <div class="rit-txt-side">
+                  <div id="ritMetaArea"></div>
+                  <h3 id="ritSubject"></h3>
+                  <div id="ritContent" class="rit-body-text">불러오는 중...</div>
+                  <div id="ritProductCard"></div>
+                </div>
+              </div>
+              <div id="ritGridView" class="rit-grid-overlay rit-hidden">
+                <div id="ritGridInner" class="rit-grid-box-wrap"></div>
+              </div>
+            </div>
           </div>
         </div>
-        <div id="ritGridView" class="rit-grid-overlay rit-hidden">
-          <div id="ritGridInner" class="rit-grid-box-wrap"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-`;
+      `;
       container.innerHTML = html;
       if (this.settings.display_type !== 'grid') {
         new Swiper('.rit-main-swiper', { slidesPerView: 2.2, spaceBetween: 15, autoplay: { delay: 4000 }, breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 25 } } });
@@ -206,7 +206,7 @@
 
     getCardHTML(id) {
       const d = this.data[id];
-      return `< div class="rit-card" onclick = "ReviewApp.openModal('${id}')" > <img src="${d.all_images[0]}" class="rit-card-img" loading="lazy"><div class="rit-card-info"><div class="rit-card-subject">${d.subject}</div><div class="rit-card-meta"><span>${this.maskName(d.writer)}</span><div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div></div></div></>`;
+      return `<div class="rit-card" onclick = "ReviewApp.openModal('${id}')" > <img src="${d.all_images[0]}" class="rit-card-img" loading="lazy"><div class="rit-card-info"><div class="rit-card-subject">${d.subject}</div><div class="rit-card-meta"><span>${this.maskName(d.writer)}</span><div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div></div></div></div>`;
     },
 
     async openModal(id) {
