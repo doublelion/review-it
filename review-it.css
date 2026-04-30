@@ -6,40 +6,599 @@
   --rit-white: #ffffff;
 }
 
-.rit-header { text-align: center; margin-bottom: 60px; padding: 0 20px; }
-.rit-header .rit-badge { font-size: 11px; color: var(--rit-gold); font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; margin-bottom: 15px; display: block; }
-.rit-header .rit-title { font-size: 40px; font-weight: 800; color: var(--rit-main); margin: 0 0 20px; }
-.rit-header .rit-line { width: 50px; height: 1px; background: rgba(0,0,0,0.1); margin: 0 auto 20px; }
-.rit-header .rit-desc { color: #666; font-size: 15px; line-height: 1.6; font-weight: 300; }
+.rit-modal-window {
+  position: relative;
+  width: 95%;
+  max-width: 1100px;
+  height: 85vh;
+  background: #fff;
+  border-radius: 0px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
-.rit-grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 0 20px; max-width: 1400px; margin: 0 auto; }
+.rit-header-buttons {
+  display: flex;
+  align-items: center;
+}
 
-.rit-item { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 3/4; cursor: pointer; background: #f1f1f1; }
-.rit-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.7s ease; }
-.rit-item:hover img { transform: scale(1.05); }
-.rit-item .rit-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 60%, transparent 100%); display: flex; flex-direction: column; justify-content: flex-end; padding: 25px; color: #fff; z-index: 5; }
-.rit-item .rit-item-title { font-weight: bold; font-size: 15px; margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#rit-widget-container {
+  max-width: 1300px;
+  margin: 60px auto;
+  padding: 0 20px;
+  font-family: 'Pretendard', sans-serif;
+}
+
+.rit-header-area {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.rit-tagline {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #999;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.rit-header-area h2 {
+  font-size: 30px;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.rit-line {
+  width: 30px;
+  height: 1px;
+  background: #333;
+  margin: 15px auto;
+}
+
+.rit-desc {
+  font-size: 14px;
+  color: #777;
+  line-height: 1.6;
+}
+
+.rit-main-grid-layout {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+@media (min-width: 1024px) {
+  .rit-main-grid-layout {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+  }
+}
+
+.rit-card {
+  aspect-ratio: 3/4;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  background: #f0f0f0;
+}
+
+.rit-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: 0.5s ease;
+}
+
+.rit-card:hover .rit-card-img {
+  transform: scale(1.08);
+}
+
+.rit-card-info {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 60%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 18px;
+  color: #fff;
+}
+
+.rit-card-subject {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rit-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.rit-stars-small img {
+  height: 12px;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+/* 모달 시스템 - 투명 헤더 적용 */
+.rit-modal-container {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.rit-modal-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+}
+
+
+/* ⭐️ 투명 헤더 & 이미지 위 버튼 배치 */
+.rit-modal-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 25px;
+  color: #fff;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.rit-logo-text {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.rit-header-buttons {
+  pointer-events: auto;
+}
+
+.btn-rit-grid {
+  background: rgba(0, 0, 0, 0.4);
+  /* border: 1px solid rgba(255, 255, 255, 0.2); */
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+  backdrop-filter: blur(5px);
+}
+
+.btn-rit-close {
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  line-height: 34px;
+  text-align: center;
+  backdrop-filter: blur(5px);
+}
+
+.rit-modal-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.rit-flex-container {
+  display: flex;
+  height: 100%;
+}
+
+.rit-img-side {
+  width: 48%;
+  background: #000;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.rit-modal-swiper {
+  height: 100%;
+  width: 100%;
+}
+
+.rit-modal-swiper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover !important;
+}
+
+.rit-fraction {
+  position: absolute !important;
+  bottom: 30px !important;
+  left: 50% !important;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  z-index: 999;
+  pointer-events: none;
+  font-family: monospace;
+}
+
+/* 텍스트 영역 가독성 개선 */
+.rit-txt-side {
+  width: 52%;
+  padding: 60px 40px 40px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.rit-top-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.rit-name-tag {
+  font-weight: 400;
+  font-size: 11px;
+  color: #111;
+}
+
+.rit-star-box img {
+  height: 15px;
+  filter: brightness(0);
+}
+
+.rit-date-tag {
+  font-size: 12px;
+  color: #999;
+}
+
+#ritSubject {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 25px;
+  line-height: 1.4;
+  color: #111;
+}
+
+.rit-body-text {
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: #444;
+  margin-bottom: 40px;
+  white-space: pre-wrap;
+}
+
+/* 댓글 영역 */
+.rit-comm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+.rit-comm-head span {
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.rit-comm-head a {
+  font-size: 11px;
+  color: #999;
+  text-decoration: none;
+}
+
+.rit-comm-item {
+  padding: 15px;
+  background: #f8f8f8;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.rit-comm-name {
+  font-weight: 800;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.rit-comm-body {
+  color: #666;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rit-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  z-index: 50;
+  overflow-y: auto;
+  padding: 70px 30px 30px;
+}
+
+.rit-grid-box-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.rit-grid-thumb {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.rit-grid-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rit-hidden {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .rit-modal-header {
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
+    padding: 0px;
+  }
+
+  .rit-flex-container {
+    flex-direction: column;
+  }
+
+  .rit-img-side {
+    height: 45%;
+    width: 100%;
+  }
+
+  .rit-txt-side {
+    width: 100%;
+    padding: 25px;
+  }
+
+  .rit-modal-window {
+    height: 90vh;
+    width: 95%;
+  }
+}
+
+@media (min-width: 768px) {
+  .rit-modal-window {
+    margin-top: 50px !important;
+    height: calc(80vh - 50px) !important;
+  }
+
+  .rit-modal-header {
+    position: absolute;
+    top: -60px;
+    left: 0;
+    right: 0;
+    background: transparent !important;
+  }
+}
+
+.rit-header {
+  text-align: center;
+  margin-bottom: 60px;
+  padding: 0 20px;
+}
+
+.rit-header .rit-badge {
+  font-size: 11px;
+  color: var(--rit-gold);
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.rit-header .rit-title {
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--rit-main);
+  margin: 0 0 20px;
+}
+
+.rit-header .rit-line {
+  width: 50px;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 0 auto 20px;
+}
+
+.rit-header .rit-desc {
+  color: #666;
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+.rit-grid-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 0 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.rit-item {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 3/4;
+  cursor: pointer;
+  background: #f1f1f1;
+}
+
+.rit-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s ease;
+}
+
+.rit-item:hover img {
+  transform: scale(1.05);
+}
+
+.rit-item .rit-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 25px;
+  color: #fff;
+  z-index: 5;
+}
+
+.rit-item .rit-item-title {
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 /* 모달 스타일 */
-#rit-modal { position: fixed; inset: 0; z-index: 10000; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); padding: 20px; }
-#rit-modal.active { display: flex; }
-.rit-modal-content { width: 100%; max-width: 1100px; height: 85vh; background: #fff; display: flex; position: relative; overflow: hidden; border-radius: 12px; }
-.rit-modal-left { width: 45%; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.rit-modal-left img { width: 100%; height: 100%; object-fit: contain; } /* 기본은 전체 보이기 */
-.rit-modal-right { width: 55%; padding: 40px; overflow-y: auto; background: #fff; }
-.rit-modal-close { position: absolute; top: 20px; right: 20px; font-size: 24px; cursor: pointer; z-index: 11; color: #000; }
+#rit-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  padding: 20px;
+}
+
+#rit-modal.active {
+  display: flex;
+}
+
+.rit-modal-content {
+  width: 100%;
+  max-width: 1100px;
+  height: 85vh;
+  background: #fff;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.rit-modal-left {
+  width: 45%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.rit-modal-left img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 기본은 전체 보이기 */
+.rit-modal-right {
+  width: 55%;
+  padding: 40px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.rit-modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 11;
+  color: #000;
+}
+
+.rit-no-comm {
+  font-size: 12px;
+}
+
+.rit-fraction {
+  width: fit-content;
+}
+
+.rit-divider {
+  font-size: 10px;
+  color: e5e7eb;
+}
 
 /* 768px 이상 PC 설정 */
 @media (min-width: 768px) {
   #modalImg img {
-    object-fit: cover !important; /* PC에서는 요청하신 대로 꽉 채움 */
+    object-fit: cover !important;
+    /* PC에서는 요청하신 대로 꽉 채움 */
   }
 }
 
 /* 모바일 대응 */
 @media (max-width: 767px) {
-  .rit-modal-content { flex-direction: column; height: 90vh; }
-  .rit-modal-left { width: 100%; height: 40%; }
-  .rit-modal-right { width: 100%; height: 60%; padding: 20px; }
-  .rit-header .rit-title { font-size: 28px; }
+  .rit-modal-content {
+    flex-direction: column;
+    height: 90vh;
+  }
+
+  .rit-modal-left {
+    width: 100%;
+    height: 40%;
+  }
+
+  .rit-modal-right {
+    width: 100%;
+    height: 60%;
+    padding: 20px;
+  }
+
+  .rit-header .rit-title {
+    font-size: 28px;
+  }
 }

@@ -62,7 +62,7 @@
         article_no: String(articleNo),
         board_no: CONFIG.boardNo,
         subject: subjectText,
-        content: "구매해 주셔서 감사합니다!", // 초기값 (위젯 딥스캔 시 실제 내용으로 업데이트)
+        content: "본문을 불러오는 중입니다...", // 초기값 (위젯 딥스캔 시 실제 내용으로 업데이트)
         writer: cleanWriter || "고객",
         stars: extractedStars,
         image_urls: [], // 빈 배열 전송 (위젯 엔진이 딥스캔 수행)
