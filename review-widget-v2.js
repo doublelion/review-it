@@ -259,12 +259,13 @@
     },
 
     injectCSS() {
+      // 실시간으로 설정된 줄 수(Rows)를 CSS에 즉시 반영
       const pcRows = this.settings.grid_rows_desktop || 1;
       const moRows = this.settings.grid_rows_mobile || 2;
 
-      // 실제 노출될 개수 계산
-      const pcLimit = pcRows * 5; // PC는 한 줄에 5개
-      const moLimit = moRows * 2; // 모바일은 한 줄에 2개
+      // 실제 노출될 개수 계산 (변수명 명확화)
+      const pcVisibleLimit = pcRows * 5; // PC는 한 줄에 5개
+      const moVisibleLimit = moRows * 2; // 모바일은 한 줄에 2개
 
       const styleId = 'rit-dynamic-style';
       let styleTag = document.getElementById(styleId);
@@ -276,38 +277,44 @@
       }
 
       styleTag.innerHTML = `
-        /* 1. 공통 레이아웃 */
+        /* [공통: 레이아웃 기본] */
         .rit-main-grid-layout {
           display: grid;
           gap: 15px;
           grid-template-columns: repeat(2, 1fr); /* 기본 모바일 2열 */
+          overflow: hidden; /* 영역 이탈 방지 */
+        }
+        
+        .rit-main-grid-layout > div {
+          display: block; /* 기본적으로 노출 */
         }
 
-        /* 2. 모바일 전용 로직 (기본) */
-        .rit-main-grid-layout > div { 
-          display: block; 
-        }
-        /* 모바일 한계값 초과분 숨김 */
-        .rit-main-grid-layout > div:nth-child(n + ${moLimit + 1}) {
-          display: none;
+        /* 
+         * [스마트 로직 1: 모바일 전용 영역] 
+         * 1023px 이하(모바일 환경)에서만 '모바일 숨김 규칙'이 작동하도록 격리합니다. 
+         */
+        @media (max-width: 1023px) {
+          .rit-main-grid-layout > div:nth-child(n + ${moVisibleLimit + 1}) {
+            display: none; /* 모바일 설정 개수 초과분 숨김 */
+          }
         }
 
-        /* 3. 데스크탑 전용 로직 (1024px 이상) */
+        /* 
+         * [스마트 로직 2: 데스크탑 전용 영역] 
+         * 1024px 이상(PC 환경)에서만 '데스크탑 숨김 규칙'이 작동하도록 격리합니다. 
+         * 이 영역 안의 규칙은 모바일 영역의 규칙과 절대 충돌하지 않습니다.
+         */
         @media (min-width: 1024px) {
           .rit-main-grid-layout {
             grid-template-columns: repeat(5, 1fr); /* PC 5열 */
           }
-
-          /* [핵심] PC에서는 모바일의 'display: none'을 무효화하고 다시 보여줌 */
-          .rit-main-grid-layout > div {
-            display: block !important;
-          }
-
-          /* [핵심] 그 후, PC 한계값(예: 10개) 초과분만 다시 정밀하게 숨김 */
-          .rit-main-grid-layout > div:nth-child(n + ${pcLimit + 1}) {
-            display: none !important;
+          
+          /* PC 설정 개수 초과분 정밀 타격하여 숨김 */
+          .rit-main-grid-layout > div:nth-child(n + ${pcVisibleLimit + 1}) {
+            display: none; 
           }
         }
+
       `;
 
       // 외부 CSS 파일 로드 (변경 없음)
