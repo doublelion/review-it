@@ -1,18 +1,30 @@
 /**
- * @Project: Review-It Widget Engine v8.0
- * @Update: 실시간 본문 복구 + 모달 레이아웃 최적화 + 관리자 설정 연동
+ * @Project: Review-It Universal Widget Engine v8.5
+ * @Update: 다중 몰 자동 대응, 상점ID 동적 추출, 경로 최적화, 보안 강화
+ * @Philosophy: "Install & Forget" - 설치만 하면 알아서 작동하는 리뷰 자동화
  */
 (function (window) {
-  const CONFIG = {
-    URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
-    KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-    MALL_ID: 'ecudemo389879',
-    BOARD_NO: '4',
-    DEFAULT_IMG: 'https://ecudemo389879.cafe24.com/web/upload/no-img.png',
-    STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
-    ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'],
-    SPAM_KEYWORDS: /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty/i
+  // [1] 환경 감지 및 동적 설정 (Universal Configuration)
+  const getDynamicConfig = () => {
+    // 카페24 전역 객체 또는 현재 호스트네임에서 Mall ID를 자동으로 추출합니다.
+    const mallId = (window.CAFE24API && window.CAFE24API.getMallId)
+      ? window.CAFE24API.getMallId()
+      : window.location.hostname.split('.')[0];
+
+    return {
+      URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
+      KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // Anon Key
+      MALL_ID: mallId,
+      BOARD_NO: '4', // 추후 관리자 설정 API에서 받아오도록 확장 가능
+      // 특정 몰 주소가 아닌 현재 도메인 기반의 상대경로로 이미지 처리
+      DEFAULT_IMG: `${window.location.origin}/web/upload/no-img.png`,
+      STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
+      ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'],
+      SPAM_KEYWORDS: /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty/i
+    };
   };
+
+  const CONFIG = getDynamicConfig();
 
   const ReviewApp = {
     data: {},
@@ -20,9 +32,12 @@
     currentScrollY: 0,
     settings: {
       display_type: 'grid',
-      tagline: 'PEOPLE CHOICE',
+      tagline: 'REVIEW-IT',
       title: 'REAL PHOTO FEED',
-      description: '실제 고객님들의 생생한 후기'
+      description: '실제 고객님들의 생생한 후기',
+      display_limit: 15,
+      grid_rows_desktop: 1,
+      grid_rows_mobile: 2
     },
 
     async init() {
@@ -32,6 +47,7 @@
       this.renderWidget();
     },
 
+    // [2] 상점별 맞춤 설정 로드 (Dynamic Settings)
     async loadWidgetSettings() {
       try {
         const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {
@@ -40,15 +56,13 @@
         const data = await res.json();
         if (data && data.length > 0) {
           const s = data[0];
-          if (s.display_type) this.settings.display_type = s.display_type;
-          if (s.tagline) this.settings.tagline = s.tagline;
-          if (s.title) this.settings.title = s.title;
-          if (s.description) this.settings.description = s.description.replace(/\n/g, '<br>');
-          if (s.display_limit !== undefined) this.settings.display_limit = s.display_limit;
-          if (s.grid_rows_desktop !== undefined) this.settings.grid_rows_desktop = s.grid_rows_desktop;
-          if (s.grid_rows_mobile !== undefined) this.settings.grid_rows_mobile = s.grid_rows_mobile;
+          Object.keys(this.settings).forEach(key => {
+            if (s[key] !== undefined && s[key] !== null) {
+              this.settings[key] = (key === 'description') ? s[key].replace(/\n/g, '<br>') : s[key];
+            }
+          });
         }
-      } catch (e) { console.error("설정 로드 에러:", e); }
+      } catch (e) { console.warn("[REVIEW-IT] 설정 로드 실패, 기본값을 사용합니다."); }
     },
 
     maskName(name) {
@@ -61,6 +75,7 @@
       return n.substring(0, 2) + "**";
     },
 
+    // [3] 리뷰 본문 및 이미지 정밀 스캔 (Deep Scan)
     async _fetchFullContent(articleNo) {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
@@ -93,7 +108,7 @@
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
         const list = await res.json();
-        const limit = this.settings.display_limit || 15;
+        const limit = this.settings.display_limit;
         const targetList = list.slice(0, limit);
 
         this.data = {};
@@ -108,18 +123,17 @@
           this.listOrder.push(id);
         }));
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-      } catch (e) { console.error("로드 에러:", e); }
+      } catch (e) { console.error("[REVIEW-IT] 리뷰 로드 에러:", e); }
     },
 
+    // [4] 위젯 렌더링 (Responsive Layout)
     renderWidget() {
       const container = document.getElementById('rit-widget-container');
       if (!container) return;
 
-      // [스마트 로직] 데스크탑 줄 수와 모바일 줄 수를 조합한 고유 타입을 부여합니다.
-      const pcRows = this.settings.grid_rows_desktop || 1;
-      const moRows = this.settings.grid_rows_mobile || 2;
+      const pcRows = this.settings.grid_rows_desktop;
+      const moRows = this.settings.grid_rows_mobile;
       const gridTypeClass = `rit-pc-r${pcRows} rit-mo-r${moRows}`;
-
 
       let html = `
         <div class="rit-header-area">
@@ -129,11 +143,13 @@
           <p class="rit-desc">${this.settings.description}</p>
         </div>
       `;
+
       if (this.settings.display_type === 'grid') {
         html += `<div class="rit-main-grid-layout ${gridTypeClass}">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`;
       } else {
         html += `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`;
       }
+
       html += `
         <div id="ritModal" class="rit-modal-container">
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
@@ -141,15 +157,7 @@
             <div class="rit-modal-header">
               <span class="rit-logo-text">${this.settings.title}</span>
               <div class="rit-header-buttons">
-                <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
-                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <rect x="2" y="2" width="9" height="9" rx="1" />
-                    <rect x="13" y="2" width="9" height="9" rx="1" />
-                    <rect x="2" y="13" width="9" height="9" rx="1" />
-                    <rect x="13" y="13" width="9" height="9" rx="1" />
-                  </svg>
-                  GRID VIEW
-                </button>
+                <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">GRID VIEW</button>
                 <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
               </div>
             </div>
@@ -171,6 +179,7 @@
         </div>
       `;
       container.innerHTML = html;
+
       if (this.settings.display_type !== 'grid') {
         new Swiper('.rit-main-swiper', { slidesPerView: 2.2, spaceBetween: 15, autoplay: { delay: 4000 }, breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 25 } } });
       }
@@ -178,7 +187,16 @@
 
     getCardHTML(id) {
       const d = this.data[id];
-      return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')"><img src="${d.all_images[0]}" class="rit-card-img" loading="lazy"><div class="rit-card-info"><div class="rit-card-subject">${d.subject}</div><div class="rit-card-meta"><span>${this.maskName(d.writer)}</span><div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div></div></div></div>`;
+      return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
+        <img src="${d.all_images[0]}" class="rit-card-img" loading="lazy">
+        <div class="rit-card-info">
+          <div class="rit-card-subject">${d.subject}</div>
+          <div class="rit-card-meta">
+            <span>${this.maskName(d.writer)}</span>
+            <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
+          </div>
+        </div>
+      </div>`;
     },
 
     async openModal(id) {
@@ -242,34 +260,21 @@
         styleTag.id = styleId;
         document.head.appendChild(styleTag);
       }
-
-      // 1줄부터 3줄까지 모든 케이스를 미리 정의하여 어떤 설정에도 즉시 대응합니다.
       styleTag.innerHTML = `
         .rit-main-grid-layout > div { display: block; }
-
-        /* [모바일 제어: 1023px 이하] */
         @media (max-width: 1023px) {
-          .rit-mo-r1 > div:nth-child(n+3) { display: none !important; } /* 1줄: 2개 노출 */
-          .rit-mo-r2 > div:nth-child(n+5) { display: none !important; } /* 2줄: 4개 노출 */
-          .rit-mo-r3 > div:nth-child(n+7) { display: none !important; } /* 3줄: 6개 노출 */
+          .rit-mo-r1 > div:nth-child(n+3) { display: none !important; }
+          .rit-mo-r2 > div:nth-child(n+5) { display: none !important; }
+          .rit-mo-r3 > div:nth-child(n+7) { display: none !important; }
         }
-
-        /* [PC 제어: 1024px 이상] */
         @media (min-width: 1024px) {
-          .rit-main-grid-layout {
-            grid-template-columns: repeat(5, 1fr);
-          }
-          
-          /* PC 환경으로 넘어오면 일단 모바일의 숨김 처리를 강제로 해제합니다. */
+          .rit-main-grid-layout { grid-template-columns: repeat(5, 1fr); }
           .rit-main-grid-layout > div { display: block !important; }
-
-          /* 그 후, 설정된 타입별로 정확히 숨김 처리합니다. */
-          .rit-pc-r1 > div:nth-child(n+6) { display: none !important; }  /* 1줄: 5개 노출 */
-          .rit-pc-r2 > div:nth-child(n+11) { display: none !important; } /* 2줄: 10개 노출 */
-          .rit-pc-r3 > div:nth-child(n+16) { display: none !important; } /* 3줄: 15개 노출 */
+          .rit-pc-r1 > div:nth-child(n+6) { display: none !important; }
+          .rit-pc-r2 > div:nth-child(n+11) { display: none !important; }
+          .rit-pc-r3 > div:nth-child(n+16) { display: none !important; }
         }
       `;
-
       if (!document.getElementById('rit-css-link')) {
         const link = document.createElement('link');
         link.id = 'rit-css-link';
