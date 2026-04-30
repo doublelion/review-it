@@ -96,6 +96,9 @@
     },
 
     async loadReviews() {
+      // 데이터를 fetch한 직후
+      const limit = this.settings.display_limit || 15;
+      this.reviews = allFetchedData.slice(0, limit);
       try {
         const res = await fetch(`${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true&order=created_at.desc`, {
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
@@ -235,6 +238,24 @@
     },
 
     injectCSS() {
+      // DB에서 가져온 값 (기본값 설정)
+      const pcRows = this.settings.grid_rows_desktop || 1;
+      const moRows = this.settings.grid_rows_mobile || 2;
+      const dynamicCSS = `
+        /* 모바일 그리드 제어 */
+        .rit-main-grid-layout {
+          grid-template-rows: repeat(${moRows}, 1fr);
+          overflow: hidden;
+        }
+        /* PC 그리드 제어 (5열 기준) */
+        @media (min-width: 1024px) {
+          .rit-main-grid-layout {
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(${pcRows}, 1fr);
+            overflow: hidden;
+          }
+        }
+      `;
       // 중복 로드 방지
       if (document.getElementById('rit-css-link')) return;
 
