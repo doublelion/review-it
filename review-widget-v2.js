@@ -261,11 +261,14 @@
     injectCSS() {
       const pcRows = this.settings.grid_rows_desktop || 1;
       const moRows = this.settings.grid_rows_mobile || 2;
-      const pcLimit = pcRows * 5; // PC는 한 줄에 5개 기준
-      const moLimit = moRows * 2; // 모바일은 한 줄에 2개 기준
+
+      // 실제 노출될 개수 계산
+      const pcLimit = pcRows * 5; // PC는 한 줄에 5개
+      const moLimit = moRows * 2; // 모바일은 한 줄에 2개
 
       const styleId = 'rit-dynamic-style';
       let styleTag = document.getElementById(styleId);
+
       if (!styleTag) {
         styleTag = document.createElement('style');
         styleTag.id = styleId;
@@ -273,45 +276,46 @@
       }
 
       styleTag.innerHTML = `
-        /* [기본: 모바일 기준] */
+        /* 1. 공통 레이아웃 */
         .rit-main-grid-layout {
           display: grid;
           gap: 15px;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(2, 1fr); /* 기본 모바일 2열 */
         }
-        
-        /* 모바일 설정 개수 초과분 숨김 */
-        .rit-main-grid-layout > div { display: block; } 
+
+        /* 2. 모바일 전용 로직 (기본) */
+        .rit-main-grid-layout > div { 
+          display: block; 
+        }
+        /* 모바일 한계값 초과분 숨김 */
         .rit-main-grid-layout > div:nth-child(n + ${moLimit + 1}) {
           display: none;
         }
 
-        /* [데스크탑: 1024px 이상] */
+        /* 3. 데스크탑 전용 로직 (1024px 이상) */
         @media (min-width: 1024px) {
           .rit-main-grid-layout {
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(5, 1fr); /* PC 5열 */
           }
-          
-          /* PC에서는 다시 모든 카드를 보였다가, PC 설정 개수 초과분만 정밀 타격하여 숨김 */
+
+          /* [핵심] PC에서는 모바일의 'display: none'을 무효화하고 다시 보여줌 */
           .rit-main-grid-layout > div {
-            display: block !important; 
+            display: block !important;
           }
+
+          /* [핵심] 그 후, PC 한계값(예: 10개) 초과분만 다시 정밀하게 숨김 */
           .rit-main-grid-layout > div:nth-child(n + ${pcLimit + 1}) {
             display: none !important;
           }
         }
       `;
 
-      // 중복 로드 방지
+      // 외부 CSS 파일 로드 (변경 없음)
       if (document.getElementById('rit-css-link')) return;
-
       const link = document.createElement('link');
       link.id = 'rit-css-link';
       link.rel = 'stylesheet';
-      link.type = 'text/css';
       link.href = 'https://review-it-tau.vercel.app/review-it.css';
-      link.media = 'all';
-
       document.head.appendChild(link);
     }
   };
