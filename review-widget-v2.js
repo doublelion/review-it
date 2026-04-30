@@ -96,25 +96,41 @@
     },
 
     async loadReviews() {
-      // 데이터를 fetch한 직후
-      const limit = this.settings.display_limit || 15;
-      this.reviews = allFetchedData.slice(0, limit);
       try {
+        // 1. API 호출
         const res = await fetch(`${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true&order=created_at.desc`, {
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
+
+        // [수정] 데이터를 변수에 먼저 담습니다.
         const list = await res.json();
-        this.data = {}; this.listOrder = [];
-        await Promise.all(list.map(async (r) => {
+
+        // 2. 관리자 설정에서 정한 노출 개수(limit) 적용
+        const limit = this.settings.display_limit || 15;
+        const targetList = list.slice(0, limit); // [해결] 이제 에러 없이 정상적으로 슬라이싱됩니다.
+
+        this.data = {};
+        this.listOrder = [];
+
+        // 3. 데이터 가공 및 이미지 스캔
+        await Promise.all(targetList.map(async (r) => {
           const id = String(r.id);
           let imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : await this._deepScan(r.article_no);
+
           r.all_images = imgs.filter(src => !CONFIG.SPAM_KEYWORDS.test(src));
           if (r.all_images.length === 0) r.all_images = [CONFIG.DEFAULT_IMG];
+
           this.data[id] = r;
           this.listOrder.push(id);
         }));
+
+        // 4. 최신순 정렬
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-      } catch (e) { }
+
+        console.log(`[REVIEW-IT] ${this.listOrder.length}개의 리뷰 로드 완료 (Limit: ${limit})`);
+      } catch (e) {
+        console.error("리뷰 로드 에러:", e);
+      }
     },
 
     renderWidget() {
@@ -238,21 +254,31 @@
     },
 
     injectCSS() {
-      // DB에서 가져온 값 (기본값 설정)
+      // 실시간으로 설정된 줄 수(Rows)를 CSS에 즉시 반영
       const pcRows = this.settings.grid_rows_desktop || 1;
       const moRows = this.settings.grid_rows_mobile || 2;
-      const dynamicCSS = `
-        /* 모바일 그리드 제어 */
+
+      const styleId = 'rit-dynamic-style';
+      let styleTag = document.getElementById(styleId);
+
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = styleId;
+        document.head.appendChild(styleTag);
+      }
+
+      styleTag.innerHTML = `
         .rit-main-grid-layout {
-          grid-template-rows: repeat(${moRows}, 1fr);
+          display: grid;
+          gap: 15px;
+          grid-template-columns: repeat(2, 1fr);
+          grid-template-rows: repeat(${moRows}, 1fr); /* 모바일 설정 반영 */
           overflow: hidden;
         }
-        /* PC 그리드 제어 (5열 기준) */
         @media (min-width: 1024px) {
           .rit-main-grid-layout {
             grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(${pcRows}, 1fr);
-            overflow: hidden;
+            grid-template-rows: repeat(${pcRows}, 1fr); /* PC 설정 반영 */
           }
         }
       `;
