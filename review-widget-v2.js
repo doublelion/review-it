@@ -294,7 +294,7 @@
             display: block;
           }
           .rit-main-grid-layout > div:nth-child(n + ${pcRows * 5 + 1}) {
-            display: none;
+            //display: none;
           }
         }
       `;
