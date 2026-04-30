@@ -266,7 +266,7 @@
         document.head.appendChild(styleTag);
       }
       styleTag.innerHTML = `
-        #rit-widget-container { padding: 40px 0; margin: 0 auto; text-align: center; }
+        #rit-widget-container { margin: 0 auto; text-align: center; }
         .rit-tagline { font-size: 12px; letter-spacing: 2px; margin-bottom: 8px; font-family: 'Inter', sans-serif; }
         .rit-main-title { font-size: 26px; font-weight: 800; color: #111; margin: 0; font-family: 'Inter', sans-serif; }
         .rit-line { width: 35px; height: 2px; background: #000; margin: 18px auto; }

@@ -28,9 +28,8 @@
 }
 #rit-widget-container {
   /* max-width: 1300px; */
-  margin: 0px auto 60px;
-  padding-left: 20px;
-  padding-right: 20px;
+  margin: 0px auto 0px;
+  padding: 80px 20px;
   font-family: 'Pretendard', sans-serif;
   background-color: #faf9f8;
 }
