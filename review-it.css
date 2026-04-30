@@ -13,7 +13,7 @@
   height: 85vh;
   background: #fff;
   border-radius: 0px;
-  overflow: hidden;
+  /* overflow: hidden; */
   display: flex;
   flex-direction: column;
 }
@@ -178,7 +178,10 @@
 }
 
 .btn-rit-grid {
-  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* background: rgba(255, 255, 255, 0.4); */
   /* border: 1px solid rgba(255, 255, 255, 0.2); */
   color: #fff;
   font-size: 11px;
@@ -272,7 +275,8 @@
 
 .rit-star-box img {
   height: 15px;
-  filter: brightness(0);
+  filter: invert(1);
+  /* filter: brightness(0); */
 }
 
 .rit-date-tag {
@@ -371,7 +375,7 @@
 @media (max-width: 768px) {
   .rit-modal-header {
     background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
-    padding: 0px;
+    
   }
 
   .rit-flex-container {
@@ -405,6 +409,7 @@
     top: -60px;
     left: 0;
     right: 0;
+    padding: 0px;
     background: transparent !important;
   }
 }

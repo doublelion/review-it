@@ -97,6 +97,28 @@
 
     <div class="mb-10 space-y-4">
       <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">위젯 환경 설정</h2>
+      <!-- 위젯 환경 설정 그리드 내부에 추가 -->
+      <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
+        <span class="rit-label mb-2">그리드 상세 설정 (데탑 / 모바일)</span>
+        <div class="flex gap-2 w-full">
+          <select id="select-grid-pc" class="flex-1 p-2 border rounded text-xs">
+            <option value="1">PC 1줄</option>
+            <option value="2">PC 2줄</option>
+            <option value="3">PC 3줄</option>
+          </select>
+          <select id="select-grid-mo" class="flex-1 p-2 border rounded text-xs">
+            <option value="1">MO 1줄</option>
+            <option value="2" selected>MO 2줄</option>
+            <option value="3">MO 3줄</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
+        <span class="rit-label mb-2">최대 노출 개수 (최대 15개)</span>
+        <input type="number" id="input-limit" min="1" max="15" value="15"
+          class="w-full p-2 border rounded text-xs outline-none focus:ring-1 focus:ring-blue-500">
+      </div>
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">위젯 노출 타입</span>
@@ -199,14 +221,17 @@
       try {
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
 
-        // SQL 스키마에 맞춰 페이로드 구성
+        // SQL 스키마
         const payload = {
           mall_id: MALL_ID,
           display_type: currentType,
           title: document.getElementById('input-title').value,
           description: document.getElementById('input-description').value,
-          // tagline이 DB에 없을 경우를 대비해 필요시에만 포함하거나 스키마에 추가해야 함
-          tagline: document.getElementById('input-tagline').value
+          tagline: document.getElementById('input-tagline').value,
+          // 신규 추가 항목
+          grid_rows_desktop: parseInt(document.getElementById('select-grid-pc').value),
+          grid_rows_mobile: parseInt(document.getElementById('select-grid-mo').value),
+          display_limit: parseInt(document.getElementById('input-limit').value)
         };
 
         const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
