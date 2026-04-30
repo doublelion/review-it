@@ -266,6 +266,11 @@
     },
 
     injectCSS() {
+      const pcRows = this.settings.grid_rows_desktop || 1;
+      const moRows = this.settings.grid_rows_mobile || 2;
+      const pcLimit = pcRows * 5;
+      const moLimit = moRows * 2;
+
       const styleId = 'rit-dynamic-style';
       let styleTag = document.getElementById(styleId);
       if (!styleTag) {
@@ -274,38 +279,35 @@
         document.head.appendChild(styleTag);
       }
 
-      // 1줄부터 3줄까지 모든 케이스를 미리 정의하여 어떤 설정에도 즉시 대응합니다.
       styleTag.innerHTML = `
-    /* [공통 기본 설정] */
-    .rit-main-grid-layout {
-      display: grid;
-      gap: 15px;
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .rit-main-grid-layout > div { display: block; }
+        .rit-main-grid-layout {
+          display: grid;
+          gap: 15px;
+          grid-template-columns: repeat(2, 1fr);
+        }
 
-    /* [모바일 제어: 1023px 이하] */
-    @media (max-width: 1023px) {
-      .rit-mo-r1 > div:nth-child(n+3) { display: none !important; } /* 1줄: 2개 노출 */
-      .rit-mo-r2 > div:nth-child(n+5) { display: none !important; } /* 2줄: 4개 노출 */
-      .rit-mo-r3 > div:nth-child(n+7) { display: none !important; } /* 3줄: 6개 노출 */
-    }
+        /* 1. 모바일 전용: 1023px 이하에서만 5번째부터 숨김 */
+        @media (max-width: 1023px) {
+          .rit-main-grid-layout > div:nth-child(n + ${moLimit + 1}) {
+            display: none !important;
+          }
+        }
 
-    /* [PC 제어: 1024px 이상] */
-    @media (min-width: 1024px) {
-      .rit-main-grid-layout {
-        grid-template-columns: repeat(5, 1fr);
-      }
-      
-      /* PC 환경으로 넘어오면 일단 모바일의 숨김 처리를 강제로 해제합니다. */
-      .rit-main-grid-layout > div { display: block !important; }
-
-      /* 그 후, 설정된 타입별로 정확히 숨김 처리합니다. */
-      .rit-pc-r1 > div:nth-child(n+6) { display: none !important; }  /* 1줄: 5개 노출 */
-      .rit-pc-r2 > div:nth-child(n+11) { display: none !important; } /* 2줄: 10개 노출 */
-      .rit-pc-r3 > div:nth-child(n+16) { display: none !important; } /* 3줄: 15개 노출 */
-    }
-  `;
+        /* 2. PC 전용: 1024px 이상에서만 설정된 개수 이후부터 숨김 */
+        @media (min-width: 1024px) {
+          .rit-main-grid-layout {
+            grid-template-columns: repeat(5, 1fr);
+          }
+          /* PC 환경에서는 모바일의 숨김 규칙이 아예 적용되지 않도록 보장 */
+          .rit-main-grid-layout > div {
+            display: block !important;
+          }
+          /* PC 설정값(예: 10개) 이후만 정밀하게 숨김 */
+          .rit-main-grid-layout > div:nth-child(n + ${pcLimit + 1}) {
+            display: none !important;
+          }
+        }
+      `;
 
 
       // 외부 CSS 파일 로드 (변경 없음)
