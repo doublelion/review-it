@@ -44,8 +44,6 @@
           if (s.tagline) this.settings.tagline = s.tagline;
           if (s.title) this.settings.title = s.title;
           if (s.description) this.settings.description = s.description.replace(/\n/g, '<br>');
-
-          // 어드민에서 설정한 노출 개수 및 그리드 줄 수 데이터 맵핑
           if (s.display_limit !== undefined) this.settings.display_limit = s.display_limit;
           if (s.grid_rows_desktop !== undefined) this.settings.grid_rows_desktop = s.grid_rows_desktop;
           if (s.grid_rows_mobile !== undefined) this.settings.grid_rows_mobile = s.grid_rows_mobile;
@@ -63,24 +61,18 @@
       return n.substring(0, 2) + "**";
     },
 
-    // [핵심] 게시글 본문 전체(긴 텍스트)를 실시간으로 긁어오는 정밀 스캔 함수
     async _fetchFullContent(articleNo) {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
-
-        // 카페24의 일반적인 본문 영역 선택자들 + 현재 테마(.detail .fr-view) 추가
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail');
         if (!contentArea) return null;
-
-        // 이미지 태그와 버튼 등 불필요한 요소 제거 후 순수 텍스트/줄바꿈만 추출
         let cleanHTML = contentArea.innerHTML
-          .replace(/<img[^>]*>/g, "") // 이미지 제거
-          .replace(/<button[^>]*>.*?<\/button>/g, "") // 버튼 제거
-          .replace(/<script[^>]*>.*?<\/script>/g, "") // 스크립트 제거
+          .replace(/<img[^>]*>/g, "")
+          .replace(/<button[^>]*>.*?<\/button>/g, "")
+          .replace(/<script[^>]*>.*?<\/script>/g, "")
           .trim();
-
         return cleanHTML;
       } catch (e) { return null; }
     },
@@ -102,40 +94,27 @@
 
     async loadReviews() {
       try {
-        // 1. API 호출
         const res = await fetch(`${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true&order=created_at.desc`, {
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
-
-        // [수정] 데이터를 변수에 먼저 담습니다.
         const list = await res.json();
-
-        // 2. 관리자 설정에서 정한 노출 개수(limit) 적용
         const limit = this.settings.display_limit || 15;
-        const targetList = list.slice(0, limit); // [해결] 이제 에러 없이 정상적으로 슬라이싱됩니다.
+        const targetList = list.slice(0, limit);
 
         this.data = {};
         this.listOrder = [];
 
-        // 3. 데이터 가공 및 이미지 스캔
         await Promise.all(targetList.map(async (r) => {
           const id = String(r.id);
           let imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : await this._deepScan(r.article_no);
-
           r.all_images = imgs.filter(src => !CONFIG.SPAM_KEYWORDS.test(src));
           if (r.all_images.length === 0) r.all_images = [CONFIG.DEFAULT_IMG];
-
           this.data[id] = r;
           this.listOrder.push(id);
         }));
 
-        // 4. 최신순 정렬
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-
-        console.log(`[REVIEW-IT] ${this.listOrder.length}개의 리뷰 로드 완료 (Limit: ${limit})`);
-      } catch (e) {
-        console.error("리뷰 로드 에러:", e);
-      }
+      } catch (e) { console.error("리뷰 로드 에러:", e); }
     },
 
     renderWidget() {
@@ -158,33 +137,35 @@
         <div id="ritModal" class="rit-modal-container">
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
           <div class="rit-modal-window">
-            <div class="rit-modal-header">
-              <span class="rit-logo-text">${this.settings.title}</span>
-              <div class="rit-header-buttons">
-                <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
-                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <rect x="2" y="2" width="9" height="9" rx="1" />
-                    <rect x="13" y="2" width="9" height="9" rx="1" />
-                    <rect x="2" y="13" width="9" height="9" rx="1" />
-                    <rect x="13" y="13" width="9" height="9" rx="1" />
-                  </svg>
-                  GRID VIEW
-                </button>
-                <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
-              </div>
-            </div>
-            <div class="rit-modal-body">
-              <div id="ritDetailView" class="rit-flex-container">
-                <div id="ritModalImg" class="rit-img-side"></div>
-                <div class="rit-txt-side">
-                  <div id="ritMetaArea"></div>
-                  <h3 id="ritSubject"></h3>
-                  <div id="ritContent" class="rit-body-text">불러오는 중...</div>
-                  <div id="ritProductCard"></div>
+            <div id="rit-modal-content" class="rit-modal-content">
+              <div class="rit-modal-header">
+                <span class="rit-logo-text">${this.settings.title}</span>
+                <div class="rit-header-buttons">
+                  <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
+                    <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <rect x="2" y="2" width="9" height="9" rx="1" />
+                      <rect x="13" y="2" width="9" height="9" rx="1" />
+                      <rect x="2" y="13" width="9" height="9" rx="1" />
+                      <rect x="13" y="13" width="9" height="9" rx="1" />
+                    </svg>
+                    GRID VIEW
+                  </button>
+                  <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
                 </div>
               </div>
-              <div id="ritGridView" class="rit-grid-overlay rit-hidden">
-                <div id="ritGridInner" class="rit-grid-box-wrap"></div>
+              <div class="rit-modal-body">
+                <div id="ritDetailView" class="rit-flex-container">
+                  <div id="ritModalImg" class="rit-img-side"></div>
+                  <div class="rit-txt-side">
+                    <div id="ritMetaArea"></div>
+                    <h3 id="ritSubject"></h3>
+                    <div id="ritContent" class="rit-body-text">불러오는 중...</div>
+                    <div id="ritProductCard"></div>
+                  </div>
+                </div>
+                <div id="ritGridView" class="rit-grid-overlay rit-hidden">
+                  <div id="ritGridInner" class="rit-grid-box-wrap"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -214,14 +195,10 @@
       document.getElementById('ritDetailView').style.display = 'flex';
       document.getElementById('ritModalImg').innerHTML = `<div class="swiper rit-modal-swiper"><div class="swiper-wrapper">${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}</div><div class="rit-fraction"></div></div>`;
       new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
-
       document.getElementById('ritMetaArea').innerHTML = `<div class="rit-top-meta"><span class="rit-name-tag">${this.maskName(d.writer)}</span><span class="rit-divider">|</span><div class="rit-star-box"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div><span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span></div>`;
       document.getElementById('ritSubject').innerText = d.subject;
-
-      // [복구 로직 실행] DB의 짧은 요약 대신 실제 게시글의 긴 본문을 가져와서 꽂아줌
       const fullContent = await this._fetchFullContent(d.article_no);
       document.getElementById('ritContent').innerHTML = fullContent || d.content.replace(/<[^>]*>?/gm, '');
-
       this.loadComments(d.article_no);
     },
 
@@ -263,7 +240,6 @@
       const moRows = this.settings.grid_rows_mobile || 2;
       const pcLimit = pcRows * 5;
       const moLimit = moRows * 2;
-
       const styleId = 'rit-dynamic-style';
       let styleTag = document.getElementById(styleId);
       if (!styleTag) {
@@ -271,45 +247,22 @@
         styleTag.id = styleId;
         document.head.appendChild(styleTag);
       }
-
       styleTag.innerHTML = `
-        .rit-main-grid-layout {
-          display: grid;
-          gap: 15px;
-          grid-template-columns: repeat(2, 1fr);
-        }
-
-        /* 1. 모바일 전용: 1023px 이하에서만 5번째부터 숨김 */
-        @media (max-width: 1023px) {
-          .rit-main-grid-layout > div:nth-child(n + ${moLimit + 1}) {
-            display: none !important;
-          }
-        }
-
-        /* 2. PC 전용: 1024px 이상에서만 설정된 개수 이후부터 숨김 */
+        .rit-main-grid-layout { display: grid; gap: 15px; grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 1023px) { .rit-main-grid-layout > div:nth-child(n + ${moLimit + 1}) { display: none !important; } }
         @media (min-width: 1024px) {
-          .rit-main-grid-layout {
-            grid-template-columns: repeat(5, 1fr);
-          }
-          /* PC 환경에서는 모바일의 숨김 규칙이 아예 적용되지 않도록 보장 */
-          .rit-main-grid-layout > div {
-            display: block !important;
-          }
-          /* PC 설정값(예: 10개) 이후만 정밀하게 숨김 */
-          .rit-main-grid-layout > div:nth-child(n + ${pcLimit + 1}) {
-            display: none !important;
-          }
+          .rit-main-grid-layout { grid-template-columns: repeat(5, 1fr); }
+          .rit-main-grid-layout > div { display: block !important; }
+          .rit-main-grid-layout > div:nth-child(n + ${pcLimit + 1}) { display: none !important; }
         }
       `;
-
-
-      // 외부 CSS 파일 로드 (변경 없음)
-      if (document.getElementById('rit-css-link')) return;
-      const link = document.createElement('link');
-      link.id = 'rit-css-link';
-      link.rel = 'stylesheet';
-      link.href = 'https://review-it-tau.vercel.app/review-it.css';
-      document.head.appendChild(link);
+      if (!document.getElementById('rit-css-link')) {
+        const link = document.createElement('link');
+        link.id = 'rit-css-link';
+        link.rel = 'stylesheet';
+        link.href = 'https://review-it-tau.vercel.app/review-it.css';
+        document.head.appendChild(link);
+      }
     }
   };
 
