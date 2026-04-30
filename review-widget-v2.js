@@ -259,13 +259,13 @@
     },
 
     injectCSS() {
-      // 실시간으로 설정된 줄 수(Rows)를 CSS에 즉시 반영
       const pcRows = this.settings.grid_rows_desktop || 1;
       const moRows = this.settings.grid_rows_mobile || 2;
+      const pcLimit = pcRows * 5; // PC는 한 줄에 5개 기준
+      const moLimit = moRows * 2; // 모바일은 한 줄에 2개 기준
 
       const styleId = 'rit-dynamic-style';
       let styleTag = document.getElementById(styleId);
-
       if (!styleTag) {
         styleTag = document.createElement('style');
         styleTag.id = styleId;
@@ -273,28 +273,31 @@
       }
 
       styleTag.innerHTML = `
+        /* [기본: 모바일 기준] */
         .rit-main-grid-layout {
           display: grid;
           gap: 15px;
           grid-template-columns: repeat(2, 1fr);
-          overflow: hidden;
         }
         
-        /* [핵심 픽스 2] 모바일: 설정된 줄 수(moRows * 2개) 초과 시 숨김 처리 */
-        .rit-main-grid-layout > div:nth-child(n + ${moRows * 2 + 1}) {
+        /* 모바일 설정 개수 초과분 숨김 */
+        .rit-main-grid-layout > div { display: block; } 
+        .rit-main-grid-layout > div:nth-child(n + ${moLimit + 1}) {
           display: none;
         }
 
+        /* [데스크탑: 1024px 이상] */
         @media (min-width: 1024px) {
           .rit-main-grid-layout {
             grid-template-columns: repeat(5, 1fr);
           }
-          /* PC: 모바일 숨김 설정을 덮어쓰고, PC 줄 수(pcRows * 5개) 초과 시 숨김 처리 */
-          .rit-main-grid-layout > div:nth-child(n) {
-            display: block;
+          
+          /* PC에서는 다시 모든 카드를 보였다가, PC 설정 개수 초과분만 정밀 타격하여 숨김 */
+          .rit-main-grid-layout > div {
+            display: block !important; 
           }
-          .rit-main-grid-layout > div:nth-child(n + ${pcRows * 5 + 1}) {
-            //display: none;
+          .rit-main-grid-layout > div:nth-child(n + ${pcLimit + 1}) {
+            display: none !important;
           }
         }
       `;
