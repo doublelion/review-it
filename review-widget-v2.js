@@ -141,13 +141,6 @@
     renderWidget() {
       const container = document.getElementById('rit-widget-container');
       if (!container) return;
-
-      // [스마트 로직] 데스크탑 줄 수와 모바일 줄 수를 조합한 고유 타입을 부여합니다.
-      const pcRows = this.settings.grid_rows_desktop || 1;
-      const moRows = this.settings.grid_rows_mobile || 2;
-      const gridTypeClass = `rit-pc-r${pcRows} rit-mo-r${moRows}`;
-
-
       let html = `
         <div class="rit-header-area">
           <div class="rit-tagline">${this.settings.tagline}</div>
@@ -157,7 +150,7 @@
         </div>
       `;
       if (this.settings.display_type === 'grid') {
-        html += `<div class="rit-main-grid-layout ${gridTypeClass}">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`;
+        html += `<div class="rit-main-grid-layout">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`;
       } else {
         html += `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`;
       }
