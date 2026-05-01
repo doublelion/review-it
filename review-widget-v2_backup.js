@@ -5,27 +5,16 @@
  */
 (function (window) {
   const getDynamicConfig = () => {
-    // 1. 카페24 전역 변수에서 mall_id 추출 (가장 정확)
-    // 2. 실패 시 현재 도메인에서 추출
-
     const mallId = (window.CAFE24API && window.CAFE24API.getMallId)
       ? window.CAFE24API.getMallId()
-      : (window.EC_SHOP_FRONT_NEW && window.EC_SHOP_FRONT_NEW.getMallID)
-        ? window.EC_SHOP_FRONT_NEW.getMallID()
-        : window.location.hostname.split('.')[0];
-
-    // 3. 현재 페이지가 상품 상세페이지인 경우 상품번호(product_no) 자동 추출
-    const urlParams = new URLSearchParams(window.location.search);
-    const productNo = urlParams.get('product_no');
+      : window.location.hostname.split('.')[0];
 
     return {
       URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
-      KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // 이 키는 Public용이므로 보안 주의
-      API_ENDPOINT: 'https://review-it-tau.vercel.app/api/reviews',
-      MALL_ID: (window.CAFE24API && window.CAFE24API.getMallId) ? window.CAFE24API.getMallId() : 'ykinas',
-      PRODUCT_NO: productNo, // 특정 상품 리뷰만 필터링할 때 사용
-      BOARD_NO: '4',
-      DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png', // 서버 절대경로 권장
+      KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
+      MALL_ID: mallId,
+      BOARD_NO: '4', // 기본 상품 후기 게시판 번호
+      DEFAULT_IMG: `${window.location.origin}/web/upload/no-img.png`,
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'],
       SPAM_KEYWORDS: /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty/i
@@ -227,7 +216,7 @@
       document.getElementById('ritDetailView').style.display = 'flex';
       document.getElementById('ritModalImg').innerHTML = `<div class="swiper rit-modal-swiper"><div class="swiper-wrapper">${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}</div><div class="rit-fraction"></div></div>`;
       if (window.Swiper) new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
-
+      
       document.getElementById('ritMetaArea').innerHTML = `<div class="rit-top-meta"><span class="rit-name-tag">${this.maskName(d.writer)}</span><span class="rit-divider">|</span><div class="rit-star-box"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div><span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span></div>`;
       document.getElementById('ritSubject').innerText = d.subject;
       const fullContent = await this._fetchFullContent(d.article_no);
