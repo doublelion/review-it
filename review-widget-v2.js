@@ -15,12 +15,16 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const productNo = urlParams.get('product_no');
+    // 강제 보정 (테스트용: DB와 일치시키기)
+    if (mallId.includes('ykinas')) mallId = 'ykinas';
 
+    console.log("[REVIEW-IT] Detected Mall ID:", mallId);
     return {
       URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
       KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // 익명 키 (보안 주의)
       API_ENDPOINT: 'https://review-it-tau.vercel.app/api/reviews',
       MALL_ID: mallId,
+      TARGET_ID: 'review-it-widget',
       PRODUCT_NO: productNo,
       BOARD_NO: '4',
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png',
@@ -125,6 +129,12 @@
         this.data = {};
         this.listOrder = [];
 
+        r.all_images = imgs.filter(src =>
+          !CONFIG.SPAM_KEYWORDS.test(src) &&
+          !src.includes('icon-star') &&
+          !src.includes('.svg')
+        );
+        
         await Promise.all(targetList.map(async (r) => {
           const id = String(r.id);
           let imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : await this._deepScan(r.article_no);
@@ -139,8 +149,11 @@
 
     // [7] 위젯 렌더링
     renderWidget() {
-      const container = document.getElementById('rit-widget-container');
-      if (!container) return;
+      const container = document.getElementById(CONFIG.TARGET_ID) || document.getElementById('rit-widget-container');
+      if (!container) {
+        console.error("[REVIEW-IT] 위젯을 그릴 컨테이너(#review-it-widget)를 찾을 수 없습니다.");
+        return;
+      }
 
       const gridClass = `rit-pc-r${this.settings.grid_rows_desktop} rit-mo-r${this.settings.grid_rows_mobile}`;
       let html = `
@@ -229,7 +242,7 @@
       const d = this.data[id];
       const gv = document.getElementById('ritGridView');
       const dv = document.getElementById('ritDetailView');
-      
+
       gv.classList.add('rit-hidden');
       dv.style.display = 'flex';
 
@@ -243,7 +256,7 @@
           <div class="swiper-button-next rit-nav"></div>
           <div class="swiper-button-prev rit-nav"></div>
         </div>`;
-      
+
       if (window.Swiper) {
         new Swiper('.rit-modal-swiper', {
           pagination: { el: '.rit-fraction', type: 'fraction' },
@@ -258,13 +271,13 @@
           <div class="rit-star-box"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
           <span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span>
         </div>`;
-      
+
       document.getElementById('ritSubject').innerText = d.subject;
-      
+
       // 본문 로드
       const fullContent = await this._fetchFullContent(d.article_no);
       document.getElementById('ritContent').innerHTML = fullContent || d.content.replace(/<[^>]*>?/gm, '');
-      
+
       this.loadComments(d.article_no);
     },
 
@@ -288,14 +301,14 @@
           <a href="/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}" target="_blank">리뷰 원문보기</a>
         </div>
         <div id="ritCommList"></div>`;
-      
+
       try {
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const items = doc.querySelectorAll('.boardComment li, .commentList li, .replyArea li');
         const list = document.getElementById('ritCommList');
-        
+
         if (items.length > 0) {
           list.innerHTML = Array.from(items).map(item => {
             const wr = item.querySelector('.name')?.innerText || "운영자";
@@ -373,7 +386,7 @@
         `;
         document.head.appendChild(style);
       }
-      
+
       // 외부 CSS 리소스 로드
       if (!document.getElementById('rit-css-link')) {
         const link = document.createElement('link');
