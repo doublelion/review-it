@@ -6,22 +6,32 @@
 (function (window) {
   // [1] 환경 감지 및 설정 자동화
   const getDynamicConfig = () => {
-    let host = window.location.hostname;
-    // .cafe24.com 제거 및 서브도메인(m.) 대응
-    let mallId = host.replace('.cafe24.com', '').split('.').pop() === 'com'
-      ? host.split('.')[host.split('.').length - 2]
-      : host.split('.')[0];
+    const host = window.location.hostname;
 
-    if (mallId === 'www' || mallId === 'm') mallId = host.split('.')[1];
+    // [개선] Mall ID 추출 로직 안정화
+    let mallId = host.split('.').filter(part => !['www', 'm', 'cafe24', 'com'].includes(part))[0];
+    if (!mallId) mallId = 'default_mall';
+
+    // [핵심 수정] productNo를 안전하게 획득하는 로직
+    // 1. 상세페이지 전역 변수(iProductNo) 확인
+    // 2. URL 파라미터(?product_no=) 확인
+    const getProductNo = () => {
+      if (typeof window.iProductNo !== 'undefined' && window.iProductNo) return window.iProductNo;
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('product_no') || null;
+    };
+
+    const currentProductNo = getProductNo();
 
     return {
       URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
-      KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // 익명 키 (보안 주의)
+      KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
       API_ENDPOINT: 'https://review-it-tau.vercel.app/api/reviews',
-      MALL_ID: mallId.replace('m.', ''),
+      MALL_ID: mallId,
       TARGET_ID: 'review-it-widget',
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating/i,
-      PRODUCT_NO: productNo,
+      // [수정] 정의되지 않은 productNo 대신 안전하게 획득한 값을 할당
+      PRODUCT_NO: currentProductNo,
       BOARD_NO: '4',
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
