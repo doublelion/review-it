@@ -114,7 +114,7 @@
       // 앞 2글자 유지 후 나머지는 최대 4개까지 별표 처리
       const maskLen = Math.min(len - 2, 4);
       return n.substring(0, 2) + "*".repeat(maskLen);
-    }
+    },
 
     // [5] 본문 및 이미지 정밀 스캔 (Deep Scan)
     async _fetchFullContent(articleNo) {
