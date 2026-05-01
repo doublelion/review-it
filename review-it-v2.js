@@ -49,8 +49,32 @@
       if (!articleNo) return;
 
       // 2. 작성자 이름 정제
-      let writerEl = el.querySelector('.writer, .name, .displaynone + span, td:nth-child(3)');
-      let cleanWriter = writerEl ? writerEl.innerText.trim().split('[')[0].replace(/[*]/g, '') : "고객";
+      // [2] 작성자 이름 정제 (개선 버전)
+      let cleanWriter = "고객";
+
+      // 카페24의 공통적인 작성자 패턴을 모두 감지
+      const writerSelectors = [
+        '.writer', '.name', '.displaynone + span',
+        'td[class*="writer"]', 'td[class*="name"]',
+        '.author', '[id*="writer"]',
+        '.member_name'
+      ];
+
+      let writerEl = null;
+      for (let selector of writerSelectors) {
+        writerEl = el.querySelector(selector);
+        if (writerEl && writerEl.innerText.trim()) break;
+      }
+
+      if (writerEl) {
+        // 1. [공지], [관리자] 등의 태그나 대괄호 내용 제거
+        // 2. 관리자 아이콘 등이 포함될 수 있으므로 텍스트만 추출
+        cleanWriter = writerEl.innerText
+          .replace(/\[.*?\]/g, '') // 대괄호와 그 안의 내용 삭제
+          .replace(/[*]/g, '')     // 기존에 이미 되어있는 마스킹 제거
+          .trim()
+          .split('\n')[0];        // 줄바꿈 발생 시 첫 줄만 선택
+      }
 
       // 3. 이미지 추출 및 필터링 (v1.2 로직 최적화)
       let allImgs = Array.from(el.querySelectorAll('img')).map(img => img.getAttribute('src'));
