@@ -6,31 +6,26 @@
 (function (window) {
   // [1] 환경 감지 및 설정 자동화
   const getDynamicConfig = () => {
-    // 카페24 전역 객체 또는 현재 호스트네임에서 Mall ID를 자동으로 추출합니다.
-    const mallId = (window.CAFE24API && window.CAFE24API.getMallId)
-      ? window.CAFE24API.getMallId()
-      : (window.EC_SHOP_FRONT_NEW && window.EC_SHOP_FRONT_NEW.getMallID)
-        ? window.EC_SHOP_FRONT_NEW.getMallID()
-        : window.location.hostname.split('.')[0];
+    let host = window.location.hostname;
+    // .cafe24.com 제거 및 서브도메인(m.) 대응
+    let mallId = host.replace('.cafe24.com', '').split('.').pop() === 'com'
+      ? host.split('.')[host.split('.').length - 2]
+      : host.split('.')[0];
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const productNo = urlParams.get('product_no');
-    // 강제 보정 (테스트용: DB와 일치시키기)
-    if (mallId.includes('ykinas')) mallId = 'ykinas';
+    if (mallId === 'www' || mallId === 'm') mallId = host.split('.')[1];
 
-    console.log("[REVIEW-IT] Detected Mall ID:", mallId);
     return {
       URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
       KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // 익명 키 (보안 주의)
       API_ENDPOINT: 'https://review-it-tau.vercel.app/api/reviews',
-      MALL_ID: mallId,
+      MALL_ID: mallId.replace('m.', ''),
       TARGET_ID: 'review-it-widget',
+      SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating/i,
       PRODUCT_NO: productNo,
       BOARD_NO: '4',
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'],
-      SPAM_KEYWORDS: /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty/i
     };
   };
 
@@ -124,27 +119,23 @@
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
         const list = await res.json();
-        const targetList = list.slice(0, this.settings.display_limit);
 
-        this.data = {};
-        this.listOrder = [];
+        // 수집된 데이터가 없을 경우 가이드 출력
+        if (!list || list.length === 0) {
+          console.log("📊 [REVIEW-IT] 표시할 리뷰 데이터가 없습니다. (Collector 작동 확인 필요)");
+          return;
+        }
 
-        r.all_images = imgs.filter(src =>
-          !CONFIG.SPAM_KEYWORDS.test(src) &&
-          !src.includes('icon-star') &&
-          !src.includes('.svg')
-        );
-        
-        await Promise.all(targetList.map(async (r) => {
+        this.listOrder = list.slice(0, this.settings.display_limit).map(r => {
           const id = String(r.id);
-          let imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : await this._deepScan(r.article_no);
-          r.all_images = imgs.filter(src => !CONFIG.SPAM_KEYWORDS.test(src));
+          // 불필요한 이미지(별점 아이콘 등) 2차 필터링
+          r.all_images = (r.image_urls || []).filter(img => !CONFIG.SPAM_KEYWORDS.test(img));
           if (r.all_images.length === 0) r.all_images = [CONFIG.DEFAULT_IMG];
+
           this.data[id] = r;
-          this.listOrder.push(id);
-        }));
-        this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-      } catch (e) { console.error("[REVIEW-IT] 데이터 로드 오류:", e); }
+          return id;
+        });
+      } catch (e) { console.error("[REVIEW-IT] 로드 오류:", e); }
     },
 
     // [7] 위젯 렌더링
