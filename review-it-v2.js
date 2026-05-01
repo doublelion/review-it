@@ -1,34 +1,25 @@
 /**
- * @Project: Review-It Universal Collector & Engine
- * @Version: v1.0.0 (Universal Edition)
- * @Description: 특정 몰 ID 고정 없이 설치 즉시 환경을 감지하여 작동합니다.
+ * @Project: Review-It Collector v1.1
+ * @Description: 게시판 목록에서 데이터를 정밀 수집하여 Supabase로 동기화합니다.
  */
 (function (window) {
-  // [1] 환경 감지 및 설정 자동화
-  const getDynamicConfig = () => {
-    // 카페24 전역 객체 또는 현재 호스트네임에서 Mall ID를 자동으로 추출합니다.
-    const mallId = (window.CAFE24API && window.CAFE24API.getMallId)
+  const CONFIG = {
+    SB_URL: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
+    SB_KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
+    // 환경 감지: 카페24 API 또는 도메인에서 Mall ID 추출
+    MALL_ID: (window.CAFE24API && window.CAFE24API.getMallId)
       ? window.CAFE24API.getMallId()
-      : window.location.hostname.split('.')[0];
-
-    return {
-      sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
-      sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // Anon Key
-      mallId: mallId,
-      // 절대경로 문제를 해결하기 위해 현재 도메인 기반의 상대경로를 생성합니다.
-      defaultImg: `${window.location.origin}/web/upload/no-img.png`,
-      targetBoardNo: '4' // 추후 DB 설정값에 따라 가변적으로 운용 가능
-    };
+      : window.location.hostname.split('.')[0],
+    TARGET_BOARD_NO: '4',
+    DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png'
   };
 
-  const CONFIG = getDynamicConfig();
-
-  // [2] 데이터 수집 및 동기화 로직
   async function sync() {
-    console.log(`🚀 [REVIEW-IT] ${CONFIG.mallId} 상점 데이터 동기화 시작...`);
-
-    // 다양한 카페24 스킨(기본, 디자인뱅크, 유료스킨 등)을 포괄하는 선택자
+    // 게시글 목록을 나타내는 다양한 선택자 대응
     const items = document.querySelectorAll('.xans-record-, tr[id^="record"], .boardList tr, .border-b.group');
+    if (items.length === 0) return;
+
+    console.log(`🚀 [REVIEW-IT] ${CONFIG.MALL_ID} 데이터 수집 및 동기화 시작...`);
     const payload = [];
 
     items.forEach(el => {
@@ -37,64 +28,54 @@
 
       const href = link.getAttribute('href');
 
-      // 게시판 번호 추출 및 필터링
+      // 게시판 번호 추출 및 타겟 보드 검증
       const boardNoMatch = href.match(/board_no=(\d+)/) || href.match(/\/article\/[^/]+\/(\d+)\//);
-      const currentBoardNo = boardNoMatch ? boardNoMatch[1] : null;
+      if (!boardNoMatch || boardNoMatch[1] !== CONFIG.TARGET_BOARD_NO) return;
 
-      if (currentBoardNo !== CONFIG.targetBoardNo) return;
-
-      // 게시글 번호 추출
+      // 게시글 번호(article_no) 추출
       const articleNoMatch = href.match(/article_no=(\d+)/) || href.match(/\/(\d+)\/?$/) || href.match(/\/(\d+)\/($|\?)/);
-      const articleNo = articleNoMatch ? articleNoMatch[1] : null;
-      if (!articleNo) return;
+      if (!articleNoMatch) return;
 
-      // 작성자 추출 및 정제 (마스킹 제거 및 이름만 추출)
+      // 작성자 추출 및 정제 (마스킹 제거)
       let writerEl = el.querySelector('.writer, .name, div.mt-3 > span:first-child');
-      if (!writerEl) {
-        const spans = el.querySelectorAll('span');
-        for (let s of spans) { if (s.innerText.includes('**')) { writerEl = s; break; } }
-      }
       let rawWriter = writerEl ? writerEl.innerText.trim() : "고객";
       let cleanWriter = rawWriter.split('[')[0].split('(')[0].replace(/[*]/g, '').trim();
 
-      // 썸네일 추출 (동적 경로 적용)
+      // 썸네일 이미지 추출
       let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
-      let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
+      let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.DEFAULT_IMG;
 
       payload.push({
-        mall_id: CONFIG.mallId,
-        article_no: String(articleNo),
-        board_no: CONFIG.targetBoardNo,
+        mall_id: CONFIG.MALL_ID,
+        article_no: String(articleNoMatch[1]),
+        board_no: CONFIG.TARGET_BOARD_NO,
         subject: link.innerText.trim() || "포토 리뷰입니다.",
-        content: "본문을 불러오는 중입니다...",
         writer: cleanWriter || "고객",
         stars: 5,
-        image_urls: thumbUrl ? [thumbUrl] : [],
+        image_urls: [thumbUrl],
         is_visible: true
       });
     });
 
     if (payload.length === 0) return;
 
-    // 데이터 전송 (Upsert: 중복 시 업데이트)
     try {
-      const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
+      // Upsert 로직: 중복 데이터는 업데이트, 새 데이터는 삽입
+      await fetch(`${CONFIG.SB_URL}/reviews?on_conflict=mall_id,article_no`, {
         method: 'POST',
         headers: {
-          'apikey': CONFIG.sbKey,
-          'Authorization': `Bearer ${CONFIG.sbKey}`,
+          'apikey': CONFIG.SB_KEY,
+          'Authorization': `Bearer ${CONFIG.SB_KEY}`,
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates'
         },
         body: JSON.stringify(payload)
       });
-
-      if (res.ok) console.log(`✅ [REVIEW-IT] ${CONFIG.mallId} 동기화 완료`);
-    } catch (e) { console.error("❌ 오류 발생:", e); }
+      console.log("✅ [REVIEW-IT] 수집 데이터 전송 완료");
+    } catch (e) { console.error("❌ [REVIEW-IT] 수집 중 오류 발생:", e); }
   }
 
-  // 실행 시점 제어
-  if (document.readyState === 'complete') { sync(); }
-  else { window.addEventListener('load', sync); }
-
+  // 페이지 로드 시점에 실행
+  if (document.readyState === 'complete') sync();
+  else window.addEventListener('load', sync);
 })(window);
