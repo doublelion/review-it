@@ -33,7 +33,8 @@
       // [수정] 정의되지 않은 productNo 대신 안전하게 획득한 값을 할당
       PRODUCT_NO: currentProductNo,
       BOARD_NO: '4',
-      DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png',
+      DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif', // 특정 경로
+      //DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'],
     };
