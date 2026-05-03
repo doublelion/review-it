@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Universal Collector v10.0
- * @Strategy: 상세 페이지(View Page) 정밀 스캔을 통한 원본 데이터 확보
+ * @Project: Review-It Universal Collector v10.1
+ * @Goal: 상세 페이지 기반 정밀 수집 + 날짜 형식 최적화 (YYYY-MM-DD)
  */
 (function (window) {
   const CONFIG = {
@@ -17,22 +17,23 @@
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, 'text/html');
 
-      // 1. 작성자 추출 (.name 클래스 하위의 순수 텍스트만)
+      // 1. 작성자 추출 (span.name 클래스에서 IP 등을 제외한 순수 텍스트)
       const nameEl = doc.querySelector('.description .name');
       let writer = "고객";
       if (nameEl) {
-        // ip 표시용 span 등을 제외한 텍스트 노드만 추출
         writer = Array.from(nameEl.childNodes)
-          .filter(node => node.nodeType === 3)
+          .filter(node => node.nodeType === 3) // 텍스트 노드만
           .map(node => node.textContent.trim())
           .join('') || "고객";
       }
 
-      // 2. 날짜 추출 (.etcArea 내의 .txtNum 클래스)
+      // 2. 날짜 추출 및 정제 (2026-01-28 12:30:30 -> 2026-01-28)
       const dateEl = doc.querySelector('.etcArea .txtNum');
-      let createdAt = dateEl ? dateEl.innerText.trim() : new Date().toISOString();
+      let rawDate = dateEl ? dateEl.innerText.trim() : "";
+      // [핵심 로직] T 이후 혹은 공백 이후의 시각 정보를 날려버림
+      let createdAt = rawDate.match(/^\d{4}-\d{2}-\d{2}/) ? rawDate.match(/^\d{4}-\d{2}-\d{2}/)[0] : new Date().toISOString().split('T')[0];
 
-      // 3. 이미지 추출 (본문 내 이미지 중 스팸 제외 첫 번째)
+      // 3. 이미지 추출 (본문 내 첫 번째 이미지)
       const detailImgs = Array.from(doc.querySelectorAll('.detail img'))
         .map(img => img.getAttribute('src'))
         .filter(src => src && !CONFIG.SPAM_KEYWORDS.test(src));
@@ -42,11 +43,12 @@
 
       return { writer, createdAt, thumb };
     } catch (e) {
-      return { writer: "고객", createdAt: new Date().toISOString(), thumb: '' };
+      return { writer: "고객", createdAt: new Date().toISOString().split('T')[0], thumb: '' };
     }
   }
 
   async function sync() {
+    console.log(`🚀 [REVIEW-IT] ${CONFIG.MALL_ID} 수집 엔진 가동...`);
     const items = document.querySelectorAll('.xans-record-');
     const payload = [];
 
@@ -57,7 +59,6 @@
       const articleNo = link.getAttribute('href').match(/\/(\d+)\/?$/)?.[1];
       if (!articleNo) continue;
 
-      // 상세 페이지에서 정확한 이름과 날짜 가져오기
       const detail = await fetchArticleDetail(articleNo);
 
       payload.push({
@@ -66,8 +67,8 @@
         board_no: CONFIG.TARGET_BOARD_NO,
         subject: link.innerText.trim(),
         content: "상세보기 참조",
-        writer: detail.writer,      // 정확한 작성자 이름 (하드코딩 없음)
-        created_at: detail.createdAt, // 정확한 작성일시
+        writer: detail.writer,
+        created_at: detail.createdAt, // "2026-01-28" 형식으로 깔끔하게 저장
         stars: 5,
         image_urls: detail.thumb ? [detail.thumb] : [],
         is_visible: true
@@ -85,7 +86,7 @@
         },
         body: JSON.stringify(payload)
       });
-      console.log(`✅ [REVIEW-IT] ${payload.length}개 동기화 완료`);
+      console.log(`✅ [REVIEW-IT] ${payload.length}개 데이터 최신화 완료`);
     }
   }
 
