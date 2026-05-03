@@ -87,15 +87,20 @@
     // [4] 데이터 마스킹 및 정제 (개선 버전)
     // Widget App 내 maskName 함수 수정
     maskName(name) {
-      if (!name) return "고객";
+      if (!name || name === "고객") return "고객";
 
-      // [수정] 관리자 계정이거나 특정 브랜드명(와이키나스 등)은 마스킹하지 않음
-      const skipKeywords = ['와이키나스', '관리자', '운영자', 'Official'];
-      if (skipKeywords.some(k => name.includes(k))) return name;
+      // 관리자 등 마스킹 제외 키워드 (전역 CONFIG나 DB설정에서 가져옴)
+      const adminKeywords = ['관리자', '운영자', 'Official'];
+      if (adminKeywords.some(k => name.includes(k))) return name;
 
-      // 일반 고객만 마스킹 처리 (필요 없다면 그냥 return name; 하시면 됩니다)
+      // [선택] 모든 사용자 이름을 마스킹하고 싶지 않다면 그냥 return name;
+      // 현재는 성만 노출하는 방식 (예: 와이키나스 -> 와***)
+      if (name.length > 1) {
+        return name.charAt(0) + "*".repeat(name.length - 1);
+      }
       return name;
     },
+
 
     // [5] 본문 및 이미지 정밀 스캔 (Deep Scan)
     async _fetchFullContent(articleNo) {
@@ -268,13 +273,14 @@
       }
 
       // Widget App 내 renderDetail 함수 수정
+      // 날짜와 이름을 DB에 저장된 값 그대로 매핑
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-top-meta">
           <span class="rit-name-tag">${this.maskName(d.writer)}</span>
           <span class="rit-divider">|</span>
-          <div class="rit-star-box"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
-          <span class="rit-date-tag">${d.created_at.split(' ')[0]}</span> <!-- '2026-01-28' 형태 출력 -->
+          <span class="rit-date-tag">${d.created_at}</span>
         </div>`;
+
 
       document.getElementById('ritSubject').innerText = d.subject;
 
@@ -404,7 +410,9 @@
 
   window.ReviewApp = ReviewApp;
   // DOM 완료 후 초기화
-  if (document.readyState === 'complete') { ReviewApp.init(); }
+  if (document.readyState === 'complete') {
+    ReviewApp.init();
+  }
   else { window.addEventListener('DOMContentLoaded', () => ReviewApp.init()); }
 
 })(window);
