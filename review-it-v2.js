@@ -21,7 +21,8 @@
       MALL_ID: mallId.replace('m.', ''), // 모바일 도메인 접두사 제거
       PRODUCT_NO: productNo,
       TARGET_BOARD_NO: '4', // 기본 수집 대상 게시판 번호
-      DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png',
+      // DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png',
+      DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif', // 특정 경로
       // 별점 아이콘, 로고 등 불필요한 이미지 필터링 키워드
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|rating/i
     };

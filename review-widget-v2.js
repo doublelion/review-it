@@ -87,33 +87,18 @@
 
     // [4] 데이터 마스킹 및 정제 (개선 버전)
     maskName(name) {
-      // 1. 데이터가 없거나 기본값인 경우
-      if (!name || name === "고객" || name.trim() === "") return "고객";
+      // 이름이 없거나 이미 마스킹된 경우(별표 포함) 그대로 반환
+      if (!name || name.trim() === "" || name.includes('*')) return name || "고객";
 
-      // 2. 관리자/오피셜 계정은 마스킹 제외 (브랜드 신뢰도)
       if (CONFIG.ADMIN_KEYWORDS.some(k => String(name).includes(k))) return name;
 
-      // 3. 특수문자 제거 및 순수 텍스트 추출
       let n = String(name).replace(/[^\w\sㄱ-힣]/g, '').trim();
-      const len = n.length;
+      if (n.length <= 1) return n + "*";
+      if (n.length === 2) return n.charAt(0) + "*";
 
-      // 4. 글자 수에 따른 맞춤형 마스킹
-      if (len <= 1) return n + "*"; // '이' -> '이*'
-
-      if (len === 2) {
-        // 두 글자 이름 (외자 등): '이진' -> '이*'
-        return n.charAt(0) + "*";
-      }
-
-      if (len === 3) {
-        // 세 글자 이름 (표준): '이진혁' -> '이*혁'
-        return n.charAt(0) + "*" + n.charAt(len - 1);
-      }
-
-      // 네 글자 이상 (영문 닉네임 등): 'YKINAS' -> 'YK***'
-      // 앞 2글자 유지 후 나머지는 최대 4개까지 별표 처리
-      const maskLen = Math.min(len - 2, 4);
-      return n.substring(0, 2) + "*".repeat(maskLen);
+      // '와이키나스' -> '와이*나스' (세 글자 이상 처리)
+      return n.charAt(0) + "*" + n.substring(2);
+    
     },
 
     // [5] 본문 및 이미지 정밀 스캔 (Deep Scan)
