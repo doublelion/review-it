@@ -34,7 +34,6 @@
       PRODUCT_NO: currentProductNo,
       BOARD_NO: '4',
       DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif', // 특정 경로
-      //DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'],
     };
