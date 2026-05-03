@@ -61,20 +61,25 @@
         '.member_name'
       ];
 
+      // Collector 코드 내 cleanWriter 부분 수정
       let writerEl = null;
       for (let selector of writerSelectors) {
         writerEl = el.querySelector(selector);
-        if (writerEl && writerEl.innerText.trim()) break;
+        // 공백이 아닌 실제 텍스트가 있는지 확인
+        if (writerEl && writerEl.innerText.trim().length > 0) break;
       }
 
       if (writerEl) {
-        // 1. [공지], [관리자] 등의 태그나 대괄호 내용 제거
-        // 2. 관리자 아이콘 등이 포함될 수 있으므로 텍스트만 추출
         cleanWriter = writerEl.innerText
-          .replace(/\[.*?\]/g, '') // 대괄호와 그 안의 내용 삭제
-          .replace(/[*]/g, '')     // 기존에 이미 되어있는 마스킹 제거
+          .replace(/\[.*?\]/g, '')
+          .replace(/[*]/g, '')
           .trim()
-          .split('\n')[0];        // 줄바꿈 발생 시 첫 줄만 선택
+          .split('\n')[0];
+      } else {
+        // [개선] 선택자로 못 찾은 경우, td 내부의 텍스트 중 작성자 위치를 추측하거나 
+        // 특정 순서의 컬럼 텍스트를 가져오는 백업 로직 추가 가능
+        const tds = el.querySelectorAll('td');
+        if (tds.length > 3) cleanWriter = tds[3].innerText.trim(); // 보통 3~4번째 칸이 작성자
       }
 
       // 3. 이미지 추출 및 필터링 (v1.2 로직 최적화)
