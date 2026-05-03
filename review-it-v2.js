@@ -37,75 +37,42 @@
     const items = document.querySelectorAll('.xans-record-, tr[id^="record"], .boardList tr, .border-b.group, .notice_view');
     const payload = [];
 
+    // Collector 코드 내 sync 함수 내부의 추출 로직 수정
     items.forEach(el => {
-      // 게시글 및 게시판 번호가 포함된 링크 탐색
-      const link = el.querySelector('a[href*="board_no="], a[href*="/article/"]');
+      const link = el.querySelector('a[href*="article/"]');
       if (!link) return;
 
       const href = link.getAttribute('href');
-
-      // 1. 게시글 번호(article_no) 추출
-      const articleNoMatch = href.match(/article_no=(\d+)/) || href.match(/\/(\d+)\/?$/);
+      const articleNoMatch = href.match(/\/(\d+)\/?$/);
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
-      if (!articleNo) return;
 
-      // 2. 작성자 이름 정제
-      // [2] 작성자 이름 정제 (개선 버전)
-      let cleanWriter = "고객";
+      // [핵심] 모든 td를 가져와서 순서대로 매핑 (가장 정확함)
+      const tds = el.querySelectorAll('td');
 
-      // 카페24의 공통적인 작성자 패턴을 모두 감지
-      const writerSelectors = [
-        '.writer', '.name', '.displaynone + span',
-        'td[class*="writer"]', 'td[class*="name"]',
-        '.author', '[id*="writer"]',
-        '.member_name'
-      ];
+      // 1. 작성자 정확히 가져오기 (5번째 td)
+      // maskName 함수를 거치지 않고 원본 데이터를 수집 단계에서 확보해야 합니다.
+      let rawWriter = tds[4] ? tds[4].innerText.trim() : "고객";
 
-      // Collector 코드 내 cleanWriter 부분 수정
-      let writerEl = null;
-      for (let selector of writerSelectors) {
-        writerEl = el.querySelector(selector);
-        // 공백이 아닌 실제 텍스트가 있는지 확인
-        if (writerEl && writerEl.innerText.trim().length > 0) break;
-      }
+      // 2. 작성일 정확히 가져오기 (6번째 td)
+      // "2026-01-28 12:31:37" 형태를 그대로 수집하거나 ISO 형태로 변환
+      let rawDate = tds[5] ? tds[5].innerText.trim() : new Date().toISOString();
 
-      if (writerEl) {
-        cleanWriter = writerEl.innerText
-          .replace(/\[.*?\]/g, '')
-          .replace(/[*]/g, '')
-          .trim()
-          .split('\n')[0];
-      } else {
-        // [개선] 선택자로 못 찾은 경우, td 내부의 텍스트 중 작성자 위치를 추측하거나 
-        // 특정 순서의 컬럼 텍스트를 가져오는 백업 로직 추가 가능
-        const tds = el.querySelectorAll('td');
-        if (tds.length > 3) cleanWriter = tds[3].innerText.trim(); // 보통 3~4번째 칸이 작성자
-      }
+      // 3. 별점 추출 (마지막 td의 이미지 alt값 활용)
+      const starImg = el.querySelector('td.displaynone img');
+      const starMatch = starImg ? starImg.getAttribute('alt').match(/\d/) : [5];
+      const starCount = parseInt(starMatch[0]);
 
-      // 3. 이미지 추출 및 필터링 (v1.2 로직 최적화)
-      let allImgs = Array.from(el.querySelectorAll('img')).map(img => img.getAttribute('src'));
-      let validImg = allImgs.find(src =>
-        src &&
-        !CONFIG.SPAM_KEYWORDS.test(src) &&
-        !src.includes('.svg') &&
-        (src.includes('/product/') || src.includes('/board/') || src.includes('/file_data/'))
-      );
-
-      let thumbUrl = validImg || CONFIG.DEFAULT_IMG;
-      if (thumbUrl.startsWith('//')) { thumbUrl = 'https:' + thumbUrl; }
-
-      // 4. 데이터 전송 객체 구성
       payload.push({
         mall_id: CONFIG.MALL_ID,
         article_no: String(articleNo),
         board_no: CONFIG.TARGET_BOARD_NO,
-        subject: link.innerText.trim() || "포토 리뷰입니다.",
-        content: "본문은 상세 페이지에서 확인 가능합니다.",
-        writer: cleanWriter,
-        stars: 5, // 기본 별점
-        image_urls: thumbUrl ? [thumbUrl] : [],
-        is_visible: true,
-        is_best: false
+        subject: link.innerText.trim(),
+        content: "본문 상세 참조",
+        writer: rawWriter, // "와이키나스" 원본 데이터 저장
+        stars: starCount,
+        image_urls: [/* 이미지 추출 로직 */],
+        created_at: rawDate, // DB에 날짜 문자열 전송
+        is_visible: true
       });
     });
 

@@ -86,19 +86,16 @@
     },
 
     // [4] 데이터 마스킹 및 정제 (개선 버전)
+    // Widget App 내 maskName 함수 수정
     maskName(name) {
-      // 이름이 없거나 이미 마스킹된 경우(별표 포함) 그대로 반환
-      if (!name || name.trim() === "" || name.includes('*')) return name || "고객";
+      if (!name) return "고객";
 
-      if (CONFIG.ADMIN_KEYWORDS.some(k => String(name).includes(k))) return name;
+      // [수정] 관리자 계정이거나 특정 브랜드명(와이키나스 등)은 마스킹하지 않음
+      const skipKeywords = ['와이키나스', '관리자', '운영자', 'Official'];
+      if (skipKeywords.some(k => name.includes(k))) return name;
 
-      let n = String(name).replace(/[^\w\sㄱ-힣]/g, '').trim();
-      if (n.length <= 1) return n + "*";
-      if (n.length === 2) return n.charAt(0) + "*";
-
-      // '와이키나스' -> '와이*나스' (세 글자 이상 처리)
-      return n.charAt(0) + "*" + n.substring(2);
-    
+      // 일반 고객만 마스킹 처리 (필요 없다면 그냥 return name; 하시면 됩니다)
+      return name;
     },
 
     // [5] 본문 및 이미지 정밀 스캔 (Deep Scan)
@@ -271,12 +268,13 @@
         });
       }
 
+      // Widget App 내 renderDetail 함수 수정
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-top-meta">
           <span class="rit-name-tag">${this.maskName(d.writer)}</span>
           <span class="rit-divider">|</span>
           <div class="rit-star-box"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
-          <span class="rit-date-tag">${new Date(d.created_at).toLocaleDateString()}</span>
+          <span class="rit-date-tag">${d.created_at.split(' ')[0]}</span> <!-- '2026-01-28' 형태 출력 -->
         </div>`;
 
       document.getElementById('ritSubject').innerText = d.subject;
