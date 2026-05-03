@@ -21,7 +21,7 @@
       MALL_ID: mallId.replace('m.', ''), // 모바일 도메인 접두사 제거
       PRODUCT_NO: productNo,
       TARGET_BOARD_NO: '4', // 기본 수집 대상 게시판 번호
-      DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/no-img.png',
+      DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif', // 특정 경로
       // 별점 아이콘, 로고 등 불필요한 이미지 필터링 키워드
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|rating/i
     };
@@ -36,70 +36,42 @@
     const items = document.querySelectorAll('.xans-record-, tr[id^="record"], .boardList tr, .border-b.group, .notice_view');
     const payload = [];
 
+    // Collector 코드 내 sync 함수 내부의 추출 로직 수정
     items.forEach(el => {
-      // 게시글 및 게시판 번호가 포함된 링크 탐색
-      const link = el.querySelector('a[href*="board_no="], a[href*="/article/"]');
+      const link = el.querySelector('a[href*="article/"]');
       if (!link) return;
 
       const href = link.getAttribute('href');
-
-      // 1. 게시글 번호(article_no) 추출
-      const articleNoMatch = href.match(/article_no=(\d+)/) || href.match(/\/(\d+)\/?$/);
+      const articleNoMatch = href.match(/\/(\d+)\/?$/);
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
-      if (!articleNo) return;
 
-      // 2. 작성자 이름 정제
-      // [2] 작성자 이름 정제 (개선 버전)
-      let cleanWriter = "고객";
+      // [핵심] 모든 td를 가져와서 순서대로 매핑 (가장 정확함)
+      const tds = el.querySelectorAll('td');
 
-      // 카페24의 공통적인 작성자 패턴을 모두 감지
-      const writerSelectors = [
-        '.writer', '.name', '.displaynone + span',
-        'td[class*="writer"]', 'td[class*="name"]',
-        '.author', '[id*="writer"]',
-        '.member_name'
-      ];
+      // 1. 작성자 정확히 가져오기 (5번째 td)
+      // maskName 함수를 거치지 않고 원본 데이터를 수집 단계에서 확보해야 합니다.
+      let rawWriter = tds[4] ? tds[4].innerText.trim() : "고객";
 
-      let writerEl = null;
-      for (let selector of writerSelectors) {
-        writerEl = el.querySelector(selector);
-        if (writerEl && writerEl.innerText.trim()) break;
-      }
+      // 2. 작성일 정확히 가져오기 (6번째 td)
+      // "2026-01-28 12:31:37" 형태를 그대로 수집하거나 ISO 형태로 변환
+      let rawDate = tds[5] ? tds[5].innerText.trim() : new Date().toISOString();
 
-      if (writerEl) {
-        // 1. [공지], [관리자] 등의 태그나 대괄호 내용 제거
-        // 2. 관리자 아이콘 등이 포함될 수 있으므로 텍스트만 추출
-        cleanWriter = writerEl.innerText
-          .replace(/\[.*?\]/g, '') // 대괄호와 그 안의 내용 삭제
-          .replace(/[*]/g, '')     // 기존에 이미 되어있는 마스킹 제거
-          .trim()
-          .split('\n')[0];        // 줄바꿈 발생 시 첫 줄만 선택
-      }
+      // 3. 별점 추출 (마지막 td의 이미지 alt값 활용)
+      const starImg = el.querySelector('td.displaynone img');
+      const starMatch = starImg ? starImg.getAttribute('alt').match(/\d/) : [5];
+      const starCount = parseInt(starMatch[0]);
 
-      // 3. 이미지 추출 및 필터링 (v1.2 로직 최적화)
-      let allImgs = Array.from(el.querySelectorAll('img')).map(img => img.getAttribute('src'));
-      let validImg = allImgs.find(src =>
-        src &&
-        !CONFIG.SPAM_KEYWORDS.test(src) &&
-        !src.includes('.svg') &&
-        (src.includes('/product/') || src.includes('/board/') || src.includes('/file_data/'))
-      );
-
-      let thumbUrl = validImg || CONFIG.DEFAULT_IMG;
-      if (thumbUrl.startsWith('//')) { thumbUrl = 'https:' + thumbUrl; }
-
-      // 4. 데이터 전송 객체 구성
       payload.push({
         mall_id: CONFIG.MALL_ID,
         article_no: String(articleNo),
         board_no: CONFIG.TARGET_BOARD_NO,
-        subject: link.innerText.trim() || "포토 리뷰입니다.",
-        content: "본문은 상세 페이지에서 확인 가능합니다.",
-        writer: cleanWriter,
-        stars: 5, // 기본 별점
-        image_urls: thumbUrl ? [thumbUrl] : [],
-        is_visible: true,
-        is_best: false
+        subject: link.innerText.trim(),
+        content: "본문 상세 참조",
+        writer: rawWriter, // "와이키나스" 원본 데이터 저장
+        stars: starCount,
+        image_urls: [/* 이미지 추출 로직 */],
+        created_at: rawDate, // DB에 날짜 문자열 전송
+        is_visible: true
       });
     });
 
