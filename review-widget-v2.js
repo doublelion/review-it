@@ -253,7 +253,14 @@
     },
 
     injectCSS() {
-      // (대표님 원본 CSS 주입 로직 유지)
+      // 외부 CSS 파일 로드 (배포된 경로)
+      if (!document.getElementById('rit-css-link')) {
+        const link = document.createElement('link');
+        link.id = 'rit-css-link';
+        link.rel = 'stylesheet';
+        link.href = 'https://review-it-tau.vercel.app/review-it.css';
+        document.head.appendChild(link);
+      }
     }
   };
 
