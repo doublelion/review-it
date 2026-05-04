@@ -1,81 +1,91 @@
 /**
- * @Project: Review-It Universal Collector & Engine
- * @Version: v9.5 (Final Stable Edition)
- * @Goal: 409 Conflict 해결, 변수 선언 오류 수정, 이미지 필터링 강화
+ * @Project: Review-It Universal Collector Engine
+ * @Version: v9.6 (Precision Parsing Edition)
+ * @Goal: 닉네임 마스킹 방지, 날짜 정밀 수집, 별점 파싱 오류 해결
  */
 (function (window) {
   const getDynamicConfig = () => {
-    // 1. Mall ID 추출 로직 (카페24 도메인 대응)
     let host = window.location.hostname;
     let mallId = host.replace('.cafe24.com', '').split('.').pop() === 'com'
       ? host.split('.')[host.split('.').length - 2]
       : host.split('.')[0];
 
-    // 2. URL 파라미터에서 상품 번호 안전하게 추출
-    const urlParams = new URLSearchParams(window.location.search);
-    const productNo = urlParams.get('product_no') || 'common';
-
     return {
       URL: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
-      KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt', // Supabase API Key
-      MALL_ID: mallId.replace('m.', ''), // 모바일 도메인 접두사 제거
-      PRODUCT_NO: productNo,
-      TARGET_BOARD_NO: '4', // 기본 수집 대상 게시판 번호
-      DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif', // 특정 경로
-      // 별점 아이콘, 로고 등 불필요한 이미지 필터링 키워드
-      SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|rating/i
+      KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
+      MALL_ID: mallId.replace('m.', ''),
+      TARGET_BOARD_NO: '4',
+      DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif'
     };
   };
 
   const CONFIG = getDynamicConfig();
 
   async function sync() {
-    console.log(`🚀 [REVIEW-IT] ${CONFIG.MALL_ID} 상점 데이터 동기화 시작...`);
-
-    // 카페24 다양한 스킨의 게시판 레코드 선택자
-    const items = document.querySelectorAll('.xans-record-, tr[id^="record"], .boardList tr, .border-b.group, .notice_view');
+    // 1. 카페24 게시판 레코드 행 찾기
+    const items = document.querySelectorAll('.xans-record-, tr[id^="record"], .boardList tr');
     const payload = [];
 
-    // Collector 코드 내 sync 함수 내부의 추출 로직 수정
     items.forEach(el => {
-      const link = el.querySelector('a[href*="article/"]');
+      // 게시글 링크 및 번호 추출
+      const link = el.querySelector('a[href*="article/"], a[href*="article_no="]');
       if (!link) return;
 
       const href = link.getAttribute('href');
-      const articleNoMatch = href.match(/\/(\d+)\/?$/);
+      const articleNoMatch = href.match(/(?:article_no=|article\/|no=)(\d+)/);
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
+      if (!articleNo) return;
 
-      // [핵심] 모든 td를 가져와서 순서대로 매핑 (가장 정확함)
       const tds = el.querySelectorAll('td');
+      if (tds.length < 3) return; // 유효한 행이 아님
 
-      // 1. 작성자 정확히 가져오기 (5번째 td)
-      // maskName 함수를 거치지 않고 원본 데이터를 수집 단계에서 확보해야 합니다.
-      let rawWriter = tds[4] ? tds[4].innerText.trim() : "고객";
+      // [핵심 1] 작성자 추출 (마스킹 방지 및 원본 수집)
+      // 카페24는 보통 닉네임이나 아이디가 들어있는 td에 클래스명이 있거나 특정 순서에 위치합니다.
+      let rawWriter = "고객";
+      const writerEl = el.querySelector('.writer, .name, [class*="writer"], [class*="name"]');
 
-      // 2. 작성일 정확히 가져오기 (6번째 td)
-      // "2026-01-28 12:31:37" 형태를 그대로 수집하거나 ISO 형태로 변환
-      let rawDate = tds[5] ? tds[5].innerText.trim() : new Date().toISOString();
+      if (writerEl) {
+        rawWriter = writerEl.innerText.trim();
+      } else {
+        // 클래스가 없을 경우 td 인덱스로 추적 (보통 뒤에서 2~3번째 혹은 앞에서 4~5번째)
+        // 안전하게 텍스트가 짧고 별표(*)가 없는 것을 우선 탐색하거나 순서 사용
+        rawWriter = tds[4] ? tds[4].innerText.trim() : (tds[3] ? tds[3].innerText.trim() : "고객");
+      }
 
-      // 3. 별점 추출 (마지막 td의 이미지 alt값 활용)
-      const starImg = el.querySelector('td.displaynone img');
-      const starMatch = starImg ? starImg.getAttribute('alt').match(/\d/) : [5];
-      const starCount = parseInt(starMatch[0]);
+      // [핵심 2] 작성일 추출 및 ISO 변환
+      let rawDate = new Date().toISOString();
+      const dateEl = el.querySelector('.date, .txtLess, [class*="date"]');
+      if (dateEl) {
+        rawDate = dateEl.innerText.trim();
+      } else {
+        rawDate = tds[5] ? tds[5].innerText.trim() : (tds[4] ? tds[4].innerText.trim() : rawDate);
+      }
+
+      // 날짜가 "2026-01-28" 형태라면 시간을 붙여 DB format에 맞춤
+      if (rawDate.length <= 10) rawDate += " 00:00:00";
+
+      // [핵심 3] 별점 추출 (이미지 alt값 또는 클래스명 분석)
+      let starCount = 5;
+      const starImg = el.querySelector('img[src*="rating"], img[alt*="별"], .icoStar');
+      if (starImg) {
+        const altText = starImg.getAttribute('alt');
+        const starMatch = altText ? altText.match(/\d/) : null;
+        starCount = starMatch ? parseInt(starMatch[0]) : 5;
+      }
 
       payload.push({
         mall_id: CONFIG.MALL_ID,
         article_no: String(articleNo),
         board_no: CONFIG.TARGET_BOARD_NO,
-        subject: link.innerText.trim(),
-        content: "본문 상세 참조",
-        writer: rawWriter, // "와이키나스" 원본 데이터 저장
+        subject: link.innerText.trim().replace(/^\[.+\]\s*/, ''), // [포토] 같은 머리말 제거
+        content: "상세 본문 참조",
+        writer: rawWriter,
         stars: starCount,
-        image_urls: [/* 이미지 추출 로직 */],
-        created_at: rawDate, // DB에 날짜 문자열 전송
+        image_urls: [], // 이미지 딥스캔은 위젯 엔진에서 처리 (부하 방지)
+        created_at: rawDate,
         is_visible: true
       });
     });
-
-    console.log(`📊 [REVIEW-IT] 수집된 리뷰 개수: ${payload.length}개`);
 
     if (payload.length > 0) {
       try {
@@ -85,27 +95,14 @@
             'apikey': CONFIG.KEY,
             'Authorization': `Bearer ${CONFIG.KEY}`,
             'Content-Type': 'application/json',
-            // [중요] 409 Conflict 해결: 중복 데이터 발생 시 업데이트로 처리
-            'Prefer': 'resolution=merge-duplicates'
+            'Prefer': 'resolution=merge-duplicates' // 중복 시 업데이트 (409 에러 방지)
           },
           body: JSON.stringify(payload)
         });
-
-        if (res.ok) {
-          console.log(`✅ [REVIEW-IT] ${CONFIG.MALL_ID} 데이터 전송/업데이트 성공!`);
-        } else {
-          const errText = await res.text();
-          console.error("❌ [REVIEW-IT] 전송 실패:", errText);
-        }
-      } catch (e) {
-        console.error("❌ [REVIEW-IT] 네트워크 오류:", e);
-      }
+        if (res.ok) console.log(`✅ [REVIEW-IT] ${payload.length}개 리뷰 동기화 성공`);
+      } catch (e) { console.error("❌ 네트워크 오류:", e); }
     }
   }
 
-  // 카페24 로딩 속도를 고려한 지연 실행 (1.5초)
-  setTimeout(() => {
-    if (document.readyState === 'complete') { sync(); }
-    else { window.addEventListener('load', sync); }
-  }, 1500);
+  setTimeout(sync, 2000); // 카페24 렌더링 대기
 })(window);
