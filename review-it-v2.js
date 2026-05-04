@@ -22,87 +22,74 @@
   const CONFIG = getDynamicConfig();
 
   async function sync() {
-    // 1. 카페24 게시판 레코드 행 찾기
-    const items = document.querySelectorAll('.xans-record-, tr[id^="record"], .boardList tr');
+    console.log(`🚀 [REVIEW-IT] ${CONFIG.mallId} 상점 데이터 동기화 시작...`);
+
+    // 다양한 카페24 스킨(기본, 디자인뱅크, 유료스킨 등)을 포괄하는 선택자
+    const items = document.querySelectorAll('.xans-record-, tr[id^="record"], .boardList tr, .border-b.group');
     const payload = [];
 
     items.forEach(el => {
-      // 게시글 링크 및 번호 추출
-      const link = el.querySelector('a[href*="article/"], a[href*="article_no="]');
+      const link = el.querySelector('a[href*="board_no="], a[href*="/article/"]');
       if (!link) return;
 
       const href = link.getAttribute('href');
-      const articleNoMatch = href.match(/(?:article_no=|article\/|no=)(\d+)/);
+
+      // 게시판 번호 추출 및 필터링
+      const boardNoMatch = href.match(/board_no=(\d+)/) || href.match(/\/article\/[^/]+\/(\d+)\//);
+      const currentBoardNo = boardNoMatch ? boardNoMatch[1] : null;
+
+      if (currentBoardNo !== CONFIG.targetBoardNo) return;
+
+      // 게시글 번호 추출
+      const articleNoMatch = href.match(/article_no=(\d+)/) || href.match(/\/(\d+)\/?$/) || href.match(/\/(\d+)\/($|\?)/);
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      const tds = el.querySelectorAll('td');
-      if (tds.length < 3) return; // 유효한 행이 아님
-
-      // [핵심 1] 작성자 추출 (마스킹 방지 및 원본 수집)
-      // 카페24는 보통 닉네임이나 아이디가 들어있는 td에 클래스명이 있거나 특정 순서에 위치합니다.
-      let rawWriter = "고객";
-      const writerEl = el.querySelector('.writer, .name, [class*="writer"], [class*="name"]');
-
-      if (writerEl) {
-        rawWriter = writerEl.innerText.trim();
-      } else {
-        // 클래스가 없을 경우 td 인덱스로 추적 (보통 뒤에서 2~3번째 혹은 앞에서 4~5번째)
-        // 안전하게 텍스트가 짧고 별표(*)가 없는 것을 우선 탐색하거나 순서 사용
-        rawWriter = tds[4] ? tds[4].innerText.trim() : (tds[3] ? tds[3].innerText.trim() : "고객");
+      // 작성자 추출 및 정제 (마스킹 제거 및 이름만 추출)
+      let writerEl = el.querySelector('.writer, .name, div.mt-3 > span:first-child');
+      if (!writerEl) {
+        const spans = el.querySelectorAll('span');
+        for (let s of spans) { if (s.innerText.includes('**')) { writerEl = s; break; } }
       }
+      let rawWriter = writerEl ? writerEl.innerText.trim() : "고객";
+      let cleanWriter = rawWriter.split('[')[0].split('(')[0].replace(/[*]/g, '').trim();
 
-      // [핵심 2] 작성일 추출 및 ISO 변환
-      let rawDate = new Date().toISOString();
-      const dateEl = el.querySelector('.date, .txtLess, [class*="date"]');
-      if (dateEl) {
-        rawDate = dateEl.innerText.trim();
-      } else {
-        rawDate = tds[5] ? tds[5].innerText.trim() : (tds[4] ? tds[4].innerText.trim() : rawDate);
-      }
-
-      // 날짜가 "2026-01-28" 형태라면 시간을 붙여 DB format에 맞춤
-      if (rawDate.length <= 10) rawDate += " 00:00:00";
-
-      // [핵심 3] 별점 추출 (이미지 alt값 또는 클래스명 분석)
-      let starCount = 5;
-      const starImg = el.querySelector('img[src*="rating"], img[alt*="별"], .icoStar');
-      if (starImg) {
-        const altText = starImg.getAttribute('alt');
-        const starMatch = altText ? altText.match(/\d/) : null;
-        starCount = starMatch ? parseInt(starMatch[0]) : 5;
-      }
+      // 썸네일 추출 (동적 경로 적용)
+      let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
+      let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
 
       payload.push({
-        mall_id: CONFIG.MALL_ID,
+        mall_id: CONFIG.mallId,
         article_no: String(articleNo),
-        board_no: CONFIG.TARGET_BOARD_NO,
-        subject: link.innerText.trim().replace(/^\[.+\]\s*/, ''), // [포토] 같은 머리말 제거
-        content: "상세 본문 참조",
-        writer: rawWriter,
-        stars: starCount,
-        image_urls: [], // 이미지 딥스캔은 위젯 엔진에서 처리 (부하 방지)
-        created_at: rawDate,
+        board_no: CONFIG.targetBoardNo,
+        subject: link.innerText.trim() || "포토 리뷰입니다.",
+        content: "본문을 불러오는 중입니다...",
+        writer: cleanWriter || "고객",
+        stars: 5,
+        image_urls: thumbUrl ? [thumbUrl] : [],
         is_visible: true
       });
     });
 
-    if (payload.length > 0) {
-      try {
-        const res = await fetch(`${CONFIG.URL}/reviews`, {
-          method: 'POST',
-          headers: {
-            'apikey': CONFIG.KEY,
-            'Authorization': `Bearer ${CONFIG.KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates' // 중복 시 업데이트 (409 에러 방지)
-          },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) console.log(`✅ [REVIEW-IT] ${payload.length}개 리뷰 동기화 성공`);
-      } catch (e) { console.error("❌ 네트워크 오류:", e); }
-    }
+    if (payload.length === 0) return;
+
+    // 데이터 전송 (Upsert: 중복 시 업데이트)
+    try {
+      const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
+        method: 'POST',
+        headers: {
+          'apikey': CONFIG.sbKey,
+          'Authorization': `Bearer ${CONFIG.sbKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) console.log(`✅ [REVIEW-IT] ${CONFIG.mallId} 동기화 완료`);
+    } catch (e) { console.error("❌ 오류 발생:", e); }
   }
+
 
   setTimeout(sync, 2000); // 카페24 렌더링 대기
 })(window);
