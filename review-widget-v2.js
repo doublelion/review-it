@@ -149,23 +149,41 @@
     renderWidget() {
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (!container) return;
-
       const gridClass = `rit-pc-r${this.settings.grid_rows_desktop} rit-mo-r${this.settings.grid_rows_mobile}`;
-      let html = `
+    
+      // 1. 메인 위젯(리스트/스와이퍼) 렌더링 -> 기존 컨테이너에 삽입
+      let mainHtml = `
         <div class="rit-header-area">
           <div class="rit-tagline">${this.settings.tagline}</div>
           <h2 class="rit-main-title">${this.settings.title}</h2>
           <div class="rit-line"></div>
           <p class="rit-desc">${this.settings.description}</p>
         </div>
-        ${this.settings.display_type === 'grid'
+        ${this.settings.display_type === 'grid' 
           ? `<div class="rit-main-grid-layout ${gridClass}">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`
           : `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`
         }
-        <div id="ritModal" class="rit-modal-container" style="display:none;">
+      `;
+      container.innerHTML = mainHtml;
+      
+      if (this.settings.display_type !== 'grid' && window.Swiper) {
+        new Swiper('.rit-main-swiper', {
+          slidesPerView: 2.2, spaceBetween: 15, autoplay: { delay: 4000 },
+          breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 25 } }
+        });
+      }
+
+      // 2. [수정 포인트] 모달을 body의 직계 자식으로 별도 삽입 (중복 방지)
+      let modalContainer = document.getElementById('ritModal');
+      if (!modalContainer) {
+        modalContainer = document.createElement('div');
+        modalContainer.id = 'ritModal';
+        modalContainer.className = 'rit-modal-container';
+        modalContainer.style.display = 'none'; // 초기에는 숨김
+        
+        modalContainer.innerHTML = `
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
           <div class="rit-modal-window">
-             <!-- 상세 모달 구조 (대표님 원본 유지) -->
              <div class="rit-modal-header">
                 <span class="rit-logo-text">${this.settings.title}</span>
                 <div class="rit-header-buttons">
@@ -188,15 +206,8 @@
                 </div>
              </div>
           </div>
-        </div>
-      `;
-      container.innerHTML = html;
-
-      if (this.settings.display_type !== 'grid' && window.Swiper) {
-        new Swiper('.rit-main-swiper', {
-          slidesPerView: 2.2, spaceBetween: 15, autoplay: { delay: 4000 },
-          breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 25 } }
-        });
+        `;
+        document.body.appendChild(modalContainer);
       }
     },
 

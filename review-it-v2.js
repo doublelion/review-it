@@ -33,6 +33,7 @@
       if (!link) return;
 
       const href = link.getAttribute('href');
+      const tds = el.querySelectorAll('td');
 
       // 게시판 번호 추출 및 필터링
       const boardNoMatch = href.match(/board_no=(\d+)/) || href.match(/\/article\/[^/]+\/(\d+)\//);
@@ -45,14 +46,22 @@
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      // 작성자 추출 및 정제 (마스킹 제거 및 이름만 추출)
-      let writerEl = el.querySelector('.writer, .name, div.mt-3 > span:first-child');
-      if (!writerEl) {
-        const spans = el.querySelectorAll('span');
-        for (let s of spans) { if (s.innerText.includes('**')) { writerEl = s; break; } }
+      // [수정 포인트] 작성자 추출 (클래스가 없는 스킨 대응)
+      let rawWriter = "고객";
+      const writerEl = el.querySelector('.writer, .name, div.mt-3 > span:first-child');
+
+      if (writerEl) {
+        // 1순위: 클래스가 명확히 있는 경우
+        rawWriter = writerEl.innerText.trim();
+      } else if (tds.length >= 5) {
+        // 2순위: 캡처해주신 화면처럼 클래스가 없는 경우 (5번째 td 타겟팅)
+        // td 내부에 span이 있는지, 아니면 순수 텍스트인지 상관없이 innerText로 깔끔하게 가져옵니다.
+        rawWriter = tds[4].innerText.trim();
       }
-      let rawWriter = writerEl ? writerEl.innerText.trim() : "고객";
+
+      // [선택 사항] 혹시 모를 별표 마스킹 제거 로직 유지
       let cleanWriter = rawWriter.split('[')[0].split('(')[0].replace(/[*]/g, '').trim();
+      if (!cleanWriter) cleanWriter = "고객";
 
       // 썸네일 추출 (동적 경로 적용)
       let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
@@ -89,7 +98,6 @@
       if (res.ok) console.log(`✅ [REVIEW-IT] ${CONFIG.mallId} 동기화 완료`);
     } catch (e) { console.error("❌ 오류 발생:", e); }
   }
-
 
   setTimeout(sync, 2000); // 카페24 렌더링 대기
 })(window);
