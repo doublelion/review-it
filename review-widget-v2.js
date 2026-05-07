@@ -129,22 +129,21 @@
         this.data = {};
         this.listOrder = [];
 
-        // 비동기 처리 최적화 (딥스캔 병렬 처리)
-        // loadReviews 내부 Promise.all 부분 수정
         await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
           const id = String(r.id);
 
-          // 실시간 파싱 시도
+          // 1. 실시간 파싱 시도
           const separateData = await this._fetchAndSeparateContent(r.article_no);
 
-          if (separateData && separateData.images.length > 0) {
-            // 파싱 성공 시 파싱 데이터 우선
-            r.clean_text_body = separateData.text;
-            r.all_images = separateData.images;
+          if (separateData) {
+            // [핵심 보정] 이미지가 없더라도 텍스트 파싱 결과가 있다면 무조건 반영
+            r.clean_text_body = separateData.text || r.content;
+            r.all_images = (separateData.images && separateData.images.length > 0)
+              ? separateData.images
+              : (r.image_url ? [r.image_url] : [CONFIG.DEFAULT_IMG]);
           } else {
-            // 파싱 실패 혹은 이미지가 없는 경우 DB 데이터(r.image_url 등) 사용
-            // DB에 image_url 필드가 있다고 가정
-            r.clean_text_body = r.content;
+            // 파싱 자체가 실패한 경우 DB 데이터 사용
+            r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
             r.all_images = (r.image_url) ? [r.image_url] : [CONFIG.DEFAULT_IMG];
           }
 
