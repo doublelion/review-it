@@ -149,91 +149,69 @@
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (!container) return;
 
-      // [1] 설정값 및 기본값 세팅
       const isGrid = this.settings.display_type === 'grid';
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
 
-      // [2] 레이아웃 값 확정 (삼항 연산자 로직 교정)
-      // 그리드일 때는 어드민 설정값, 스와이프일 때는 고정값(5 / 2.2) 사용
+      // [수정] 그리드일 때만 어드민 설정값(pc_rows 등)을 가져옵니다. 
+      // 스와이프일 때는 무조건 데스크탑 5, 모바일 2.2 고정.
       const pcCols = isGrid ? (parseInt(this.settings.grid_rows_desktop) || 5) : 5;
       const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
       let mainHtml = `
     <style>
-      /* 공통: 위젯 최대폭 제한 및 중앙 정렬 */
-      #review-it-widget { 
-        max-width: 1260px !important; 
-        margin: 0 auto !important; 
-        padding: 40px 20px !important;
-        box-sizing: border-box;
-      }
+      #review-it-widget { max-width: 1200px !important; margin: 0 auto !important; }
       
-      /* 헤더 타이틀 교정 */
-      .rit-header-area { margin-bottom: 30px; text-align: center; }
+      /* 타이틀 크기 강제 교정 */
       .rit-main-title { 
-        font-family: 'Playfair Display', 'Pretendard', serif;
-        font-size: clamp(24px, 5vw, 36px) !important; 
+        font-size: 32px !important; 
         font-weight: 800 !important; 
         margin: 10px 0 !important;
-        letter-spacing: -0.5px;
-        line-height: 1.2;
       }
-      .rit-tagline { font-size: 12px; color: #b38a58; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-      .rit-line { width: 30px; height: 1px; background: #cbcbcb; margin: 15px auto; }
-      .rit-desc { font-size: 14px; color: #777; line-height: 1.6; }
 
-      /* 그리드 레이아웃 */
+      /* 그리드 레이아웃: 어드민 설정값 반영 */
       .rit-main-grid-layout {
         display: grid !important;
-        gap: 15px;
-        /* 모바일 우선 적용 */
+        gap: 10px;
+        /* 모바일: 1줄당 개수 설정 반영 */
         grid-template-columns: repeat(${isGrid ? Math.floor(moCols) : 2}, 1fr) !important;
       }
 
       @media (min-width: 1024px) {
         .rit-main-grid-layout {
-          /* 데스크탑 적용 */
+          /* 데스크탑: 1줄당 개수 설정 반영 */
           grid-template-columns: repeat(${pcCols}, 1fr) !important;
           gap: 20px;
         }
       }
-
-      /* 스와이프 전용 카드 설정 */
-      .rit-main-swiper .rit-card { width: 100%; height: auto; }
     </style>
 
     <div class="rit-header-area">
-      <div class="rit-tagline">${this.settings.tagline || 'Verified Authenticity'}</div>
-      <h2 class="rit-main-title">${this.settings.title || 'PEOPLE CHOICE'}</h2>
+      <div class="rit-tagline">${this.settings.tagline || 'REVIEW-IT'}</div>
+      <h2 class="rit-main-title">${this.settings.title || 'REAL PHOTO FEED'}</h2>
       <div class="rit-line"></div>
       <p class="rit-desc">${this.settings.description || ''}</p>
     </div>
 
     ${isGrid
           ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
-          : `<div class="swiper rit-main-swiper">
-          <div class="swiper-wrapper">
-            ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
-          </div>
-         </div>`
+          : `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`
         }
   `;
 
       container.innerHTML = mainHtml;
 
-      // [3] 스와이프 실행 (스와이프 모드일 때만)
+      // [수정] 스와이프 실행 시 slidesPerView 고정
       if (!isGrid && window.Swiper) {
         new Swiper('.rit-main-swiper', {
-          slidesPerView: moCols, // 고정값 2.2 사용됨
+          slidesPerView: 2.2, // 모바일 고정
           spaceBetween: 12,
           breakpoints: {
-            1024: { slidesPerView: pcCols, spaceBetween: 20 } // 고정값 5 사용됨
+            1024: { slidesPerView: 5, spaceBetween: 20 } // 데스크탑 고정
           }
         });
       }
 
-      // 모달 생성 로직 (기존과 동일)
       this.initModal();
     },
 
