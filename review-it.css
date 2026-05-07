@@ -771,6 +771,9 @@
   backdrop-filter: blur(4px);
   /* 트렌디한 유리 효과 */
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 마우스 호버 시 효과 */
