@@ -149,51 +149,66 @@
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (!container) return;
 
-      // 설정값 가져오기
-      const pcCols = parseInt(this.settings.grid_rows_desktop) || 5;
-      let moCols = parseInt(this.settings.grid_rows_mobile) || 2;
-      if (moCols > 3) moCols = 3; // 모바일은 최대 3개로 강제 제한
-
+      // [1] 설정값 및 기본값 세팅
+      const isGrid = this.settings.display_type === 'grid';
       const limit = this.settings.display_limit || 15;
-      const limitedReviews = this.listOrder.slice(0, limit);
+      const reviews = this.listOrder.slice(0, limit);
 
-      // 헤더 문구 연동 (값이 없으면 기본값)
-      const tagline = this.settings.tagline || 'CUSTOMER REVIEW';
-      const title = this.settings.title || '리얼 포토 리뷰';
-      const desc = this.settings.description || '';
+      // [2] 그리드일 때만 어드민 설정 적용, 스와이프는 최적값 고정
+      const pcCols = isGrid ? (this.settings.grid_rows_desktop || 5) : 5;
+      const moCols = isGrid ? (this.settings.grid_rows_mobile || 2) : 2.2; // 스와이프는 2.2개가 국룰
 
       let mainHtml = `
     <style>
-      /* PC: 설정한 개수만큼 나오되, 카드가 너무 커지지 않게 폭 제한 */
+      /* 공통: 위젯 최대폭 제한 및 중앙 정렬 */
+      #review-it-widget { 
+        max-width: 1260px !important; 
+        margin: 0 auto !important; 
+        padding: 40px 20px !important;
+        box-sizing: border-box;
+      }
+      
+      /* 헤더 타이틀 교정 */
+      .rit-header-area { margin-bottom: 30px; text-align: center; }
+      .rit-main-title { 
+        font-family: 'Playfair Display', serif; /* 캡처본의 고급스러운 느낌 */
+        font-size: clamp(24px, 5vw, 36px) !important; 
+        font-weight: 800 !important; 
+        margin: 10px 0 !important;
+        letter-spacing: -0.5px;
+      }
+      .rit-tagline { font-size: 12px; color: #b38a58; font-weight: 700; letter-spacing: 1px; }
+
+      /* 그리드 레이아웃 (그리드 모드일 때만 작동) */
+      .rit-main-grid-layout {
+        display: grid !important;
+        gap: 15px;
+        grid-template-columns: repeat(${isGrid ? moCols : 2}, 1fr) !important;
+      }
+
       @media (min-width: 1024px) {
         .rit-main-grid-layout {
-          grid-template-columns: repeat(${pcCols}, minmax(0, 230px)) !important; 
-          gap: 15px;
+          grid-template-columns: repeat(${pcCols}, 1fr) !important;
+          gap: 20px;
         }
       }
-      /* 모바일: 1줄당 개수 제어 (최대 3개) */
-      @media (max-width: 1023px) {
-        .rit-main-grid-layout {
-          grid-template-columns: repeat(${moCols}, 1fr) !important;
-          gap: 10px;
-        }
-      }
-      /* 스와이퍼 꽉 참 방지 */
-      .rit-main-swiper { width: 100%; max-width: 1200px; margin: 0 auto; overflow: hidden; }
+
+      /* 스와이프 전용: 카드 크기 강제 고정 (이미지 깨짐 방지) */
+      .rit-main-swiper .rit-card { width: 100%; height: auto; }
     </style>
 
     <div class="rit-header-area">
-      <div class="rit-tagline">${tagline}</div>
-      <h2 class="rit-main-title">${title}</h2>
+      <div class="rit-tagline">${this.settings.tagline || 'Verified Authenticity'}</div>
+      <h2 class="rit-main-title">${this.settings.title || 'PEOPLE CHOICE'}</h2>
       <div class="rit-line"></div>
-      <p class="rit-desc">${desc}</p>
+      <p class="rit-desc">${this.settings.description || ''}</p>
     </div>
 
-    ${this.settings.display_type === 'grid'
-          ? `<div class="rit-main-grid-layout">${limitedReviews.map(id => this.getCardHTML(id)).join('')}</div>`
+    ${isGrid
+          ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
           : `<div class="swiper rit-main-swiper">
           <div class="swiper-wrapper">
-            ${limitedReviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
+            ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
           </div>
          </div>`
         }
@@ -201,14 +216,13 @@
 
       container.innerHTML = mainHtml;
 
-      // 스와이퍼 실행
-      if (this.settings.display_type !== 'grid' && window.Swiper) {
+      // [3] 스와이프 실행 (스와이프 모드일 때만)
+      if (!isGrid && window.Swiper) {
         new Swiper('.rit-main-swiper', {
-          slidesPerView: moCols + 0.2,
-          spaceBetween: 10,
-          centeredSlides: false,
+          slidesPerView: 2.2, // 모바일 기본값 (슬쩍 걸치게 해서 넘겨보게 유도)
+          spaceBetween: 12,
           breakpoints: {
-            1024: { slidesPerView: pcCols, spaceBetween: 20 }
+            1024: { slidesPerView: 5, spaceBetween: 20 } // PC는 5개 고정
           }
         });
       }
