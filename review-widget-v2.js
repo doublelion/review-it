@@ -153,25 +153,22 @@
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
 
-      // [핵심 교정] 
-      // 1. 그리드 모드: 어드민 설정값 그대로 적용
-      // 2. 스와이프 모드: 설정값 무시하고 PC 5개 / 모바일 2.2개 강제 고정
+      // 설정값 처리
       let pcCols, moCols;
-
       if (isGrid) {
         pcCols = parseInt(this.settings.grid_rows_desktop) || 5;
         moCols = parseInt(this.settings.grid_rows_mobile) || 2;
       } else {
         pcCols = 5;   // 스와이프 데스크탑 고정
-        moCols = 2.2; // 스와이프 모바일 고정 (슬쩍 걸치게)
+        moCols = 2.2; // 스와이프 모바일 고정
       }
 
       let mainHtml = `
     <style>
-      #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 20px; }
+      #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 20px; box-sizing: border-box; }
       .rit-main-title { font-size: 32px !important; font-weight: 800 !important; text-align: center; margin: 10px 0 !important; }
       
-      /* 그리드 레이아웃 스타일 */
+      /* 그리드 레이아웃 스타일 (이 부분은 CSS 표준이라 반전 버그가 없습니다) */
       .rit-main-grid-layout {
         display: grid !important;
         gap: 15px;
@@ -185,7 +182,6 @@
         }
       }
       
-      /* 스와이프 카드 크기 최적화 */
       .rit-main-swiper .rit-card { width: 100%; height: auto; }
     </style>
 
@@ -208,13 +204,30 @@
 
       container.innerHTML = mainHtml;
 
-      // [스와이프 실행] 위에서 정의한 pcCols(5), moCols(2.2)가 그대로 적용됩니다.
+      // [핵심 해결] 카페24 구버전 Swiper 충돌 원천 차단 로직
+      // Breakpoints를 쓰지 않고 브라우저 가로폭을 직접 계산하여 강제 부여합니다.
       if (!isGrid && window.Swiper) {
-        new Swiper('.rit-main-swiper', {
-          slidesPerView: moCols,
-          spaceBetween: 12,
-          breakpoints: {
-            1024: { slidesPerView: pcCols, spaceBetween: 20 }
+        const getSwiperConfig = () => {
+          const isPc = window.innerWidth >= 1024;
+          return {
+            slidesPerView: isPc ? pcCols : moCols,
+            spaceBetween: isPc ? 20 : 12,
+            observer: true,
+            observeParents: true
+          };
+        };
+
+        // 초기 인스턴스 생성
+        let ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
+
+        // 화면 크기가 모바일<->PC로 바뀔 때만 안전하게 인스턴스 재시작
+        let isDesktopLast = window.innerWidth >= 1024;
+        window.addEventListener('resize', () => {
+          const isDesktopNow = window.innerWidth >= 1024;
+          if (isDesktopLast !== isDesktopNow) {
+            isDesktopLast = isDesktopNow;
+            if (ritSwiper && ritSwiper.destroy) ritSwiper.destroy(true, true);
+            ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
           }
         });
       }
