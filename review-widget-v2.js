@@ -22,7 +22,7 @@
       PRODUCT_NO: getProductNo(),
       BOARD_NO: '4',
       // DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif',
-      DEFAULT_IMG: '/assets/rit_noimg.jpg',
+      DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
       ADMIN_KEYWORDS: ['관리자', 'Official', '운영자']

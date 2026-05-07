@@ -17,7 +17,7 @@
       mallId: mallId.replace('m.', ''),
       targetBoardNo: '4',
       // defaultImg: '//img.echosting.cafe24.com/thumb/img_product_medium.gif'
-      defaultImg: '/assets/rit_noimg.jpg'
+      defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg'
     };
   };
 
