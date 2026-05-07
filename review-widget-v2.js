@@ -333,10 +333,12 @@
       this.loadComments(d.article_no);
     },
 
+    // 1. 카페24의 모든 스킨 패턴을 호환하는 댓글 추출 함수
     async loadComments(articleNo) {
       const commContainer = document.getElementById('ritCommList');
       if (!commContainer) return;
 
+      // 로딩 UI
       commContainer.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; margin-top:20px;">댓글 데이터를 연결 중입니다...</div>';
 
       try {
@@ -344,67 +346,68 @@
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
-        // 카페24 댓글 리스트 정밀 타겟팅 (가장 흔한 4가지 패턴)
-        const commentRows = doc.querySelectorAll('.commentList li, .replyArea li, #commentList .item, .xans-board-commentlist tr');
+        // [핵심] 카페24에서 쓰이는 거의 모든 댓글 컨테이너 클래스를 총망라
+        const selectors = [
+          '.xans-board-commentlist li',
+          '.xans-board-commentlist tr',
+          '.boardComment li',
+          '.commentList li',
+          '.replyArea li',
+          '#commentList .item',
+          '.reply-list li',
+          '[class*="comment"] li'
+        ].join(', ');
+
+        const commentRows = doc.querySelectorAll(selectors);
 
         const comments = Array.from(commentRows).map(el => {
-          // 작성자, 내용, 날짜 추출 (공백 제거 필수)
-          const writer = (el.querySelector('.name, .writer, strong')?.innerText || "고객").trim();
-          const content = (el.querySelector('.comment, .content, .comment_content, [class*="comment_"]')?.innerText || "").trim();
-          const date = (el.querySelector('.date')?.innerText || "").trim();
+          // 작성자 타겟팅 (name, writer, strong 등 가장 안쪽 텍스트)
+          const writerEl = el.querySelector('.name, .writer, strong, .member, [class*="name"]');
+          const writer = (writerEl ? writerEl.innerText : "고객").trim();
+
+          // 본문 타겟팅 (특히 id="comment_123" 같은 고유 속성까지 잡아냄)
+          const contentEl = el.querySelector('.comment, .content, .comment_content, span[id^="comment_"], div[id^="comment_"], [class*="text"], [class*="desc"]');
+          const content = (contentEl ? contentEl.innerText : "").trim();
+
+          // 날짜 타겟팅
+          const dateEl = el.querySelector('.date, .time, [class*="date"]');
+          const date = (dateEl ? dateEl.innerText : "").trim();
+
           return { writer, content, date };
-        }).filter(c => c.content.length > 0); // 실제 내용이 있는 댓글만 필터링
+        }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호')); // 내용이 비었거나 "비밀번호 입력" 같은 시스템 문구는 필터링
 
-        if (comments.length === 0) {
-          commContainer.innerHTML = ''; // 댓글 없으면 영역 숨김
-          return;
-        }
+        // 추출 완료 후 렌더링 함수로 전달
+        this.renderComments(comments);
 
-        // 렌더링
-        commContainer.innerHTML = `
-          <div class="rit-comm-head" style="margin-top:30px; border-top:1px solid #eee; padding-top:20px; margin-bottom:15px;">
-            <span style="font-weight:800; font-size:14px; color:#111;">COMMENT (${comments.length})</span>
-          </div>
-          <div class="rit-comm-list-wrap">
-            ${comments.map(c => `
-              <div class="rit-comm-item" style="margin-bottom:12px; background:#f9f9f9; padding:15px; border-radius:8px;">
-                <div style="font-size:11px; font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between;">
-                  <span>${this.maskName(c.writer)}</span>
-                  <span style="font-weight:400; color:#bbb;">${c.date}</span>
-                </div>
-                <div style="font-size:13px; color:#444; line-height:1.6; word-break:break-all;">${c.content}</div>
-              </div>
-            `).join('')}
-          </div>
-        `;
       } catch (e) {
-        console.warn("[REVIEW-IT] 댓글 매핑 실패:", e);
+        console.warn("[REVIEW-IT] 댓글 추출 통신 실패:", e);
         commContainer.innerHTML = '';
       }
     },
 
-    // 2. 긁어온 데이터를 화면에 뿌려주는 함수
+    // 2. 추출된 댓글 데이터를 화면에 매핑
     renderComments(comments) {
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
-      if (comments.length === 0) {
-        container.innerHTML = ''; // 댓글 없으면 표시 안 함
+      // 댓글이 진짜 0개면 영역을 지움
+      if (!comments || comments.length === 0) {
+        container.innerHTML = '';
         return;
       }
 
       container.innerHTML = `
         <div class="rit-comm-head" style="margin-top:30px; border-top:1px solid #eee; padding-top:20px; margin-bottom:15px;">
-          <span style="font-weight:bold; font-size:14px; color:#111;">댓글 (${comments.length})</span>
+          <span style="font-weight:800; font-size:14px; color:#111;">COMMENT (${comments.length})</span>
         </div>
         <div class="rit-comm-list-wrap">
           ${comments.map(c => `
-            <div class="rit-comm-item" style="margin-bottom:12px; background:#f8f8f8; padding:15px; border-radius:10px;">
+            <div class="rit-comm-item" style="margin-bottom:12px; background:#f9f9f9; padding:15px; border-radius:8px;">
               <div style="font-size:11px; font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between;">
                 <span>${this.maskName(c.writer)}</span>
-                <span style="font-weight:400; color:#aaa;">${c.date}</span>
+                <span style="font-weight:400; color:#bbb;">${c.date}</span>
               </div>
-              <div style="font-size:13px; color:#444; line-height:1.6;">${c.content}</div>
+              <div style="font-size:13px; color:#444; line-height:1.6; word-break:break-all;">${c.content}</div>
             </div>
           `).join('')}
         </div>
