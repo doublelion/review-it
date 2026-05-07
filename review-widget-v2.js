@@ -319,6 +319,59 @@
       this.loadComments(d.article_no);
     },
 
+    // 1. 카페24 게시판에서 댓글 HTML을 긁어오는 함수
+    async loadComments(articleNo) {
+      const commContainer = document.getElementById('ritCommList') || document.createElement('div');
+      commContainer.id = 'ritCommList';
+      commContainer.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px; color:#999;">댓글 불러오는 중...</div>';
+
+      // content 영역 하단에 댓글 컨테이너가 없다면 추가
+      const contentArea = document.getElementById('ritContent');
+      if (!document.getElementById('ritCommList')) {
+        contentArea.insertAdjacentElement('afterend', commContainer);
+      }
+
+      try {
+        const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        // 카페24 기본 댓글 리스트 셀렉터 (스킨에 따라 다를 수 있으나 보통 .commentList)
+        const comments = Array.from(doc.querySelectorAll('.commentList li, .replyArea li, #commentList .item')).map(el => {
+          return {
+            writer: el.querySelector('.name, .writer')?.innerText?.trim() || '고객',
+            content: el.querySelector('.comment, .content, [class*="comment_"]')?.innerText?.trim() || '',
+            date: el.querySelector('.date')?.innerText?.trim() || ''
+          };
+        }).filter(c => c.content !== "");
+
+        this.renderComments(comments);
+      } catch (e) {
+        commContainer.innerHTML = ''; // 에러 시 조용히 비움
+      }
+    },
+
+    // 2. 가져온 댓글 데이터를 화면에 그리는 함수
+    renderComments(comments) {
+      const container = document.getElementById('ritCommList');
+      if (comments.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="rit-comm-head" style="margin-top:30px; border-top:1px solid #eee; padding-top:20px; margin-bottom:15px;">
+          <span style="font-weight:bold; font-size:13px;">댓글 ${comments.length}</span>
+        </div>
+        ${comments.map(c => `
+          <div class="rit-comm-item" style="margin-bottom:15px; background:#f9f9f9; padding:12px; border-radius:8px;">
+            <div style="font-size:11px; font-weight:bold; margin-bottom:5px;">${this.maskName(c.writer)} <span style="font-weight:normal; color:#999; margin-left:5px;">${c.date}</span></div>
+            <div style="font-size:13px; color:#555; line-height:1.5;">${c.content}</div>
+          </div>
+        `).join('')}
+      `;
+    },
+
     closeModal() {
       document.getElementById('ritModal').style.display = 'none';
       document.body.style.cssText = "";
