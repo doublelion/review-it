@@ -70,7 +70,10 @@
 
     maskName(name) {
       if (!name || name === "고객") return "고객";
+      // [수정] 운영자 키워드가 포함되어 있으면 마스킹 없이 원본 그대로 반환
       if (CONFIG.ADMIN_KEYWORDS.some(k => name.includes(k))) return name;
+
+      // 일반 고객만 마스킹 처리
       return name.length > 1 ? name.charAt(0) + "*".repeat(name.length - 1) : name;
     },
 
@@ -324,13 +327,18 @@
       </div>`;
 
         // Swiper 초기화 (슬라이더가 있을 때만)
+        // renderDetail 함수 내부의 Swiper 초기화 부분
         if (window.Swiper) {
-          new Swiper('.rit-modal-swiper', {
-            pagination: { el: '.rit-fraction', type: 'fraction' },
-            navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
-            centeredSlides: true, // [추가] 모달 내 이미지 중앙 정렬
-            autoHeight: true      // 이미지 높이에 따라 모달 높이 조절
-          });
+          setTimeout(() => {
+            new Swiper('.rit-modal-swiper', {
+              pagination: { el: '.rit-fraction', type: 'fraction' },
+              navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+              centeredSlides: true,
+              autoHeight: false, // [중요] false로 변경하여 높이 널뛰기 방지
+              watchOverflow: true,
+              loop: d.all_images.length > 1
+            });
+          }, 50);
         }
       } else {
         // 이미지가 없는 경우 기본 이미지 혹은 안내 문구
