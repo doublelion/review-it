@@ -22,29 +22,35 @@
   display: flex;
   align-items: center;
 }
+
 #ritCommList,
 .rit-txt-side {
   text-align: left;
 }
+
 #review-it-widget {
-  /* max-width: 1300px; */
-  margin: 0px auto 0px;
-  padding: 80px 20px 150px;
-  font-family: 'Pretendard', sans-serif;
-  background-color: #faf9f8;
+  max-width: 1200px;
+  /* 너무 크지 않게 조절 */
+  margin: 0 auto;
+  padding: 60px 20px;
+  background-color: transparent;
+  /* 배경색은 쇼핑몰에 맞게 */
 }
 
-.rit-header-area {
-  text-align: center;
-  margin-bottom: 40px;
+/* 2. 타이틀 폰트 및 간격 교정 */
+.rit-header-area h2 {
+  font-size: 32px;
+  /* 45px은 너무 큽니다. 32px로 하향 */
+  font-weight: 800;
+  margin: 10px 0;
+  color: #111;
 }
 
 .rit-tagline {
-  font-size: 12px;
-  letter-spacing: 2px;
-  color: #b45309;
-  margin-bottom: 5px;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 700;
+  color: #b38a58;
+  /* 골드톤 유지 */
 }
 
 .rit-header-area h2 {
@@ -69,8 +75,9 @@
 
 .rit-main-grid-layout {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
+  justify-content: center;
+  /* 중앙 정렬 */
+  margin: 0 auto;
 }
 
 @media (min-width: 1024px) {
@@ -385,7 +392,7 @@
 @media (max-width: 768px) {
   .rit-modal-header {
     background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
-    
+
   }
 
   .rit-flex-container {
@@ -597,9 +604,8 @@
 
 /* 모바일 대응 */
 @media (max-width: 767px) {
-  .rit-modal-header {
-    
-  }
+  .rit-modal-header {}
+
   .rit-modal-content {
     flex-direction: column;
     height: 90vh;

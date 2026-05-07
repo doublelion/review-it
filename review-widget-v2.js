@@ -149,58 +149,66 @@
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (!container) return;
 
-      // [수정] 클래스만 만드는 게 아니라, 인라인 스타일로 grid columns를 직접 제어합니다.
-      const pcCols = this.settings.grid_rows_desktop || 5;
-      const moCols = this.settings.grid_rows_mobile || 2;
-      const limit = this.settings.display_limit || 15;
+      // 설정값 가져오기
+      const pcCols = parseInt(this.settings.grid_rows_desktop) || 5;
+      let moCols = parseInt(this.settings.grid_rows_mobile) || 2;
+      if (moCols > 3) moCols = 3; // 모바일은 최대 3개로 강제 제한
 
-      // 노출 개수 제한 적용
+      const limit = this.settings.display_limit || 15;
       const limitedReviews = this.listOrder.slice(0, limit);
+
+      // 헤더 문구 연동 (값이 없으면 기본값)
+      const tagline = this.settings.tagline || 'CUSTOMER REVIEW';
+      const title = this.settings.title || '리얼 포토 리뷰';
+      const desc = this.settings.description || '';
 
       let mainHtml = `
     <style>
-      /* PC 환경: 설정값에 따라 그리드 비율 동적 변경 */
+      /* PC: 설정한 개수만큼 나오되, 카드가 너무 커지지 않게 폭 제한 */
       @media (min-width: 1024px) {
         .rit-main-grid-layout {
-          display: grid !important;
-          grid-template-columns: repeat(${pcCols}, minmax(0, 1fr)) !important;
-          gap: 20px;
+          grid-template-columns: repeat(${pcCols}, minmax(0, 230px)) !important; 
+          gap: 15px;
         }
       }
-      /* 모바일 환경: 설정값에 따라 그리드 비율 동적 변경 */
+      /* 모바일: 1줄당 개수 제어 (최대 3개) */
       @media (max-width: 1023px) {
         .rit-main-grid-layout {
-          display: grid !important;
-          grid-template-columns: repeat(${moCols}, minmax(0, 1fr)) !important;
+          grid-template-columns: repeat(${moCols}, 1fr) !important;
           gap: 10px;
         }
       }
+      /* 스와이퍼 꽉 참 방지 */
+      .rit-main-swiper { width: 100%; max-width: 1200px; margin: 0 auto; overflow: hidden; }
     </style>
+
     <div class="rit-header-area">
-      <div class="rit-tagline">${this.settings.tagline || ''}</div>
-      <h2 class="rit-main-title">${this.settings.title || '리얼 포토 리뷰'}</h2>
+      <div class="rit-tagline">${tagline}</div>
+      <h2 class="rit-main-title">${title}</h2>
       <div class="rit-line"></div>
-      <p class="rit-desc">${this.settings.description || ''}</p>
+      <p class="rit-desc">${desc}</p>
     </div>
+
     ${this.settings.display_type === 'grid'
           ? `<div class="rit-main-grid-layout">${limitedReviews.map(id => this.getCardHTML(id)).join('')}</div>`
-          : `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${limitedReviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`
+          : `<div class="swiper rit-main-swiper">
+          <div class="swiper-wrapper">
+            ${limitedReviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
+          </div>
+         </div>`
         }
   `;
 
       container.innerHTML = mainHtml;
 
-      // 스와이퍼 설정도 DB의 PC/모바일 슬라이드 수 설정을 따르도록 업데이트
+      // 스와이퍼 실행
       if (this.settings.display_type !== 'grid' && window.Swiper) {
         new Swiper('.rit-main-swiper', {
-          slidesPerView: moCols + 0.2, // 모바일은 약간 걸치게(2.2 등)
-          spaceBetween: 15,
-          autoplay: { delay: 4000 },
+          slidesPerView: moCols + 0.2,
+          spaceBetween: 10,
+          centeredSlides: false,
           breakpoints: {
-            1024: {
-              slidesPerView: pcCols, // PC는 설정한 정수만큼 딱 떨어지게
-              spaceBetween: 25
-            }
+            1024: { slidesPerView: pcCols, spaceBetween: 20 }
           }
         });
       }
