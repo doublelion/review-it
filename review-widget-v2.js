@@ -145,31 +145,63 @@
       } catch (e) { console.error("[REVIEW-IT] 데이터 처리 에러:", e); }
     },
 
-    // (이하 renderWidget, getCardHTML, openModal, renderDetail 등 UI 로직은 대표님 소스 유지)
     renderWidget() {
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (!container) return;
-      const gridClass = `rit-pc-r${this.settings.grid_rows_desktop} rit-mo-r${this.settings.grid_rows_mobile}`;
-    
-      // 1. 메인 위젯(리스트/스와이퍼) 렌더링 -> 기존 컨테이너에 삽입
+
+      // [수정] 클래스만 만드는 게 아니라, 인라인 스타일로 grid columns를 직접 제어합니다.
+      const pcCols = this.settings.grid_rows_desktop || 5;
+      const moCols = this.settings.grid_rows_mobile || 2;
+      const limit = this.settings.display_limit || 15;
+
+      // 노출 개수 제한 적용
+      const limitedReviews = this.listOrder.slice(0, limit);
+
       let mainHtml = `
-        <div class="rit-header-area">
-          <div class="rit-tagline">${this.settings.tagline}</div>
-          <h2 class="rit-main-title">${this.settings.title}</h2>
-          <div class="rit-line"></div>
-          <p class="rit-desc">${this.settings.description}</p>
-        </div>
-        ${this.settings.display_type === 'grid' 
-          ? `<div class="rit-main-grid-layout ${gridClass}">${this.listOrder.map(id => this.getCardHTML(id)).join('')}</div>`
-          : `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`
+    <style>
+      /* PC 환경: 설정값에 따라 그리드 비율 동적 변경 */
+      @media (min-width: 1024px) {
+        .rit-main-grid-layout {
+          display: grid !important;
+          grid-template-columns: repeat(${pcCols}, minmax(0, 1fr)) !important;
+          gap: 20px;
         }
-      `;
+      }
+      /* 모바일 환경: 설정값에 따라 그리드 비율 동적 변경 */
+      @media (max-width: 1023px) {
+        .rit-main-grid-layout {
+          display: grid !important;
+          grid-template-columns: repeat(${moCols}, minmax(0, 1fr)) !important;
+          gap: 10px;
+        }
+      }
+    </style>
+    <div class="rit-header-area">
+      <div class="rit-tagline">${this.settings.tagline || ''}</div>
+      <h2 class="rit-main-title">${this.settings.title || '리얼 포토 리뷰'}</h2>
+      <div class="rit-line"></div>
+      <p class="rit-desc">${this.settings.description || ''}</p>
+    </div>
+    ${this.settings.display_type === 'grid'
+          ? `<div class="rit-main-grid-layout">${limitedReviews.map(id => this.getCardHTML(id)).join('')}</div>`
+          : `<div class="swiper rit-main-swiper"><div class="swiper-wrapper">${limitedReviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}</div></div>`
+        }
+  `;
+
       container.innerHTML = mainHtml;
-      
+
+      // 스와이퍼 설정도 DB의 PC/모바일 슬라이드 수 설정을 따르도록 업데이트
       if (this.settings.display_type !== 'grid' && window.Swiper) {
         new Swiper('.rit-main-swiper', {
-          slidesPerView: 2.2, spaceBetween: 15, autoplay: { delay: 4000 },
-          breakpoints: { 1024: { slidesPerView: 5.2, spaceBetween: 25 } }
+          slidesPerView: moCols + 0.2, // 모바일은 약간 걸치게(2.2 등)
+          spaceBetween: 15,
+          autoplay: { delay: 4000 },
+          breakpoints: {
+            1024: {
+              slidesPerView: pcCols, // PC는 설정한 정수만큼 딱 떨어지게
+              spaceBetween: 25
+            }
+          }
         });
       }
 
@@ -180,7 +212,7 @@
         modalContainer.id = 'ritModal';
         modalContainer.className = 'rit-modal-container';
         modalContainer.style.display = 'none'; // 초기에는 숨김
-        
+
         modalContainer.innerHTML = `
           <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
           <div class="rit-modal-window">
