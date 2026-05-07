@@ -320,55 +320,62 @@
     },
 
     // 1. 카페24 게시판에서 댓글 HTML을 긁어오는 함수
+    // [해결] 1. 카페24 상세글에서 댓글 데이터를 긁어오는 함수
     async loadComments(articleNo) {
-      const commContainer = document.getElementById('ritCommList') || document.createElement('div');
-      commContainer.id = 'ritCommList';
-      commContainer.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px; color:#999;">댓글 불러오는 중...</div>';
+      const commContainer = document.getElementById('ritCommList');
+      if (!commContainer) return;
 
-      // content 영역 하단에 댓글 컨테이너가 없다면 추가
-      const contentArea = document.getElementById('ritContent');
-      if (!document.getElementById('ritCommList')) {
-        contentArea.insertAdjacentElement('afterend', commContainer);
-      }
+      // 로딩 표시
+      commContainer.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px; color:#999;">댓글을 불러오는 중...</div>';
 
       try {
+        // 해당 리뷰의 원문 페이지를 다시 비동기로 호출
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
-        // 카페24 기본 댓글 리스트 셀렉터 (스킨에 따라 다를 수 있으나 보통 .commentList)
-        const comments = Array.from(doc.querySelectorAll('.commentList li, .replyArea li, #commentList .item')).map(el => {
-          return {
-            writer: el.querySelector('.name, .writer')?.innerText?.trim() || '고객',
-            content: el.querySelector('.comment, .content, [class*="comment_"]')?.innerText?.trim() || '',
-            date: el.querySelector('.date')?.innerText?.trim() || ''
-          };
-        }).filter(c => c.content !== "");
+        // 카페24 스킨별 다양한 댓글 영역 셀렉터 대응
+        const commentRows = doc.querySelectorAll('.commentList li, .replyArea li, #commentList .item, .xans-board-commentlist tr');
+
+        const comments = Array.from(commentRows).map(el => {
+          const writer = el.querySelector('.name, .writer, strong')?.innerText?.trim() || "고객";
+          const content = el.querySelector('.comment, .content, .comment_content, [class*="comment_"]')?.innerText?.trim() || "";
+          const date = el.querySelector('.date')?.innerText?.trim() || "";
+          return { writer, content, date };
+        }).filter(c => c.content !== ""); // 내용이 있는 것만 필터링
 
         this.renderComments(comments);
       } catch (e) {
-        commContainer.innerHTML = ''; // 에러 시 조용히 비움
+        console.error("[REVIEW-IT] 댓글 로드 실패:", e);
+        commContainer.innerHTML = ''; // 실패 시 영역 비움
       }
     },
 
-    // 2. 가져온 댓글 데이터를 화면에 그리는 함수
+    // 2. 긁어온 데이터를 화면에 뿌려주는 함수
     renderComments(comments) {
       const container = document.getElementById('ritCommList');
+      if (!container) return;
+
       if (comments.length === 0) {
-        container.innerHTML = '';
+        container.innerHTML = ''; // 댓글 없으면 표시 안 함
         return;
       }
 
       container.innerHTML = `
         <div class="rit-comm-head" style="margin-top:30px; border-top:1px solid #eee; padding-top:20px; margin-bottom:15px;">
-          <span style="font-weight:bold; font-size:13px;">댓글 ${comments.length}</span>
+          <span style="font-weight:bold; font-size:14px; color:#111;">댓글 (${comments.length})</span>
         </div>
-        ${comments.map(c => `
-          <div class="rit-comm-item" style="margin-bottom:15px; background:#f9f9f9; padding:12px; border-radius:8px;">
-            <div style="font-size:11px; font-weight:bold; margin-bottom:5px;">${this.maskName(c.writer)} <span style="font-weight:normal; color:#999; margin-left:5px;">${c.date}</span></div>
-            <div style="font-size:13px; color:#555; line-height:1.5;">${c.content}</div>
-          </div>
-        `).join('')}
+        <div class="rit-comm-list-wrap">
+          ${comments.map(c => `
+            <div class="rit-comm-item" style="margin-bottom:12px; background:#f8f8f8; padding:15px; border-radius:10px;">
+              <div style="font-size:11px; font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between;">
+                <span>${this.maskName(c.writer)}</span>
+                <span style="font-weight:400; color:#aaa;">${c.date}</span>
+              </div>
+              <div style="font-size:13px; color:#444; line-height:1.6;">${c.content}</div>
+            </div>
+          `).join('')}
+        </div>
       `;
     },
 
