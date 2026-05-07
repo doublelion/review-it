@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Universal Widget Engine v9.1 (Precision Update)
- * @Update: 하이브리드 이미지 스캔 강화, 상세페이지 상품 타겟팅, 클라이언트 정렬 보충
+ * @Project: Review-It Universal Widget Engine v9.5 (Ultimate Parsing Edition)
+ * @Update: 이미지/텍스트 정밀 분리 로직, 상세페이지 상품 타겟팅, 카페24 구버전 Swiper 호환
  * @Philosophy: "Install & Forget" - 누락 없는 데이터 수집과 완벽한 렌더링
  */
 (function (window) {
@@ -19,11 +19,11 @@
       URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
       KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
       MALL_ID: mallId,
-      PRODUCT_NO: getProductNo(), // 현재 보고 있는 상품 번호
+      PRODUCT_NO: getProductNo(),
       BOARD_NO: '4',
       DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
-      SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating/i,
+      SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
       ADMIN_KEYWORDS: ['관리자', 'Official', '운영자']
     };
   };
@@ -39,7 +39,7 @@
       title: 'REAL PHOTO FEED',
       description: '실제 고객님들의 생생한 후기',
       display_limit: 15,
-      grid_rows_desktop: 1,
+      grid_rows_desktop: 5,
       grid_rows_mobile: 2
     },
 
@@ -73,47 +73,50 @@
       return name.length > 1 ? name.charAt(0) + "*".repeat(name.length - 1) : name;
     },
 
-    // [보충: 정밀 이미지 스캔] v8.5 로직 계승 및 강화
-    async _deepScan(articleNo) {
+    // [핵심 로직] 카페24 상세글에서 이미지와 텍스트를 정밀하게 분리해내는 함수
+    async _fetchAndSeparateContent(articleNo) {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        // 카페24 스킨별 본문 영역 셀렉터
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail');
-        const imgs = Array.from((contentArea || doc).querySelectorAll('img')).map(img => {
+
+        if (!contentArea) return { images: [], text: "" };
+
+        // 1. 이미지 추출 및 원문에서 제거
+        const extractedImages = [];
+        const imgs = contentArea.querySelectorAll('img');
+        imgs.forEach(img => {
           let src = img.getAttribute('src');
-          if (!src || CONFIG.SPAM_KEYWORDS.test(src) || src.includes('.gif')) return null;
-          return src.startsWith('//') ? 'https:' + src : src;
-        }).filter(src => src !== null);
-        return imgs;
-      } catch (e) { return []; }
-    },
+          // 스팸/아이콘/GIF 제외 로직
+          if (!src || CONFIG.SPAM_KEYWORDS.test(src) || src.includes('.gif') || img.setAttribute('width') === '1') {
+            img.remove(); // 불필요한 이미지는 돔에서 제거
+            return;
+          }
+          const finalSrc = src.startsWith('//') ? 'https:' + src : src;
+          extractedImages.push(finalSrc);
+          img.remove(); // 추출한 실제 이미지도 돔(텍스트 영역)에서 제거
+        });
 
-    // [추가] 상세페이지에서 리뷰 본문을 추출하는 함수
-    async _fetchFullContent(articleNo) {
-      try {
-        const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
-        const html = await res.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
+        // 2. 이미지가 제거된 나머지 HTML (순수 텍스트)
+        const cleanTextHTML = contentArea.innerHTML;
 
-        // 카페24의 다양한 스킨에 대응하는 본문 영역 셀렉터
-        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail');
-
-        // 이미지 태그 등 불필요한 요소 필터링이 필요하다면 여기서 추가 전처리 가능
-        return contentArea ? contentArea.innerHTML : null;
+        return {
+          images: extractedImages,
+          text: cleanTextHTML
+        };
       } catch (e) {
-        console.warn("[REVIEW-IT] 본문 로드 실패, 요약본으로 대체합니다.", e);
-        return null;
+        console.warn("[REVIEW-IT] 본문 분리 실패:", e);
+        return { images: [], text: "" };
       }
     },
 
     async loadReviews() {
       try {
-        // [보충: 상품 상세페이지일 경우 해당 상품 리뷰만 필터링]
         let apiUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
-        if (CONFIG.PRODUCT_NO) {
-          apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
-        }
+        if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
         apiUrl += `&order=created_at.desc`;
 
         const res = await fetch(apiUrl, {
@@ -125,21 +128,24 @@
         this.data = {};
         this.listOrder = [];
 
-        // [보충: 비동기 딥스캔 병렬 처리 최적화]
+        // 비동기 처리 최적화 (딥스캔 병렬 처리)
         await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
           const id = String(r.id);
 
-          // 이미지가 없거나 부족한 경우 실시간 딥스캔 실행 (v8.5 핵심로직)
-          let imgs = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : await this._deepScan(r.article_no);
-          r.all_images = imgs.filter(img => !CONFIG.SPAM_KEYWORDS.test(img));
+          // [핵심 수정] DB에 이미지가 있어도 실시간 분리 파싱을 우선 실행 (대표님 요청사항)
+          const separateData = await this._fetchAndSeparateContent(r.article_no);
 
+          // 텍스트는 로컬 data 객체에 임시 저장 (렌더링 시 사용)
+          r.clean_text_body = separateData.text;
+          r.all_images = separateData.images;
+
+          // 이미지가 아예 없는 경우에만 기본 이미지 적용 (포토 리뷰처럼 보이기 위해)
           if (r.all_images.length === 0) r.all_images = [CONFIG.DEFAULT_IMG];
 
           this.data[id] = r;
           this.listOrder.push(id);
         }));
 
-        // [보충: 클라이언트 사이드 최종 정렬]
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
 
       } catch (e) { console.error("[REVIEW-IT] 데이터 처리 에러:", e); }
@@ -153,22 +159,14 @@
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
 
-      // 설정값 처리
-      let pcCols, moCols;
-      if (isGrid) {
-        pcCols = parseInt(this.settings.grid_rows_desktop) || 5;
-        moCols = parseInt(this.settings.grid_rows_mobile) || 2;
-      } else {
-        pcCols = 5;   // 스와이프 데스크탑 고정
-        moCols = 2.2; // 스와이프 모바일 고정
-      }
+      const pcCols = isGrid ? (parseInt(this.settings.grid_rows_desktop) || 5) : 5;
+      const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
       let mainHtml = `
     <style>
-      #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 20px; box-sizing: border-box; }
-      .rit-main-title { font-size: 32px !important; font-weight: 800 !important; text-align: center; margin: 10px 0 !important; }
+      #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 20px; box-sizing: border-box; font-family: 'Pretendard', sans-serif;}
+      .rit-main-title { font-size: clamp(24px, 5vw, 32px) !important; font-weight: 800 !important; text-align: center; margin: 10px 0 !important; font-family: 'Playfair Display', serif;}
       
-      /* 그리드 레이아웃 스타일 (이 부분은 CSS 표준이라 반전 버그가 없습니다) */
       .rit-main-grid-layout {
         display: grid !important;
         gap: 15px;
@@ -186,10 +184,10 @@
     </style>
 
     <div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
-      <div class="rit-tagline" style="font-size:12px; color:#b38a58; font-weight:700;">${this.settings.tagline}</div>
-      <h2 class="rit-main-title">${this.settings.title}</h2>
-      <div class="rit-line"></div>
-      <p class="rit-desc">${this.settings.description}</p>
+      <div class="rit-tagline" style="font-size:12px; color:#b38a58; font-weight:700; text-transform:uppercase; letter-spacing:1px;">${this.settings.tagline || 'Verified Authenticity'}</div>
+      <h2 class="rit-main-title">${this.settings.title || 'PEOPLE CHOICE'}</h2>
+      <div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>
+      <p class="rit-desc" style="font-size:14px; color:#777;">${this.settings.description || ''}</p>
     </div>
 
     ${isGrid
@@ -204,23 +202,15 @@
 
       container.innerHTML = mainHtml;
 
-      // [핵심 해결] 카페24 구버전 Swiper 충돌 원천 차단 로직
-      // Breakpoints를 쓰지 않고 브라우저 가로폭을 직접 계산하여 강제 부여합니다.
+      // 카페24 구버전 Swiper 호환성 해결 로직 (v9.4 계승)
       if (!isGrid && window.Swiper) {
         const getSwiperConfig = () => {
           const isPc = window.innerWidth >= 1024;
-          return {
-            slidesPerView: isPc ? pcCols : moCols,
-            spaceBetween: isPc ? 20 : 12,
-            observer: true,
-            observeParents: true
-          };
+          return { slidesPerView: isPc ? pcCols : moCols, spaceBetween: isPc ? 20 : 12, observer: true, observeParents: true };
         };
 
-        // 초기 인스턴스 생성
         let ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
 
-        // 화면 크기가 모바일<->PC로 바뀔 때만 안전하게 인스턴스 재시작
         let isDesktopLast = window.innerWidth >= 1024;
         window.addEventListener('resize', () => {
           const isDesktopNow = window.innerWidth >= 1024;
@@ -235,7 +225,6 @@
       this.initModal();
     },
 
-    // 모달 중복 생성 방지를 위해 별도 함수로 분리해서 호출하는 것이 깔끔합니다.
     initModal() {
       let modalContainer = document.getElementById('ritModal');
       if (modalContainer) return;
@@ -261,7 +250,7 @@
               <div id="ritMetaArea"></div>
               <h3 id="ritSubject"></h3>
               <div id="ritContent" class="rit-body-text"></div>
-              <div id="ritProductCard"></div>
+              <div id="ritCommList"></div>
             </div>
           </div>
           <div id="ritGridView" class="rit-grid-overlay rit-hidden">
@@ -275,8 +264,10 @@
 
     getCardHTML(id) {
       const d = this.data[id];
+      // [해결 2] 리스트 화면 썸네일도 분리 파싱해서 찾은 최신 이미지(all_images[0])로 연동
+      const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
       return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
-        <img src="${d.all_images[0]}" class="rit-card-img" loading="lazy">
+        <img src="${thumb}" class="rit-card-img" loading="lazy">
         <div class="rit-card-info">
           <div class="rit-card-subject">${d.subject}</div>
           <div class="rit-card-meta">
@@ -299,15 +290,19 @@
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
 
-      // 1. 이미지 슬라이더 렌더링
-      document.getElementById('ritModalImg').innerHTML = `
-        <div class="swiper rit-modal-swiper"><div class="swiper-wrapper">
-          ${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}
-        </div><div class="rit-fraction"></div></div>`;
+      // [해결 1] 분리 추출된 이미지(all_images)를 좌측 슬라이더에 주입
+      const imgSide = document.getElementById('ritModalImg');
+      if (d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
+        imgSide.innerHTML = `
+          <div class="swiper rit-modal-swiper"><div class="swiper-wrapper">
+            ${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}
+          </div><div class="rit-fraction"></div></div>`;
+        if (window.Swiper) new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
+      } else {
+        // 이미지가 없으면 좌측 영역 숨김 (CSS가 처리하도록 클래스 부여 등 가능)
+        imgSide.innerHTML = '<div style="color:#555; padding:20px; text-align:center;">텍스트 리뷰입니다.</div>';
+      }
 
-      if (window.Swiper) new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
-
-      // 2. 메타 정보 렌더링
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-top-meta">
           <span class="rit-name-tag">${this.maskName(d.writer)}</span>
@@ -317,19 +312,9 @@
 
       document.getElementById('ritSubject').innerText = d.subject;
 
-      // 3. 본문 렌더링 및 댓글 컨테이너 강제 삽입
-      const fullContent = await this._fetchFullContent(d.article_no);
-      const contentTarget = document.getElementById('ritContent');
-      contentTarget.innerHTML = fullContent || d.content;
+      // [해결 1] 이미지가 제거된 순수 텍스트(clean_text_body)를 우측 영역에 주입
+      document.getElementById('ritContent').innerHTML = d.clean_text_body || d.content;
 
-      // [중요] 기존에 혹시 남아있을지 모를 댓글창 제거 후 새로 삽입 (중복 방지)
-      const oldComm = document.getElementById('ritCommList');
-      if (oldComm) oldComm.remove();
-
-      // 본문 바로 뒤에 댓글 전용 레이어 강제 생성
-      contentTarget.insertAdjacentHTML('afterend', '<div id="ritCommList"></div>');
-
-      // 4. 댓글 로드 시작
       this.loadComments(d.article_no);
     },
 
@@ -338,89 +323,50 @@
       const gi = document.getElementById('ritGridInner');
       if (gv.classList.contains('rit-hidden')) {
         gv.classList.remove('rit-hidden');
+        // 그리드 뷰 섬네일도 최신 파싱 이미지로 연동
         gi.innerHTML = this.listOrder.map(id => `<div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')"><img src="${this.data[id].all_images[0]}"></div>`).join('');
       } else { gv.classList.add('rit-hidden'); }
     },
 
-    // 1. 카페24의 모든 스킨 패턴을 호환하는 댓글 추출 함수
+    // 댓글 엔진 (v9.5 계승)
     async loadComments(articleNo) {
       const commContainer = document.getElementById('ritCommList');
       if (!commContainer) return;
-
-      // 로딩 UI
-      commContainer.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; margin-top:20px;">댓글 데이터를 연결 중입니다...</div>';
+      commContainer.innerHTML = '<div style="padding:15px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; margin-top:20px;">댓글 연결 중...</div>';
 
       try {
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
-
-        // [핵심] 카페24에서 쓰이는 거의 모든 댓글 컨테이너 클래스를 총망라
-        const selectors = [
-          '.xans-board-commentlist li',
-          '.xans-board-commentlist tr',
-          '.boardComment li',
-          '.commentList li',
-          '.replyArea li',
-          '#commentList .item',
-          '.reply-list li',
-          '[class*="comment"] li'
-        ].join(', ');
-
+        const selectors = ['.xans-board-commentlist li', '.boardComment li', '.commentList li', '.replyArea li', '[class*="comment"] li'].join(', ');
         const commentRows = doc.querySelectorAll(selectors);
 
         const comments = Array.from(commentRows).map(el => {
-          // 작성자 타겟팅 (name, writer, strong 등 가장 안쪽 텍스트)
-          const writerEl = el.querySelector('.name, .writer, strong, .member, [class*="name"]');
-          const writer = (writerEl ? writerEl.innerText : "고객").trim();
-
-          // 본문 타겟팅 (특히 id="comment_123" 같은 고유 속성까지 잡아냄)
-          const contentEl = el.querySelector('.comment, .content, .comment_content, span[id^="comment_"], div[id^="comment_"], [class*="text"], [class*="desc"]');
-          const content = (contentEl ? contentEl.innerText : "").trim();
-
-          // 날짜 타겟팅
-          const dateEl = el.querySelector('.date, .time, [class*="date"]');
-          const date = (dateEl ? dateEl.innerText : "").trim();
-
+          const writer = (el.querySelector('.name, .writer, strong')?.innerText || "고객").trim();
+          const content = (el.querySelector('.comment, .content, span[id^="comment_"]')?.innerText || "").trim();
+          const date = (el.querySelector('.date')?.innerText || "").trim();
           return { writer, content, date };
-        }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호')); // 내용이 비었거나 "비밀번호 입력" 같은 시스템 문구는 필터링
+        }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호'));
 
-        // 추출 완료 후 렌더링 함수로 전달
         this.renderComments(comments);
-
-      } catch (e) {
-        console.warn("[REVIEW-IT] 댓글 추출 통신 실패:", e);
-        commContainer.innerHTML = '';
-      }
+      } catch (e) { commContainer.innerHTML = ''; }
     },
 
-    // 2. 추출된 댓글 데이터를 화면에 매핑
     renderComments(comments) {
       const container = document.getElementById('ritCommList');
-      if (!container) return;
-
-      // 댓글이 진짜 0개면 영역을 지움
-      if (!comments || comments.length === 0) {
-        container.innerHTML = '';
-        return;
-      }
-
+      if (!container || comments.length === 0) { if (container) container.innerHTML = ''; return; }
       container.innerHTML = `
-        <div class="rit-comm-head" style="margin-top:30px; border-top:1px solid #eee; padding-top:20px; margin-bottom:15px;">
-          <span style="font-weight:800; font-size:14px; color:#111;">COMMENT (${comments.length})</span>
+        <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:10px;">
+          <span style="font-weight:800; font-size:13px; color:#333;">COMMENT (${comments.length})</span>
         </div>
-        <div class="rit-comm-list-wrap">
-          ${comments.map(c => `
-            <div class="rit-comm-item" style="margin-bottom:12px; background:#f9f9f9; padding:15px; border-radius:8px;">
-              <div style="font-size:11px; font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between;">
-                <span>${this.maskName(c.writer)}</span>
-                <span style="font-weight:400; color:#bbb;">${c.date}</span>
-              </div>
-              <div style="font-size:13px; color:#444; line-height:1.6; white-space:pre-wrap">${c.content}</div>
+        ${comments.map(c => `
+          <div class="rit-comm-item" style="margin-bottom:10px; background:#f9f9f9; padding:12px; border-radius:6px; font-size:12px;">
+            <div style="font-weight:800; margin-bottom:4px; display:flex; justify-content:space-between;">
+              <span>${this.maskName(c.writer)}</span><span style="font-weight:400; color:#bbb;">${c.date}</span>
             </div>
-          `).join('')}
-        </div>
-      `;
+            <div style="color:#555; line-height:1.5; white-space:pre-wrap">${c.content}</div>
+          </div>
+        `).join('')}`;
     },
 
     closeModal() {
@@ -430,7 +376,6 @@
     },
 
     injectCSS() {
-      // 외부 CSS 파일 로드 (배포된 경로)
       if (!document.getElementById('rit-css-link')) {
         const link = document.createElement('link');
         link.id = 'rit-css-link';
