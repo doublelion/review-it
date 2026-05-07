@@ -160,30 +160,7 @@
 
       let mainHtml = `
     <style>
-      #review-it-widget { max-width: 1200px !important; margin: 0 auto !important; }
-      
-      /* 타이틀 크기 강제 교정 */
-      .rit-main-title { 
-        font-size: 32px !important; 
-        font-weight: 800 !important; 
-        margin: 10px 0 !important;
-      }
-
-      /* 그리드 레이아웃: 어드민 설정값 반영 */
-      .rit-main-grid-layout {
-        display: grid !important;
-        gap: 10px;
-        /* 모바일: 1줄당 개수 설정 반영 */
-        grid-template-columns: repeat(${isGrid ? Math.floor(moCols) : 2}, 1fr) !important;
-      }
-
-      @media (min-width: 1024px) {
-        .rit-main-grid-layout {
-          /* 데스크탑: 1줄당 개수 설정 반영 */
-          grid-template-columns: repeat(${pcCols}, 1fr) !important;
-          gap: 20px;
-        }
-      }
+     
     </style>
 
     <div class="rit-header-area">
