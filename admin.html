@@ -238,16 +238,27 @@
     // [수정] 설정 저장: 모든 설정값 통합 전송 및 알럿 추가
     async function saveHeaderSettings(targetType = null) {
       try {
-        // 활성화된 타입 확인 (버튼 클릭으로 호출된 경우 해당 타입 사용, 아니면 현재 버튼의 active 상태 확인)
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
 
+        // [핵심 보충] 1단계: stores 테이블에 mall_id가 없으면 먼저 생성 (외래키 에러 방지)
+        await fetch(`${SB_URL}/stores?on_conflict=mall_id`, {
+          method: 'POST',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({ mall_id: MALL_ID })
+        });
+
+        // 2단계: 기존 설정 저장 로직 실행
         const payload = {
           mall_id: MALL_ID,
           display_type: currentType,
           title: document.getElementById('input-title').value,
           description: document.getElementById('input-description').value,
           tagline: document.getElementById('input-tagline').value,
-          // [핵심] 줄 수 및 개수 제한 포함
           grid_rows_desktop: parseInt(document.getElementById('select-grid-pc').value),
           grid_rows_mobile: parseInt(document.getElementById('select-grid-mo').value),
           display_limit: parseInt(document.getElementById('input-limit').value)
@@ -265,8 +276,7 @@
         });
 
         if (res.ok) {
-          // [파트너님 요청] 저장 성공 알럿
-          alert('✅ 설정이 안전하게 저장되었습니다.\n쇼핑몰 위젯에 즉시 반영됩니다.');
+          if (!targetType) alert('✅ 설정이 안전하게 저장되었습니다.\n쇼핑몰 위젯에 즉시 반영됩니다.');
         } else {
           const errRes = await res.json();
           throw new Error(errRes.message);
