@@ -32,7 +32,7 @@
 
 /* 타이틀 폰트 및 간격 교정 - 45px 삭제됨 */
 .rit-header-area h2 {
-  font-size: 32px !important; 
+  font-size: 32px !important;
   font-weight: 800;
   margin: 10px 0;
   color: #111;
@@ -46,11 +46,25 @@
   background-color: transparent;
 }
 
-/* 그리드 레이아웃 초기화 (JS에서 주입하므로 여기선 기본만 설정) */
+/* injectCSS 또는 renderWidget 내 style 태그에 추가 */
 .rit-main-grid-layout {
-  display: grid;
+  display: grid !important;
   gap: 15px;
-  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  /* 자동 크기 조절 */
+  justify-content: center !important;
+  /* 내부 아이템 중앙 정렬 */
+  justify-items: center !important;
+  margin: 0 auto !important;
+}
+
+@media (min-width: 1024px) {
+  .rit-main-grid-layout {
+    /* 6개로 고정하고 싶다면 */
+    grid-template-columns: repeat(6, 1fr) !important;
+    max-width: 1200px;
+    /* 적절한 최대폭 설정 */
+  }
 }
 
 
@@ -78,9 +92,7 @@
 
 
 
-@media (min-width: 1024px) {
- 
-}
+@media (min-width: 1024px) {}
 
 .rit-card {
   aspect-ratio: 3/4;

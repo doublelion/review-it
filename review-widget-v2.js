@@ -74,42 +74,42 @@
     },
 
     // [핵심 로직] 카페24 상세글에서 이미지와 텍스트를 정밀하게 분리해내는 함수
+    // [수정된 함수] 이미지와 텍스트 분리 로직 강화
     async _fetchAndSeparateContent(articleNo) {
       try {
+        // 1. 카페24 상세글 fetch 시도
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
+        if (!res.ok) throw new Error("Network response was not ok");
+
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
-        // 카페24 스킨별 본문 영역 셀렉터
-        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail');
+        // 셀렉터 확장 (카페24 구버전/신버전/커스텀 스킨 대응)
+        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail, .v2-board-read-content');
 
         if (!contentArea) return { images: [], text: "" };
 
-        // 1. 이미지 추출 및 원문에서 제거
         const extractedImages = [];
+        // 이미지 태그 및 배경 이미지(style)까지 체크
         const imgs = contentArea.querySelectorAll('img');
         imgs.forEach(img => {
           let src = img.getAttribute('src');
-          // 스팸/아이콘/GIF 제외 로직
-          if (!src || CONFIG.SPAM_KEYWORDS.test(src) || src.includes('.gif') || img.setAttribute('width') === '1') {
-            img.remove(); // 불필요한 이미지는 돔에서 제거
+          if (!src || CONFIG.SPAM_KEYWORDS.test(src) || src.includes('.gif')) {
+            img.remove();
             return;
           }
-          const finalSrc = src.startsWith('//') ? 'https:' + src : src;
+          const finalSrc = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
           extractedImages.push(finalSrc);
-          img.remove(); // 추출한 실제 이미지도 돔(텍스트 영역)에서 제거
+          img.remove();
         });
-
-        // 2. 이미지가 제거된 나머지 HTML (순수 텍스트)
-        const cleanTextHTML = contentArea.innerHTML;
 
         return {
           images: extractedImages,
-          text: cleanTextHTML
+          text: contentArea.innerHTML.trim()
         };
       } catch (e) {
-        console.warn("[REVIEW-IT] 본문 분리 실패:", e);
-        return { images: [], text: "" };
+        console.warn("[REVIEW-IT] 상세 페이지 파싱 실패, articleNo:", articleNo, e);
+        return null; // 실패 시 null 반환하여 DB 데이터 쓰도록 유도
       }
     },
 
@@ -129,18 +129,23 @@
         this.listOrder = [];
 
         // 비동기 처리 최적화 (딥스캔 병렬 처리)
+        // loadReviews 내부 Promise.all 부분 수정
         await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
           const id = String(r.id);
 
-          // [핵심 수정] DB에 이미지가 있어도 실시간 분리 파싱을 우선 실행 (대표님 요청사항)
+          // 실시간 파싱 시도
           const separateData = await this._fetchAndSeparateContent(r.article_no);
 
-          // 텍스트는 로컬 data 객체에 임시 저장 (렌더링 시 사용)
-          r.clean_text_body = separateData.text;
-          r.all_images = separateData.images;
-
-          // 이미지가 아예 없는 경우에만 기본 이미지 적용 (포토 리뷰처럼 보이기 위해)
-          if (r.all_images.length === 0) r.all_images = [CONFIG.DEFAULT_IMG];
+          if (separateData && separateData.images.length > 0) {
+            // 파싱 성공 시 파싱 데이터 우선
+            r.clean_text_body = separateData.text;
+            r.all_images = separateData.images;
+          } else {
+            // 파싱 실패 혹은 이미지가 없는 경우 DB 데이터(r.image_url 등) 사용
+            // DB에 image_url 필드가 있다고 가정
+            r.clean_text_body = r.content;
+            r.all_images = (r.image_url) ? [r.image_url] : [CONFIG.DEFAULT_IMG];
+          }
 
           this.data[id] = r;
           this.listOrder.push(id);
