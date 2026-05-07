@@ -299,6 +299,7 @@
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
 
+      // 1. 이미지 슬라이더 렌더링
       document.getElementById('ritModalImg').innerHTML = `
         <div class="swiper rit-modal-swiper"><div class="swiper-wrapper">
           ${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}
@@ -306,6 +307,7 @@
 
       if (window.Swiper) new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
 
+      // 2. 메타 정보 렌더링
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-top-meta">
           <span class="rit-name-tag">${this.maskName(d.writer)}</span>
@@ -314,40 +316,70 @@
         </div>`;
 
       document.getElementById('ritSubject').innerText = d.subject;
+
+      // 3. 본문 렌더링 및 댓글 컨테이너 강제 삽입
       const fullContent = await this._fetchFullContent(d.article_no);
-      document.getElementById('ritContent').innerHTML = fullContent || d.content;
+      const contentTarget = document.getElementById('ritContent');
+      contentTarget.innerHTML = fullContent || d.content;
+
+      // [중요] 기존에 혹시 남아있을지 모를 댓글창 제거 후 새로 삽입 (중복 방지)
+      const oldComm = document.getElementById('ritCommList');
+      if (oldComm) oldComm.remove();
+
+      // 본문 바로 뒤에 댓글 전용 레이어 강제 생성
+      contentTarget.insertAdjacentHTML('afterend', '<div id="ritCommList"></div>');
+
+      // 4. 댓글 로드 시작
       this.loadComments(d.article_no);
     },
 
-    // 1. 카페24 게시판에서 댓글 HTML을 긁어오는 함수
-    // [해결] 1. 카페24 상세글에서 댓글 데이터를 긁어오는 함수
     async loadComments(articleNo) {
       const commContainer = document.getElementById('ritCommList');
       if (!commContainer) return;
 
-      // 로딩 표시
-      commContainer.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px; color:#999;">댓글을 불러오는 중...</div>';
+      commContainer.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; margin-top:20px;">댓글 데이터를 연결 중입니다...</div>';
 
       try {
-        // 해당 리뷰의 원문 페이지를 다시 비동기로 호출
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
-        // 카페24 스킨별 다양한 댓글 영역 셀렉터 대응
+        // 카페24 댓글 리스트 정밀 타겟팅 (가장 흔한 4가지 패턴)
         const commentRows = doc.querySelectorAll('.commentList li, .replyArea li, #commentList .item, .xans-board-commentlist tr');
 
         const comments = Array.from(commentRows).map(el => {
-          const writer = el.querySelector('.name, .writer, strong')?.innerText?.trim() || "고객";
-          const content = el.querySelector('.comment, .content, .comment_content, [class*="comment_"]')?.innerText?.trim() || "";
-          const date = el.querySelector('.date')?.innerText?.trim() || "";
+          // 작성자, 내용, 날짜 추출 (공백 제거 필수)
+          const writer = (el.querySelector('.name, .writer, strong')?.innerText || "고객").trim();
+          const content = (el.querySelector('.comment, .content, .comment_content, [class*="comment_"]')?.innerText || "").trim();
+          const date = (el.querySelector('.date')?.innerText || "").trim();
           return { writer, content, date };
-        }).filter(c => c.content !== ""); // 내용이 있는 것만 필터링
+        }).filter(c => c.content.length > 0); // 실제 내용이 있는 댓글만 필터링
 
-        this.renderComments(comments);
+        if (comments.length === 0) {
+          commContainer.innerHTML = ''; // 댓글 없으면 영역 숨김
+          return;
+        }
+
+        // 렌더링
+        commContainer.innerHTML = `
+          <div class="rit-comm-head" style="margin-top:30px; border-top:1px solid #eee; padding-top:20px; margin-bottom:15px;">
+            <span style="font-weight:800; font-size:14px; color:#111;">COMMENT (${comments.length})</span>
+          </div>
+          <div class="rit-comm-list-wrap">
+            ${comments.map(c => `
+              <div class="rit-comm-item" style="margin-bottom:12px; background:#f9f9f9; padding:15px; border-radius:8px;">
+                <div style="font-size:11px; font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between;">
+                  <span>${this.maskName(c.writer)}</span>
+                  <span style="font-weight:400; color:#bbb;">${c.date}</span>
+                </div>
+                <div style="font-size:13px; color:#444; line-height:1.6; word-break:break-all;">${c.content}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
       } catch (e) {
-        console.error("[REVIEW-IT] 댓글 로드 실패:", e);
-        commContainer.innerHTML = ''; // 실패 시 영역 비움
+        console.warn("[REVIEW-IT] 댓글 매핑 실패:", e);
+        commContainer.innerHTML = '';
       }
     },
 
