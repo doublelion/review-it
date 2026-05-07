@@ -781,26 +781,23 @@
 }
 
 /* 화살표 모양 직접 만들기 (미니멀한 디자인) */
-.rit-modal-swiper .swiper-button-next::after,
+/* .rit-modal-swiper .swiper-button-next::after,
 .rit-modal-swiper .swiper-button-prev::after {
   font-size: 14px !important;
-  /* 크기를 작고 세련되게 */
   font-weight: 900;
   color: var(--rit-gold, #b38a58);
-  /* 대표님의 브랜드 컬러: 골드 */
 }
 
-/* Swiper 기본 화살표 폰트셋 사용 (기본 폰트가 설치되어 있을 경우) */
 .rit-modal-swiper .swiper-button-next::after {
   content: 'next';
 }
 
 .rit-modal-swiper .swiper-button-prev::after {
   content: 'prev';
-}
+} */
 
 /* 만약 기본 화살표 폰트가 깨진다면 아래 코드로 대체 (순수 CSS 화살표) */
-/*
+
 .rit-modal-swiper .swiper-button-next::after {
   content: '';
   display: block;
@@ -821,4 +818,3 @@
   transform: rotate(-45deg);
   margin-left: 4px;
 }
-*/
