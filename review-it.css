@@ -85,7 +85,25 @@
 .rit-star-img {
   height: 18px !important;
   vertical-align: middle;
-  filter: invert(85%) sepia(85%) saturate(1000%) hue-rotate(355deg) brightness(105%) contrast(105%);
+  /* filter: invert(85%) sepia(85%) saturate(1000%) hue-rotate(355deg) brightness(105%) contrast(105%); */
+}
+
+/* Swiper 컨테이너 초기화 */
+.rit-main-swiper {
+  width: 100%;
+  padding: 20px 0;
+  overflow: hidden;
+  /* 영역 밖 슬라이드 숨김 */
+}
+
+/* 슬라이드 간의 트랜지션 효과를 선형(Linear)으로 고정 (자연스러운 흐름의 핵심) */
+.rit-main-swiper .swiper-wrapper {
+  transition-timing-function: linear !important;
+}
+
+.rit-card {
+  cursor: pointer;
+  /* 카드 디자인 커스텀 */
 }
 
 .rit-star-num {
@@ -103,7 +121,8 @@
 
 /* 조회수 아이콘 (간단한 SVG 형태) */
 .rit-icon-eye::before {
-  content: 'VIEW'; /* 또는 눈 모양 아이콘 폰트 */
+  content: 'VIEW';
+  /* 또는 눈 모양 아이콘 폰트 */
   font-size: 10px;
   font-weight: 800;
   margin-right: 4px;
@@ -150,6 +169,7 @@
   font-weight: 800;
   letter-spacing: 2px;
 }
+
 .rit-tagline {
   font-size: 13px;
   font-weight: 700;

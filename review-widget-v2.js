@@ -21,7 +21,8 @@
       MALL_ID: mallId,
       PRODUCT_NO: getProductNo(),
       BOARD_NO: '4',
-      DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif',
+      // DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif',
+      DEFAULT_IMG: '/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
       ADMIN_KEYWORDS: ['관리자', 'Official', '운영자']
@@ -169,8 +170,8 @@
 
       let mainHtml = `
     <style>
-      #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 20px; box-sizing: border-box; font-family: 'Pretendard', sans-serif;}
-      .rit-main-title { font-size: clamp(24px, 5vw, 32px) !important; font-weight: 800 !important; text-align: center; margin: 10px 0 !important; font-family: 'Playfair Display', serif;}
+      #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 20px; box-sizing: border-box; font-family: 'Pretendard'}
+      .rit-main-title { font-size: clamp(24px, 5vw, 32px) !important; font-weight: 800 !important; text-align: center; margin: 10px 0 !important; }
       
       .rit-main-grid-layout {
         display: grid !important;
@@ -211,7 +212,15 @@
       if (!isGrid && window.Swiper) {
         const getSwiperConfig = () => {
           const isPc = window.innerWidth >= 1024;
-          return { slidesPerView: isPc ? pcCols : moCols, spaceBetween: isPc ? 20 : 12, observer: true, observeParents: true };
+          return {
+            slidesPerView: isPc ? pcCols : moCols,
+            spaceBetween: isPc ? 20 : 12,
+            centeredSlides: true, // [추가] 슬라이드 중앙 정렬
+            loop: reviews.length > 5, // 슬라이드가 충분할 때만 루프
+            observer: true,
+            observeParents: true,
+            roundLengths: true // 텍스트 깨짐 방지
+          };
         };
 
         let ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
@@ -320,6 +329,8 @@
           new Swiper('.rit-modal-swiper', {
             pagination: { el: '.rit-fraction', type: 'fraction' },
             navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+            centeredSlides: true, // [추가] 모달 내 이미지 중앙 정렬
+            autoHeight: true      // 이미지 높이에 따라 모달 높이 조절
           });
         }
       } else {

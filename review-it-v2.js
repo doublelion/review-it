@@ -16,7 +16,8 @@
       sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
       mallId: mallId.replace('m.', ''),
       targetBoardNo: '4',
-      defaultImg: '//img.echosting.cafe24.com/thumb/img_product_medium.gif'
+      // defaultImg: '//img.echosting.cafe24.com/thumb/img_product_medium.gif'
+      defaultImg: '/assets/rit_noimg.jpg'
     };
   };
 
