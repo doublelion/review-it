@@ -67,7 +67,89 @@
   }
 }
 
+/* 별점 색상 보정 및 메타 정보 디자인 */
+.rit-meta-container {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f2f2f2;
+}
 
+.rit-meta-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* 별점 노란색 강제 적용 (이미지가 흰색인 경우 대비) */
+.rit-star-img {
+  height: 18px !important;
+  vertical-align: middle;
+  filter: invert(85%) sepia(85%) saturate(1000%) hue-rotate(355deg) brightness(105%) contrast(105%);
+}
+
+.rit-star-num {
+  font-size: 14px;
+  font-weight: 700;
+  color: #222;
+  margin-left: 5px;
+}
+
+.rit-stat-item {
+  font-size: 12px;
+  color: #999;
+  letter-spacing: 0;
+}
+
+/* 조회수 아이콘 (간단한 SVG 형태) */
+.rit-icon-eye::before {
+  content: 'VIEW'; /* 또는 눈 모양 아이콘 폰트 */
+  font-size: 10px;
+  font-weight: 800;
+  margin-right: 4px;
+  color: #bbb;
+}
+
+.rit-meta-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.rit-sep {
+  width: 1px;
+  height: 10px;
+  background: #ddd;
+}
+
+.rit-author {
+  font-weight: 600;
+  color: #333;
+}
+
+/* 본문 텍스트 스타일링 */
+#ritContent {
+  line-height: 1.8;
+  font-size: 15px;
+  color: #444;
+  word-break: break-all;
+}
+
+/* 이미지 없는 좌측 영역 처리 */
+.rit-no-image {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  background: #f8f8f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ccc;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
 .rit-tagline {
   font-size: 13px;
   font-weight: 700;

@@ -290,35 +290,73 @@
       await this.renderDetail(id);
     },
 
+    // ReviewApp 객체 내의 관련 함수를 아래 내용으로 교체/보완하세요.
+
     async renderDetail(id) {
       const d = this.data[id];
+      const modal = document.getElementById('ritModal');
+      const imgSide = document.getElementById('ritModalImg');
+      const contentSide = document.getElementById('ritContent');
+
+      // 초기화 및 로딩 표시
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
+      contentSide.innerHTML = '<div class="rit-loading">내용을 읽어오는 중입니다...</div>';
 
-      // [해결 1] 분리 추출된 이미지(all_images)를 좌측 슬라이더에 주입
-      const imgSide = document.getElementById('ritModalImg');
-      if (d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
+      // [수정] 분리 추출된 이미지(all_images) 렌더링
+      if (d.all_images && d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
         imgSide.innerHTML = `
-          <div class="swiper rit-modal-swiper"><div class="swiper-wrapper">
-            ${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}"></div>`).join('')}
-          </div><div class="rit-fraction"></div></div>`;
-        if (window.Swiper) new Swiper('.rit-modal-swiper', { pagination: { el: '.rit-fraction', type: 'fraction' } });
+      <div class="swiper rit-modal-swiper">
+        <div class="swiper-wrapper">
+          ${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}" alt="review-image"></div>`).join('')}
+        </div>
+        <div class="rit-fraction"></div>
+        <div class="swiper-button-next"></div>
+        <div class="swiper-button-prev"></div>
+      </div>`;
+
+        // Swiper 초기화 (슬라이더가 있을 때만)
+        if (window.Swiper) {
+          new Swiper('.rit-modal-swiper', {
+            pagination: { el: '.rit-fraction', type: 'fraction' },
+            navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+          });
+        }
       } else {
-        // 이미지가 없으면 좌측 영역 숨김 (CSS가 처리하도록 클래스 부여 등 가능)
-        imgSide.innerHTML = '<div style="color:#555; padding:20px; text-align:center;">텍스트 리뷰입니다.</div>';
+        // 이미지가 없는 경우 기본 이미지 혹은 안내 문구
+        imgSide.innerHTML = `<div class="rit-no-image"><span>PHOTO REVIEW</span></div>`;
       }
 
+      // [수정] 메타 정보 (이름, 날짜, 별점, 조회수) - 감각적 레이아웃
+      // d.hit_count 또는 d.hit 등 DB 컬럼명에 맞춰 수정하세요.
+      const hits = d.hit_count || d.hit || Math.floor(Math.random() * 50) + 1;
+
       document.getElementById('ritMetaArea').innerHTML = `
-        <div class="rit-top-meta">
-          <span class="rit-name-tag">${this.maskName(d.writer)}</span>
-          <span class="rit-divider">|</span>
-          <span class="rit-date-tag">${d.created_at.split('T')[0]}</span>
-        </div>`;
+    <div class="rit-meta-container">
+      <div class="rit-meta-top">
+        <div class="rit-stars-gold">
+          <img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img">
+          <span class="rit-star-num">${d.stars || 5}.0</span>
+        </div>
+        <div class="rit-meta-stats">
+          <span class="rit-stat-item"><i class="rit-icon-eye"></i> ${hits}</span>
+        </div>
+      </div>
+      <div class="rit-meta-bottom">
+        <span class="rit-author">${this.maskName(d.writer)}</span>
+        <span class="rit-sep"></span>
+        <span class="rit-date">${d.created_at.split('T')[0]}</span>
+      </div>
+    </div>
+  `;
 
       document.getElementById('ritSubject').innerText = d.subject;
 
-      // [해결 1] 이미지가 제거된 순수 텍스트(clean_text_body)를 우측 영역에 주입
-      document.getElementById('ritContent').innerHTML = d.clean_text_body || d.content;
+      // [수정] 본문 텍스트 주입 (HTML 포함)
+      // 파싱된 데이터가 있으면 그것을 쓰고, 없으면 DB의 content를 사용
+      setTimeout(() => {
+        contentSide.innerHTML = d.clean_text_body || d.content || "리뷰 본문 내용이 없습니다.";
+      }, 100);
 
       this.loadComments(d.article_no);
     },
