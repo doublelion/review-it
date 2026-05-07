@@ -10,12 +10,13 @@
       ? host.split('.')[host.split('.').length - 2]
       : host.split('.')[0];
 
+    // 반환 객체의 키(Key)를 아래 로직과 동일하게 카멜 케이스로 수정했습니다.
     return {
-      URL: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
-      KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-      MALL_ID: mallId.replace('m.', ''),
-      TARGET_BOARD_NO: '4',
-      DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif'
+      sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
+      sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
+      mallId: mallId.replace('m.', ''),
+      targetBoardNo: '4',
+      defaultImg: '//img.echosting.cafe24.com/thumb/img_product_medium.gif'
     };
   };
 
@@ -24,46 +25,44 @@
   async function sync() {
     console.log(`🚀 [REVIEW-IT] ${CONFIG.mallId} 상점 데이터 동기화 시작...`);
 
-    // 다양한 카페24 스킨(기본, 디자인뱅크, 유료스킨 등)을 포괄하는 선택자
-    const items = document.querySelectorAll('.xans-record-, tr[id^="record"], .boardList tr, .border-b.group');
+    const items = document.querySelectorAll(`
+  .xans-board-listpackage .xans-record-, 
+  .xans-product-review .xans-record-,
+  tr[id^="record"], 
+  .boardList tr, 
+  .border-b.group,
+  li.review_list_item
+`);
     const payload = [];
 
     items.forEach(el => {
-      const link = el.querySelector('a[href*="board_no="], a[href*="/article/"]');
+      const link = el.querySelector('a[href*="article_no="], a[href*="/article/"], a[href*="no="]');
       if (!link) return;
 
       const href = link.getAttribute('href');
       const tds = el.querySelectorAll('td');
 
-      // 게시판 번호 추출 및 필터링
       const boardNoMatch = href.match(/board_no=(\d+)/) || href.match(/\/article\/[^/]+\/(\d+)\//);
       const currentBoardNo = boardNoMatch ? boardNoMatch[1] : null;
 
       if (currentBoardNo !== CONFIG.targetBoardNo) return;
 
-      // 게시글 번호 추출
       const articleNoMatch = href.match(/article_no=(\d+)/) || href.match(/\/(\d+)\/?$/) || href.match(/\/(\d+)\/($|\?)/);
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      // [수정 포인트] 작성자 추출 (클래스가 없는 스킨 대응)
       let rawWriter = "고객";
       const writerEl = el.querySelector('.writer, .name, div.mt-3 > span:first-child');
 
       if (writerEl) {
-        // 1순위: 클래스가 명확히 있는 경우
         rawWriter = writerEl.innerText.trim();
       } else if (tds.length >= 5) {
-        // 2순위: 캡처해주신 화면처럼 클래스가 없는 경우 (5번째 td 타겟팅)
-        // td 내부에 span이 있는지, 아니면 순수 텍스트인지 상관없이 innerText로 깔끔하게 가져옵니다.
         rawWriter = tds[4].innerText.trim();
       }
 
-      // [선택 사항] 혹시 모를 별표 마스킹 제거 로직 유지
       let cleanWriter = rawWriter.split('[')[0].split('(')[0].replace(/[*]/g, '').trim();
       if (!cleanWriter) cleanWriter = "고객";
 
-      // 썸네일 추출 (동적 경로 적용)
       let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
       let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
 
@@ -80,9 +79,11 @@
       });
     });
 
-    if (payload.length === 0) return;
+    if (payload.length === 0) {
+      console.log(`⚠️ [REVIEW-IT] ${CONFIG.mallId} 수집할 리뷰 데이터가 없습니다.`);
+      return;
+    }
 
-    // 데이터 전송 (Upsert: 중복 시 업데이트)
     try {
       const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
         method: 'POST',
@@ -95,8 +96,14 @@
         body: JSON.stringify(payload)
       });
 
-      if (res.ok) console.log(`✅ [REVIEW-IT] ${CONFIG.mallId} 동기화 완료`);
-    } catch (e) { console.error("❌ 오류 발생:", e); }
+      if (res.ok) {
+        console.log(`✅ [REVIEW-IT] ${CONFIG.mallId} 동기화 완료 (${payload.length}건)`);
+      } else {
+        console.error("❌ 데이터 전송 실패:", await res.text());
+      }
+    } catch (e) {
+      console.error("❌ 오류 발생:", e);
+    }
   }
 
   setTimeout(sync, 2000); // 카페24 렌더링 대기
