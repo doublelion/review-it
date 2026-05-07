@@ -333,6 +333,15 @@
       this.loadComments(d.article_no);
     },
 
+    toggleGrid() {
+      const gv = document.getElementById('ritGridView');
+      const gi = document.getElementById('ritGridInner');
+      if (gv.classList.contains('rit-hidden')) {
+        gv.classList.remove('rit-hidden');
+        gi.innerHTML = this.listOrder.map(id => `<div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')"><img src="${this.data[id].all_images[0]}"></div>`).join('');
+      } else { gv.classList.add('rit-hidden'); }
+    },
+
     // 1. 카페24의 모든 스킨 패턴을 호환하는 댓글 추출 함수
     async loadComments(articleNo) {
       const commContainer = document.getElementById('ritCommList');
@@ -407,7 +416,7 @@
                 <span>${this.maskName(c.writer)}</span>
                 <span style="font-weight:400; color:#bbb;">${c.date}</span>
               </div>
-              <div style="font-size:13px; color:#444; line-height:1.6; word-break:break-all;">${c.content}</div>
+              <div style="font-size:13px; color:#444; line-height:1.6; white-space:pre-wrap">${c.content}</div>
             </div>
           `).join('')}
         </div>
