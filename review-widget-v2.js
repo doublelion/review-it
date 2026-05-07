@@ -154,9 +154,10 @@
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
 
-      // [2] 그리드일 때만 어드민 설정 적용, 스와이프는 최적값 고정
-      const pcCols = isGrid ? (this.settings.grid_rows_desktop || 5) : 5;
-      const moCols = isGrid ? (this.settings.grid_rows_mobile || 2) : 2.2; // 스와이프는 2.2개가 국룰
+      // [2] 레이아웃 값 확정 (삼항 연산자 로직 교정)
+      // 그리드일 때는 어드민 설정값, 스와이프일 때는 고정값(5 / 2.2) 사용
+      const pcCols = isGrid ? (parseInt(this.settings.grid_rows_desktop) || 5) : 5;
+      const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
       let mainHtml = `
     <style>
@@ -171,29 +172,34 @@
       /* 헤더 타이틀 교정 */
       .rit-header-area { margin-bottom: 30px; text-align: center; }
       .rit-main-title { 
-        font-family: 'Playfair Display', serif; /* 캡처본의 고급스러운 느낌 */
+        font-family: 'Playfair Display', 'Pretendard', serif;
         font-size: clamp(24px, 5vw, 36px) !important; 
         font-weight: 800 !important; 
         margin: 10px 0 !important;
         letter-spacing: -0.5px;
+        line-height: 1.2;
       }
-      .rit-tagline { font-size: 12px; color: #b38a58; font-weight: 700; letter-spacing: 1px; }
+      .rit-tagline { font-size: 12px; color: #b38a58; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+      .rit-line { width: 30px; height: 1px; background: #cbcbcb; margin: 15px auto; }
+      .rit-desc { font-size: 14px; color: #777; line-height: 1.6; }
 
-      /* 그리드 레이아웃 (그리드 모드일 때만 작동) */
+      /* 그리드 레이아웃 */
       .rit-main-grid-layout {
         display: grid !important;
         gap: 15px;
-        grid-template-columns: repeat(${isGrid ? moCols : 2}, 1fr) !important;
+        /* 모바일 우선 적용 */
+        grid-template-columns: repeat(${isGrid ? Math.floor(moCols) : 2}, 1fr) !important;
       }
 
       @media (min-width: 1024px) {
         .rit-main-grid-layout {
+          /* 데스크탑 적용 */
           grid-template-columns: repeat(${pcCols}, 1fr) !important;
           gap: 20px;
         }
       }
 
-      /* 스와이프 전용: 카드 크기 강제 고정 (이미지 깨짐 방지) */
+      /* 스와이프 전용 카드 설정 */
       .rit-main-swiper .rit-card { width: 100%; height: auto; }
     </style>
 
@@ -219,50 +225,54 @@
       // [3] 스와이프 실행 (스와이프 모드일 때만)
       if (!isGrid && window.Swiper) {
         new Swiper('.rit-main-swiper', {
-          slidesPerView: 2.2, // 모바일 기본값 (슬쩍 걸치게 해서 넘겨보게 유도)
+          slidesPerView: moCols, // 고정값 2.2 사용됨
           spaceBetween: 12,
           breakpoints: {
-            1024: { slidesPerView: 5, spaceBetween: 20 } // PC는 5개 고정
+            1024: { slidesPerView: pcCols, spaceBetween: 20 } // 고정값 5 사용됨
           }
         });
       }
 
-      // 2. [수정 포인트] 모달을 body의 직계 자식으로 별도 삽입 (중복 방지)
-      let modalContainer = document.getElementById('ritModal');
-      if (!modalContainer) {
-        modalContainer = document.createElement('div');
-        modalContainer.id = 'ritModal';
-        modalContainer.className = 'rit-modal-container';
-        modalContainer.style.display = 'none'; // 초기에는 숨김
+      // 모달 생성 로직 (기존과 동일)
+      this.initModal();
+    },
 
-        modalContainer.innerHTML = `
-          <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
-          <div class="rit-modal-window">
-             <div class="rit-modal-header">
-                <span class="rit-logo-text">${this.settings.title}</span>
-                <div class="rit-header-buttons">
-                  <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">GRID VIEW</button>
-                  <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
-                </div>
-             </div>
-             <div class="rit-modal-body">
-                <div id="ritDetailView" class="rit-flex-container">
-                  <div id="ritModalImg" class="rit-img-side"></div>
-                  <div class="rit-txt-side">
-                    <div id="ritMetaArea"></div>
-                    <h3 id="ritSubject"></h3>
-                    <div id="ritContent" class="rit-body-text"></div>
-                    <div id="ritProductCard"></div>
-                  </div>
-                </div>
-                <div id="ritGridView" class="rit-grid-overlay rit-hidden">
-                  <div id="ritGridInner" class="rit-grid-box-wrap"></div>
-                </div>
-             </div>
+    // 모달 중복 생성 방지를 위해 별도 함수로 분리해서 호출하는 것이 깔끔합니다.
+    initModal() {
+      let modalContainer = document.getElementById('ritModal');
+      if (modalContainer) return;
+
+      modalContainer = document.createElement('div');
+      modalContainer.id = 'ritModal';
+      modalContainer.className = 'rit-modal-container';
+      modalContainer.style.display = 'none';
+      modalContainer.innerHTML = `
+    <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
+    <div class="rit-modal-window">
+       <div class="rit-modal-header">
+          <span class="rit-logo-text">${this.settings.title}</span>
+          <div class="rit-header-buttons">
+            <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">GRID VIEW</button>
+            <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
           </div>
-        `;
-        document.body.appendChild(modalContainer);
-      }
+       </div>
+       <div class="rit-modal-body">
+          <div id="ritDetailView" class="rit-flex-container">
+            <div id="ritModalImg" class="rit-img-side"></div>
+            <div class="rit-txt-side">
+              <div id="ritMetaArea"></div>
+              <h3 id="ritSubject"></h3>
+              <div id="ritContent" class="rit-body-text"></div>
+              <div id="ritProductCard"></div>
+            </div>
+          </div>
+          <div id="ritGridView" class="rit-grid-overlay rit-hidden">
+            <div id="ritGridInner" class="rit-grid-box-wrap"></div>
+          </div>
+       </div>
+    </div>
+  `;
+      document.body.appendChild(modalContainer);
     },
 
     getCardHTML(id) {
