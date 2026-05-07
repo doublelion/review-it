@@ -326,20 +326,20 @@
         <div class="swiper-button-prev"></div>
       </div>`;
 
-        // Swiper 초기화 (슬라이더가 있을 때만)
-        // renderDetail 함수 내부의 Swiper 초기화 부분
         if (window.Swiper) {
           setTimeout(() => {
             new Swiper('.rit-modal-swiper', {
               pagination: { el: '.rit-fraction', type: 'fraction' },
               navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
               centeredSlides: true,
-              autoHeight: false, // [중요] false로 변경하여 높이 널뛰기 방지
-              watchOverflow: true,
-              loop: d.all_images.length > 1
+              autoHeight: false, // 높이 자동 조절 해제 (요동 방지)
+              loop: d.all_images.length > 1,
+              speed: 400, // 전환 속도를 부드럽게
+              watchOverflow: true
             });
           }, 50);
         }
+
       } else {
         // 이미지가 없는 경우 기본 이미지 혹은 안내 문구
         imgSide.innerHTML = `<div class="rit-no-image"><span>PHOTO REVIEW</span></div>`;
@@ -415,19 +415,41 @@
 
     renderComments(comments) {
       const container = document.getElementById('ritCommList');
-      if (!container || comments.length === 0) { if (container) container.innerHTML = ''; return; }
+      if (!container) return;
+
+      // 댓글이 하나도 없을 때 표시할 안내 멘트
+      if (comments.length === 0) {
+        container.innerHTML = `
+      <div class="rit-no-comm" style="margin-top:30px; padding:20px; text-align:center; border-top:1px solid #f2f2f2;">
+        <p style="font-size:13px; color:#bbb; font-weight:400; margin:0;">
+          운영자가 소중한 후기를 확인 중입니다.<br>곧 정성스러운 답변을 남겨드릴게요!
+        </p>
+      </div>`;
+        return;
+      }
+
+      // 댓글이 있을 경우 렌더링
       container.innerHTML = `
-        <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:10px;">
-          <span style="font-weight:800; font-size:13px; color:#333;">COMMENT (${comments.length})</span>
-        </div>
-        ${comments.map(c => `
-          <div class="rit-comm-item" style="margin-bottom:10px; background:#f9f9f9; padding:12px; border-radius:6px; font-size:12px;">
-            <div style="font-weight:800; margin-bottom:4px; display:flex; justify-content:space-between;">
-              <span>${this.maskName(c.writer)}</span><span style="font-weight:400; color:#bbb;">${c.date}</span>
-            </div>
-            <div style="color:#555; line-height:1.5; white-space:pre-wrap">${c.content}</div>
+    <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px;">
+      <span style="font-weight:800; font-size:13px; color:#333;">COMMENT (${comments.length})</span>
+    </div>
+    ${comments.map(c => {
+        // 운영자 여부 확인 (CONFIG의 ADMIN_KEYWORDS 활용)
+        const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => c.writer.includes(k));
+        const displayName = isAdmin ? c.writer : this.maskName(c.writer);
+        const bgStyle = isAdmin ? 'background:#fcf8f2; border:1px solid #f3e9d9;' : 'background:#f9f9f9;';
+        const label = isAdmin ? '<span style="color:#b38a58; margin-right:5px;">[답변]</span>' : '';
+
+        return `
+        <div class="rit-comm-item" style="margin-bottom:10px; ${bgStyle} padding:12px; border-radius:8px; font-size:12px;">
+          <div style="font-weight:800; margin-bottom:4px; display:flex; justify-content:space-between;">
+            <span>${label}${displayName}</span>
+            <span style="font-weight:400; color:#bbb;">${c.date}</span>
           </div>
-        `).join('')}`;
+          <div style="color:#555; line-height:1.6; white-space:pre-wrap">${c.content}</div>
+        </div>
+      `;
+      }).join('')}`;
     },
 
     closeModal() {
