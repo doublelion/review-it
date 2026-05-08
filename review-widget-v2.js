@@ -172,7 +172,7 @@
 
       let mainHtml = `
     <style>
-      #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 20px; box-sizing: border-box; font-family: 'Pretendard'}
+      #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 16px; box-sizing: border-box; font-family: 'Pretendard'}
       .rit-main-title { font-size: clamp(24px, 5vw, 32px) !important; font-weight: 800 !important; text-align: center; margin: 10px 0 !important; }
       
       .rit-main-grid-layout {
@@ -192,7 +192,7 @@
     </style>
 
     <div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
-      <div class="rit-tagline" style="font-size:12px; color:#b38a58; font-weight:700; text-transform:uppercase; letter-spacing:1px;">${this.settings.tagline || 'Verified Authenticity'}</div>
+      <div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:1px;">${this.settings.tagline || 'Verified Authenticity'}</div>
       <h2 class="rit-main-title">${this.settings.title || 'PEOPLE CHOICE'}</h2>
       <div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>
       <p class="rit-desc" style="font-size:14px; color:#777;">${this.settings.description || ''}</p>
@@ -255,7 +255,13 @@
        <div class="rit-modal-header">
           <span class="rit-logo-text">${this.settings.title}</span>
           <div class="rit-header-buttons">
-            <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">GRID VIEW</button>
+            <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="9" height="9" rx="1" />
+                    <rect x="13" y="2" width="9" height="9" rx="1" />
+                    <rect x="2" y="13" width="9" height="9" rx="1" />
+                    <rect x="13" y="13" width="9" height="9" rx="1" />
+                  </svg>GRID VIEW</button>
             <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
           </div>
        </div>
@@ -285,7 +291,7 @@
       return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
         <img src="${thumb}" class="rit-card-img" loading="lazy">
         <div class="rit-card-info">
-          <div class="rit-card-subject">${d.subject}</div>
+          <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
           <div class="rit-card-meta">
             <span>${this.maskName(d.writer)}</span>
             <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
