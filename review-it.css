@@ -209,6 +209,14 @@
   max-width: 400px;
   text-align: center;
   margin: 0 auto;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* 보여줄 줄 수 */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  
+  max-height: 4.8em; /* line-height * 3줄 */
 }
 
 .rit-card {
@@ -582,6 +590,8 @@
 
   .rit-main-grid-layout {
     gap: 12px;
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
   /* 1. 모달 전체 높이 설정 */
@@ -638,7 +648,7 @@
     letter-spacing: 0.15em;
     display: flex;
     gap: 6px;
-    padding: 6px 0 0 0;
+    padding: 3px 0 0 0;
   }
 
   .btn-rit-close {

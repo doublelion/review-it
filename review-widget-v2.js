@@ -230,7 +230,7 @@
       
       <div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>
       
-      <p class="rit-desc" style="font-size:14px; color:#777; word-break:keep-all;">
+      <p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all;">
         ${this.settings.description || '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.'}
       </p>
     </div>
