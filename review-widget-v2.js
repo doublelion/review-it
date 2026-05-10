@@ -203,16 +203,12 @@
 
       let mainHtml = `
     <style>
-      #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 16px; box-sizing: border-box; font-family: 'Pretendard'}
-      .rit-main-title { font-weight: 600 !important; text-align: center; margin: 10px 0 !important; }
       /* 포인트 스타일: CSS 파일이나 인라인에서 조절 가능 */
-      .rit-title-point { color: #9ca3af; /* 나중에 CSS에서 자유롭게 수정 */ }
       .rit-main-grid-layout {
         display: grid !important;
         gap: 15px;
         grid-template-columns: repeat(${Math.floor(moCols)}, 1fr) !important;
       }
-
       @media (min-width: 1024px) {
         .rit-main-grid-layout {
           grid-template-columns: repeat(${pcCols}, 1fr) !important;
@@ -220,7 +216,6 @@
         }
       }
       
-      .rit-main-swiper .rit-card { width: 100%; height: auto; }
     </style>
 
     <div class="rit-header-area" style="text-align:center; margin-bottom:30px;">

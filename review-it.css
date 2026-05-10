@@ -36,6 +36,10 @@
   text-align: left;
 }
 
+.rit-main-swiper .rit-card {
+  width: 100%;
+  height: auto;
+}
 
 /* 타이틀 */
 .rit-header-area h2 {
@@ -45,7 +49,6 @@
   color: #111;
   text-transform: uppercase;
 }
-
 
 /* injectCSS 또는 renderWidget 내 style 태그에 추가 */
 .rit-main-grid-layout {
@@ -66,6 +69,7 @@
     max-width: 1200px;
     /* 적절한 최대폭 설정 */
   }
+
   #review-it-widget {
     padding: 40px 16px;
   }
