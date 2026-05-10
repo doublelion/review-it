@@ -71,7 +71,7 @@
   }
 
   #review-it-widget {
-    padding: 40px 16px;
+    padding: 80px 16px;
   }
 }
 
@@ -541,7 +541,8 @@
 
 /* 댓글 본문 스타일 수정 */
 .rit-comm-item div:last-child {
-  white-space: normal !important;
+  /* white-space: normal !important; */
+  white-space: pre-wrap;
   word-break: keep-all;
   overflow-wrap: break-word;
   line-height: 1.45;
@@ -563,7 +564,7 @@
 /* 모바일(MO) */
 @media (max-width: 768px) {
   #review-it-widget {
-    padding: 80px 0;
+    padding: 50px 0;
   }
 
   .rit-main-swiper {
