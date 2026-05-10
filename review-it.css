@@ -565,7 +565,6 @@
 
   /* 헤더 내 폰트 및 버튼 스타일 */
   .rit-logo-text {
-    color: rgba(255, 255, 255, 0.4);
     font-size: 10px;
     letter-spacing: 0.15em;
     font-weight: 300;
@@ -666,8 +665,7 @@
   .rit-grid-box-wrap {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    /* 모바일은 2열 배치가 깔끔합니다 */
-    gap: 8px;
+    gap: 1px;
   }
 
   .rit-modal-swiper img {
