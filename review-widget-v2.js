@@ -17,18 +17,21 @@
 
     // 카페24 상점명 가져오기
     const getMallName = () => {
-      // 1. 카페24 표준 변수 확인
-      if (window.iMallName) return window.iMallName;
+      if (window.iMallName && window.iMallName !== "") return window.iMallName;
 
-      // 2. 타이틀에서 추출 (보통 "쇼핑몰명 - 상품명" 형태이므로 뒤쪽 혹은 앞쪽 추출)
-      const title = document.title;
+      let title = document.title || "";
+
       if (title.includes('-')) {
-        // 하이픈 기준 마지막 단어가 보통 쇼핑몰명인 경우가 많습니다.
-        return title.split('-').pop().trim();
+
+        const parts = title.split('-');
+        title = parts[parts.length - 1].trim();
+      } else if (title.includes(':')) {
+        title = title.split(':')[0].trim();
       }
 
-      // 3. 마지막 수단: 설정된 tagline이나 고정 텍스트
-      return "REVIEW-IT";
+      title = title.replace(/공식몰|공식홈페이지|온라인스토어/g, "").trim();
+
+      return title || "REVIEW-IT";
     };
 
     return {
