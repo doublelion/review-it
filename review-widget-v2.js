@@ -471,7 +471,7 @@
             <span style="color:#111;">${label}${displayName}</span>
             <span style="font-weight:400; color:#bbb; font-size:11px;">${c.date}</span>
           </div>
-          <div style="color:${textColor}; line-height:1.6; white-space:pre-wrap; font-weight:${isAdmin ? '500' : '400'}">${c.content}</div>
+          <div style="color:${textColor}; white-space:pre-wrap; font-weight:${isAdmin ? '500' : '400'}">${c.content}</div>
         </div>
       `;
       }).join('')}`;
