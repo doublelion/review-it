@@ -184,7 +184,7 @@
       let mainHtml = `
     <style>
       #review-it-widget { max-width: 1260px !important; margin: 0 auto !important; padding: 40px 16px; box-sizing: border-box; font-family: 'Pretendard'}
-      .rit-main-title {  font-weight: 800 !important; text-align: center; margin: 10px 0 !important; }
+      .rit-main-title { font-weight: 600 !important; text-align: center; margin: 10px 0 !important; }
       /* 포인트 스타일: CSS 파일이나 인라인에서 조절 가능 */
       .rit-title-point { color: #9ca3af; /* 나중에 CSS에서 자유롭게 수정 */ }
       .rit-main-grid-layout {
@@ -204,7 +204,7 @@
     </style>
 
     <div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
-      <div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:1px;">${this.settings.tagline || 'Verified Authenticity'}</div>
+      <div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px;">${this.settings.tagline || 'Verified Authenticity'}</div>
       <h2 class="rit-main-title">${getFormattedTitle(this.settings.title)}</h2>
       <div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>
       <p class="rit-desc" style="font-size:14px; color:#777;">${this.settings.description || ''}</p>

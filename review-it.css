@@ -325,7 +325,7 @@
   border-radius: 4px;
   cursor: pointer;
   margin-right: 10px;
-  font-family: 'Pretendard';
+  font-family: 'Pretendard'!important;
 }
 
 .btn-rit-close {
@@ -497,7 +497,7 @@
 
 .rit-grid-thumb {
   aspect-ratio: 1;
-  border-radius: 8px;
+  /* border-radius: 8px; */
   overflow: hidden;
   cursor: pointer;
 }
@@ -513,6 +513,9 @@
 }
 
 @media (max-width: 768px) {
+  .rit-grid-box-wrap {
+    gap: 1px;
+  }
   .rit-card-subject {
     font-size: 12px;
   }
@@ -628,16 +631,13 @@
   .rit-grid-overlay {
     padding-top: 20px;
     padding-bottom: calc(40px + env(safe-area-inset-bottom, 20px));
+    padding-left: 0;
+    padding-right: 0;
   }
-
-
 
   .rit-modal-swiper img {
     object-fit: cover !important;
   }
-
-
-
 }
 
 @media (min-width: 768px) {
@@ -677,16 +677,16 @@
 .rit-title-point {
   color: #000;
   /* 기본 검정 */
-  background: linear-gradient(120deg, #f3e9d9 0%, #f3e9d9 100%);
+  /* background: linear-gradient(120deg, #f3e9d9 0%, #f3e9d9 100%); */
   /* 배경 강조 예시 */
   padding: 0 4px;
   display: inline-block;
-  font-weight: 900;
+  font-weight: 200;
   position: relative;
 }
 
 /* 혹은 밑줄 형태의 포인트 */
-.rit-title-point::after {
+/* .rit-title-point::after {
   content: '';
   position: absolute;
   bottom: 2px;
@@ -695,7 +695,7 @@
   height: 8px;
   background: rgba(0, 123, 255, 0.2);
   z-index: -1;
-}
+} */
 
 .rit-header .rit-title {
   font-size: 40px;
