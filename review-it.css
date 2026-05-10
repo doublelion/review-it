@@ -525,52 +525,119 @@
     gap: 12px;
   }
 
-  .rit-modal-header {
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
-  }
-
-  .rit-flex-container {
-    flex-direction: column;
-  }
-
+  /* 1. 모달 전체 높이 설정 */
   .rit-modal-window {
-    height: 100dvh;
+    height: 100dvh; /* 모바일 브라우저 주소창 포함 높이 대응 */
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0; /* 모바일은 꽉 차게 */
+    overflow: hidden;
   }
 
+  /* 2. 상단 블랙 헤더 영역 (검정색 바 형태) */
   .rit-modal-header {
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
-    /* 🍏 상단 잘림 해결: 아이폰 노치(안전영역)만큼 상단 패딩을 추가하여 버튼을 아래로 밀어냅니다. */
-    padding-top: env(safe-area-inset-top, 15px);
-    height: auto;
-    /* 내용물에 맞게 높이 유동적 조절 */
-    padding-bottom: 15px;
+    position: relative; /* PC의 absolute 해제 */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: calc(56px + env(safe-area-inset-top, 0px)); /* h-14 + 노치 대응 */
+    background-color: #000 !important; /* 배경 검정색 강제 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: env(safe-area-inset-top, 0px) 20px 0; 
+    box-sizing: border-box;
+    z-index: 1001;
+    pointer-events: auto;
+  }
+
+  /* 헤더 내 폰트 및 버튼 스타일 */
+  .rit-logo-text {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    font-weight: 300;
+  }
+
+  .rit-header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .btn-rit-grid {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+  }
+
+  .btn-rit-close {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 3. 스크롤 핵심: 이미지가 텍스트와 함께 올라가도록 설정 */
+  .rit-modal-body {
+    flex: 1;
+    overflow-y: auto !important; /* 모달 바디 자체에 스크롤 부여 */
+    background: #fff;
+    -webkit-overflow-scrolling: touch;
   }
 
   .rit-flex-container {
-    flex-direction: column;
+    flex-direction: column; /* 세로 배치 */
+    height: auto !important; /* 높이 고정 해제 */
+    display: block !important; /* flex 대신 block으로 흐름 처리 */
   }
 
+  /* 이미지 영역 */
   .rit-img-side {
-    height: 50vh;
-    width: 100%;
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1; /* 정사각형으로 시원하게 노출 */
+    position: relative;
+    flex-shrink: 0;
   }
+
+  /* 텍스트 영역 */
+  .rit-txt-side {
+    width: 100% !important;
+    height: auto !important;
+    overflow-y: visible !important; /* 내부 스크롤 해제 */
+    padding: 30px 20px;
+    /* 하단 안전영역(홈바)만큼 여백 추가 */
+    padding-bottom: calc(40px + env(safe-area-inset-bottom, 20px)) !important; 
+    box-sizing: border-box;
+  }
+
+  /* 그리드 뷰 덮개도 함께 수정 */
+  .rit-grid-overlay {
+    padding-top: 20px;
+    padding-bottom: calc(40px + env(safe-area-inset-bottom, 20px));
+  }
+
+
 
   .rit-modal-swiper img {
     object-fit: cover !important;
   }
 
-  .rit-txt-side {
-    width: 100%;
-    padding: 25px 16px;
-    padding-bottom: calc(25px + env(safe-area-inset-bottom, 20px));
-  }
 
-  .rit-grid-overlay {
-    padding-left: 16px;
-    padding-right: 16px;
-    padding-bottom: calc(30px + env(safe-area-inset-bottom, 20px));
-  }
+
 }
 
 @media (min-width: 768px) {
@@ -787,7 +854,6 @@
 
 /* 모바일 대응 */
 @media (max-width: 767px) {
-  .rit-modal-header {}
 
   .rit-modal-content {
     flex-direction: column;
