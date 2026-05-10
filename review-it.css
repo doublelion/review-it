@@ -199,9 +199,16 @@
 }
 
 .rit-desc {
-  font-size: 14px;
-  color: #777;
+  color: #666;
+  font-size: 16px;
+  font-weight: 300;
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-break: strict;
+  max-width: 400px;
+  text-align: center;
+  margin: 0 auto;
 }
 
 .rit-card {
@@ -789,13 +796,6 @@
   height: 1px;
   background: rgba(0, 0, 0, 0.1);
   margin: 0 auto 20px;
-}
-
-.rit-header .rit-desc {
-  color: #666;
-  font-size: 15px;
-  line-height: 1.6;
-  font-weight: 300;
 }
 
 .rit-grid-layout {
