@@ -203,10 +203,6 @@
   line-height: 1.6;
 }
 
-
-
-@media (min-width: 1024px) {}
-
 .rit-card {
   aspect-ratio: 3/4;
   border-radius: 12px;
@@ -514,7 +510,16 @@
   display: none !important;
 }
 
+/* 모바일(MO) */
 @media (max-width: 768px) {
+  #review-it-widget {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .rit-main-swiper {
+    padding-left: 12px;
+    padding-right: 12px;
+ }
   .review-it-widget {
     padding-left: 0;
     padding-right: 0;
