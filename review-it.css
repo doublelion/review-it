@@ -371,8 +371,6 @@
   justify-content: center;
 }
 
-
-
 .rit-modal-swiper {
   display: flex;
   align-items: center;
@@ -380,7 +378,6 @@
   height: 100%;
   width: 100%;
 }
-
 
 .rit-fraction {
   position: absolute !important;
@@ -518,7 +515,10 @@
 }
 
 @media (max-width: 768px) {
-
+  .review-it-widget {
+    padding-left: 0;
+    padding-right: 0;
+  }
   .rit-card-subject {
     font-size: 12px;
   }
@@ -557,7 +557,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: env(safe-area-inset-top, 0px) 20px 0;
+    padding: env(safe-area-inset-top, 0px) 10px 0;
     box-sizing: border-box;
     z-index: 1001;
     pointer-events: auto;

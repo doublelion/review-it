@@ -249,7 +249,7 @@
           return {
             slidesPerView: isPc ? pcCols : moCols,
             spaceBetween: isPc ? 20 : 12,
-            centeredSlides: true, // [추가] 슬라이드 중앙 정렬
+            //centeredSlides: true, // [추가] 슬라이드 중앙 정렬
             loop: reviews.length > 5, // 슬라이드가 충분할 때만 루프
             observer: true,
             observeParents: true,
