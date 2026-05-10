@@ -541,38 +541,29 @@
 
 /* 댓글 본문 스타일 수정 */
 .rit-comm-item div:last-child {
-  /* pre-wrap 대신 normal을 사용하여 불필요한 공백/줄바꿈 렌더링 방지 */
-  white-space: pre-line !important;
-
-  /* 대신 단어 단위로 자연스럽게 줄바꿈되도록 설정 */
-  word-break: break-all;
-  word-wrap: break-word;
-
-  /* 줄간격 최적화 (1.4~1.5가 가독성이 가장 좋습니다) */
-  line-height: 1.5 !important;
-
-  /* 글자 사이 간격도 살짝 좁혀서 폰뷰 최적화 */
+  white-space: normal !important;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-height: 1.45;
   letter-spacing: -0.02em;
-
   color: #555;
 }
-
-/* 만약 댓글 안에 <p> 태그나 <br> 태그가 강제로 들어있을 경우 상하 여백 제거 */
 .rit-comm-item div:last-child p {
-  margin: 0 0 8px 0 !important;
+  margin: 0;
 }
 
 .rit-comm-item div:last-child br {
   content: "";
   display: block;
-  margin-bottom: 4px;
+  margin: 0;
+
   /* br 태그의 높이 제어 */
 }
 
 /* 모바일(MO) */
 @media (max-width: 768px) {
   #review-it-widget {
-    padding: 40px 0;
+    padding: 80px 0;
   }
 
   .rit-main-swiper {
