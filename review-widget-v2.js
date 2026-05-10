@@ -218,7 +218,6 @@
       
     </style>
 
-    // renderWidget 함수 내부의 mainHtml 변수 영역입니다.
     <div class="rit-header-area" style="text-align:center; margin-bottom:40px;">
       <div class="rit-tagline" style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:3px; color:#111; margin-bottom:8px;">
         ${this.settings.tagline}
