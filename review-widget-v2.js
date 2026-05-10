@@ -80,7 +80,8 @@
         if (data && data.length > 0) {
           const s = data[0];
           Object.keys(this.settings).forEach(key => {
-            if (s[key] !== undefined && s[key] !== null) {
+            // DB에 값이 실제 존재할 때만 덮어쓰고, 아니면 기존 settings(기본값) 유지
+            if (s[key] !== undefined && s[key] !== null && String(s[key]).trim() !== "") {
               this.settings[key] = (key === 'description') ? s[key].replace(/\n/g, '<br>') : s[key];
             }
           });
@@ -218,19 +219,18 @@
       
     </style>
 
-    <div class="rit-header-area" style="text-align:center; margin-bottom:40px;">
       <div class="rit-tagline" style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:3px; color:#111; margin-bottom:8px;">
-        ${this.settings.tagline}
+        ${this.settings.tagline || 'Verified Authenticity'}
       </div>
       
       <h2 class="rit-main-title" style="font-size:32px; letter-spacing:-0.5px;">
-        ${getFormattedTitle(this.settings.title)}
+        ${getFormattedTitle(this.settings.title || 'People Choice')}
       </h2>
       
       <div class="rit-line" style="width:25px; height:2px; background:#111; margin:20px auto;"></div>
       
       <p class="rit-desc" style="font-size:15px; line-height:1.8; color:#666; max-width:600px; margin:0 auto; word-break:keep-all;">
-        ${this.settings.description}
+        ${this.settings.description || '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.'}
       </p>
     </div>
 
