@@ -15,6 +15,11 @@
       return urlParams.get('product_no') || null;
     };
 
+    // 카페24 상점명 가져오기
+    const getMallName = () => {
+      return window.iMallName || window.CAFE24API?.getMallName() || "REVIEW-IT";
+    };
+
     return {
       URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
       KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
@@ -25,7 +30,8 @@
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
-      ADMIN_KEYWORDS: ['관리자', 'Official', '운영자']
+      ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'],
+      MALL_NAME: getMallName()
     };
   };
 
@@ -265,7 +271,7 @@
     <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
     <div class="rit-modal-window">
        <div class="rit-modal-header">
-          <span class="rit-logo-text">${this.settings.title}</span>
+          <span class="rit-logo-text">${CONFIG.MALL_NAME}</span>
           <div class="rit-header-buttons">
             <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
             <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">

@@ -305,6 +305,11 @@
   color: white;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   text-transform: uppercase;
+
+  /* 로고 느낌 */
+  border-left: 1px solid rgba(255,255,255,0.2);
+  padding-left: 10px;
+  margin-left: 5px;
 }
 
 .rit-header-buttons {
@@ -578,11 +583,10 @@
     color: rgba(255, 255, 255, 0.8);
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.15em;
     display: flex;
-    align-items: center;
     gap: 6px;
-    padding: 0;
+    padding: 6px 0 0 0;
   }
 
   .btn-rit-close {
@@ -653,9 +657,9 @@
     overflow-y: auto;
 
     /* 패딩 조정 */
-    padding-top: 10px;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-top: 1px;
+    padding-left: 1px;
+    padding-right: 1px;
     padding-bottom: calc(40px + env(safe-area-inset-bottom, 20px));
   }
 
@@ -668,6 +672,36 @@
 
   .rit-modal-swiper img {
     object-fit: cover !important;
+  }
+
+  /* 댓글 본문 스타일 수정 */
+  .rit-comm-item div:last-child {
+    /* pre-wrap 대신 normal을 사용하여 불필요한 공백/줄바꿈 렌더링 방지 */
+    white-space: normal !important;
+
+    /* 대신 단어 단위로 자연스럽게 줄바꿈되도록 설정 */
+    word-break: break-all;
+    word-wrap: break-word;
+
+    /* 줄간격 최적화 (1.4~1.5가 가독성이 가장 좋습니다) */
+    line-height: 1.5 !important;
+
+    /* 글자 사이 간격도 살짝 좁혀서 폰뷰 최적화 */
+    letter-spacing: -0.02em;
+
+    color: #555;
+  }
+
+  /* 만약 댓글 안에 <p> 태그나 <br> 태그가 강제로 들어있을 경우 상하 여백 제거 */
+  .rit-comm-item div:last-child p {
+    margin: 0 0 8px 0 !important;
+  }
+
+  .rit-comm-item div:last-child br {
+    content: "";
+    display: block;
+    margin-bottom: 4px;
+    /* br 태그의 높이 제어 */
   }
 }
 
