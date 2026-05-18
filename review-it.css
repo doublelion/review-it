@@ -563,6 +563,10 @@
 
 /* 모바일(MO) */
 @media (max-width: 768px) {
+  .rit-desc {
+    padding-left:16px;
+    padding-right:16px;
+  }
   #review-it-widget {
     padding: 50px 0;
   }

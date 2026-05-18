@@ -377,6 +377,29 @@
     }
 
     window.onload = () => { loadSettings(); loadAdminData(); };
+
+
+    // 기존 변수 선언부 밑에 추가
+    const AUTH_SIG = params.get('auth_sig');
+
+    // 인증 여부를 체크하는 함수 추가
+    function checkAuthentication() {
+      // 만약 카페24 정식 경로(auth_sig 동반)로 들어온 게 아니라면 
+      // 로그인(인증을 유도하는 랜딩 페이지) 페이지로 튕겨버립니다.
+      if (!AUTH_SIG && window.location.hostname !== 'localhost') {
+        alert("로그인이 만료되었거나 올바르지 않은 접근입니다.");
+        window.location.href = '/index.html'; // 아까 만든 랜딩/로그인 페이지로 이동
+        return false;
+      }
+      return true;
+    }
+
+    window.onload = () => {
+      if (checkAuthentication()) {
+        loadSettings();
+        loadAdminData();
+      }
+    };
   </script>
 </body>
 

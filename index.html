@@ -1,1 +1,127 @@
-Review-it Server is Running
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review-It | 스마트 리뷰 자동화</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #000;
+      /* 다크 모드 기반의 프리미엄 테마 */
+      color: #fff;
+    }
+
+    .logo-text {
+      font-weight: 900;
+      letter-spacing: -0.05em;
+    }
+
+    .btn-cafe24 {
+      background: #fff;
+      color: #000;
+      transition: all 0.3s ease;
+    }
+
+    .btn-cafe24:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(255, 255, 255, 0.2);
+    }
+
+    .fade-in-up {
+      animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col justify-center items-center p-6 relative overflow-hidden">
+
+  <!-- 배경 장식 효과 (미니멀한 우주/사이버네틱 느낌) -->
+  <div
+    class="absolute top-[-20%] left-[-10%] w-96 h-96 bg-blue-600 rounded-full mix-blend-screen filter blur-[120px] opacity-20">
+  </div>
+  <div
+    class="absolute bottom-[-20%] right-[-10%] w-96 h-96 bg-purple-600 rounded-full mix-blend-screen filter blur-[120px] opacity-20">
+  </div>
+
+  <div class="z-10 w-full max-w-md text-center fade-in-up">
+    <!-- 로고 -->
+    <div class="mb-8">
+      <h1 class="text-5xl logo-text tracking-tighter">REVIEW-IT</h1>
+      <p class="text-gray-400 mt-3 text-sm tracking-wide uppercase">Automated Commerce Growth</p>
+    </div>
+
+    <!-- 핵심 가치 설명 -->
+    <div class="bg-gray-900/50 border border-gray-800 rounded-2xl p-8 backdrop-blur-sm mb-8 text-left">
+      <h2 class="text-xl font-bold mb-4 text-white">매출을 높이는 가장 쉬운 방법</h2>
+      <ul class="space-y-3 text-sm text-gray-300">
+        <li class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          설치 즉시 동작하는 제로 세팅
+        </li>
+        <li class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          최적화된 위젯으로 구매 전환율 상승
+        </li>
+        <li class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          완벽하게 연동되는 자동화 대시보드
+        </li>
+      </ul>
+    </div>
+
+    <!-- 로그인 버튼 -->
+    <button onclick="startCafe24Auth()"
+      class="btn-cafe24 w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
+          fill="currentColor" />
+        <path d="M11 7H13V13H11V7Z" fill="currentColor" />
+        <path d="M11 15H13V17H11V15Z" fill="currentColor" />
+      </svg>
+      Cafe24로 시작하기
+    </button>
+    <p class="text-xs text-gray-500 mt-4">* 클릭 시 카페24 스토어 인증 페이지로 이동합니다.</p>
+  </div>
+
+  <script>
+    function startCafe24Auth() {
+      // 1. 카페24 앱스토어를 통해 접근하지 않고 직접 URL로 들어온 경우를 위한 예외 처리
+      const params = new URLSearchParams(window.location.search);
+      const mallId = params.get('mall_id');
+
+      if (!mallId) {
+        // 쇼핑몰 ID 입력을 받는 모달을 띄우거나, 앱스토어를 통해 접속하도록 안내할 수 있습니다.
+        const inputMallId = prompt("카페24 쇼핑몰 아이디를 입력해주세요.");
+        if (inputMallId) {
+          window.location.href = `/api/auth?mall_id=${inputMallId}`;
+        }
+      } else {
+        // 이미 쿼리스트링에 mall_id가 있다면 바로 인증 서버(Vercel Serverless Function)로 넘깁니다.
+        window.location.href = `/api/auth?mall_id=${mallId}`;
+      }
+    }
+  </script>
+</body>
+
+</html>
