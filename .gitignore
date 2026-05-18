@@ -16,3 +16,5 @@ dist/
 .next/
 
 review-it-v2_backup.js
+
+temp/

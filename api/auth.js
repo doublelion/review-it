@@ -8,36 +8,49 @@ const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET || 'XBhpYBU5I5Gkmi
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ozxnynnntkjjjhyszbms.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt';
 
+// api/auth.js 중 일부 수정
 module.exports = async (req, res) => {
   try {
-    // 1. 카페24에서 전달받은 쿼리 파라미터 추출
     const { mall_id, timestamp, hmac, user_id, user_type } = req.query;
 
-    if (!mall_id || !hmac || !timestamp) {
-      return res.status(400).send('필수 인증 파라미터가 누락되었습니다.');
+    if (!mall_id) {
+      return res.status(400).send('mall_id가 누락되었습니다.');
     }
 
-    // 2. HMAC 검증 로직 (보안의 핵심)
-    // hmac을 제외한 나머지 파라미터들을 알파벳 순으로 정렬하여 쿼리 스트링 문자열을 만듭니다.
+    // 💡 [개발/테스트용 예외 처리] 
+    // 카페24를 통하지 않고 프롬프트로 아이디만 입력한 경우 (hmac이 없을 때)
+    if (!hmac) {
+      console.log(`[테스트 모드] ${mall_id} 계정으로 우회 접속을 시도합니다.`);
+
+      // Supabase에 상점 정보 저장/갱신
+      await fetch(`${SUPABASE_URL}/rest/v1/stores`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({ mall_id: mall_id, updated_at: new Date().toISOString(), is_active: true })
+      });
+
+      // 임시 서명 생성 후 admin.html로 바로 점프!
+      const authSignature = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
+      return res.redirect(`/admin.html?mall_id=${mall_id}&auth_sig=${authSignature}`);
+    }
+
+    // --- 이 밑으로는 정식 출시 후 카페24가 보낸 요청을 검증하는 원래 로직 ---
     const params = { mall_id, timestamp };
     if (user_id) params.user_id = user_id;
     if (user_type) params.user_type = user_type;
 
-    const sortedQueryString = Object.keys(params)
-      .sort()
-      .map(key => `${key}=${encodeURIComponent(params[key])}`)
-      .join('&');
+    const sortedQueryString = Object.keys(params).sort().map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
+    const calculatedHmac = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(sortedQueryString).digest('base64');
 
-    // 우리 앱의 Client Secret Key로 암호화(SHA256)하여 HMAC 값을 계산합니다.
-    const calculatedHmac = crypto
-      .createHmac('sha256', CAFE24_CLIENT_SECRET)
-      .update(sortedQueryString)
-      .digest('base64'); // 카페24는 주로 base64 또는 hex 형식을 사용합니다. 개발자센터 문서 교차검증 필요
-
-    // 카페24가 보낸 hmac과 우리가 계산한 hmac이 일치하는지 비교
     if (hmac !== calculatedHmac) {
-      return res.status(401).send('보안 검증(HMAC)에 실패했습니다. 변조된 요청일 수 있습니다.');
+      return res.status(401).send('보안 검증(HMAC)에 실패했습니다.');
     }
+
 
     // 3. 시간 유효성 체크 (Replay Attack 방지 - 선택사항이지만 보안상 권장)
     // 현재 시간과 카페24가 요청을 보낸 시간(timestamp)의 차이가 너무 크면 차단합니다.
