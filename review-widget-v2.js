@@ -1,7 +1,7 @@
 /**
  * @Project: Review-It Universal Widget Engine v9.5 (Ultimate Parsing Edition)
  * @Update: 이미지/텍스트 정밀 분리 로직, 상세페이지 상품 타겟팅, 카페24 구버전 Swiper 호환
- * @Philosophy: "Install & Forget" - 누락 없는 데이터 수집과 완벽한 렌더링
+ * @Philosophy: "Install & Forget" - 데이터 수집과 완벽한 렌더링
  */
 (function (window) {
   const getDynamicConfig = () => {
@@ -91,15 +91,14 @@
 
     maskName(name) {
       if (!name || name === "고객") return "고객";
-      // [수정] 운영자 키워드가 포함되어 있으면 마스킹 없이 원본 그대로 반환
+      // 운영자 키워드가 포함되어 있으면 마스킹 없이 원본 그대로 반환
       if (CONFIG.ADMIN_KEYWORDS.some(k => name.includes(k))) return name;
 
       // 일반 고객만 마스킹 처리
       return name.length > 1 ? name.charAt(0) + "*".repeat(name.length - 1) : name;
     },
 
-    // [핵심 로직] 카페24 상세글에서 이미지와 텍스트를 정밀하게 분리해내는 함수
-    // [수정된 함수] 이미지와 텍스트 분리 로직 강화
+    // 이미지와 텍스트 분리 로직 강화
     async _fetchAndSeparateContent(articleNo) {
       try {
         // 1. 카페24 상세글 fetch 시도
@@ -323,7 +322,6 @@
 
     getCardHTML(id) {
       const d = this.data[id];
-      // [해결 2] 리스트 화면 썸네일도 분리 파싱해서 찾은 최신 이미지(all_images[0])로 연동
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
       return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
         <img src="${thumb}" class="rit-card-img" loading="lazy">
@@ -413,7 +411,6 @@
 
       document.getElementById('ritSubject').innerText = d.subject;
 
-      // [수정] 본문 텍스트 주입 (HTML 포함)
       // 파싱된 데이터가 있으면 그것을 쓰고, 없으면 DB의 content를 사용
       setTimeout(() => {
         contentSide.innerHTML = d.clean_text_body || d.content || "리뷰 본문 내용이 없습니다.";
@@ -475,14 +472,10 @@
       <span style="font-weight:800; font-size:13px; color:#333;">COMMENT (${comments.length})</span>
     </div>
     ${comments.map(c => {
-        // [핵심] 운영자 판단 기준을 더 명확히 (포함 관계 확인)
-        // 대표님의 성함 '김용관'이나 브랜드명 '와이키나스', 'YKINAS' 등을 CONFIG.ADMIN_KEYWORDS에 꼭 넣어주세요.
         const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => c.writer.includes(k));
 
-        // 운영자라면 maskName 함수를 아예 거치지 않고 원본 이름 사용
         const displayName = isAdmin ? c.writer : this.maskName(c.writer);
 
-        // 시각적 구분: 운영자는 브랜드 컬러(골드/다크) 배경 사용
         const bgStyle = isAdmin
           ? 'background:#fcf8f2; border:1px solid #f3e9d9;'
           : 'background:#f9f9f9; border:1px solid transparent;';

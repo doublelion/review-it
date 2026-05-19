@@ -17,26 +17,35 @@ module.exports = async (req, res) => {
       return res.status(400).send('mall_id가 누락되었습니다.');
     }
 
-    // 💡 [개발/테스트용 예외 처리] 
+    // 💡 [안전한 개발/테스트용 예외 처리] 
     // 카페24를 통하지 않고 프롬프트로 아이디만 입력한 경우 (hmac이 없을 때)
     if (!hmac) {
-      console.log(`[테스트 모드] ${mall_id} 계정으로 우회 접속을 시도합니다.`);
+      // 허용할 개발용 테스트 쇼핑몰 ID 목록을 배열로 관리합니다.
+      const ALLOWED_TEST_MALLS = ['ykinas', 'testmall123'];
 
-      // Supabase에 상점 정보 저장/갱신
-      await fetch(`${SUPABASE_URL}/rest/v1/stores`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify({ mall_id: mall_id, updated_at: new Date().toISOString(), is_active: true })
-      });
+      if (ALLOWED_TEST_MALLS.includes(mall_id)) {
+        console.log(`[테스트 모드] 허용된 관리자(${mall_id}) 우회 접속 승인`);
 
-      // 임시 서명 생성 후 admin.html로 바로 점프!
-      const authSignature = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
-      return res.redirect(`/admin.html?mall_id=${mall_id}&auth_sig=${authSignature}`);
+        // Supabase에 상점 정보 저장/갱신
+        await fetch(`${SUPABASE_URL}/rest/v1/stores`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({ mall_id: mall_id, updated_at: new Date().toISOString(), is_active: true })
+        });
+
+        // 임시 서명 생성 후 admin.html로 바로 점프
+        const authSignature = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
+        return res.redirect(`/admin.html?mall_id=${mall_id}&auth_sig=${authSignature}`);
+      } else {
+        // 목록에 없는 남의 상점 아이디를 치고 들어오면 가차 없이 403 에러로 튕겨냅니다.
+        console.warn(`[보안 경고] 비인가 접근 시도 감지: ${mall_id}`);
+        return res.status(403).send('<h1>잘못된 접근입니다.</h1><p>카페24 앱스토어를 통해 접속해주세요.</p>');
+      }
     }
 
     // --- 이 밑으로는 정식 출시 후 카페24가 보낸 요청을 검증하는 원래 로직 ---

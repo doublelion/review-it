@@ -1,7 +1,7 @@
 /**
  * @Project: Review-It Universal Collector Engine
  * @Version: v9.6 (Precision Parsing Edition)
- * @Goal: 닉네임 마스킹 방지, 날짜 정밀 수집, 별점 파싱 오류 해결
+ * @Goal: 닉네임 마스킹 방지, 날짜 정밀 수집, 별점 파싱
  */
 (function (window) {
   const getDynamicConfig = () => {
@@ -10,7 +10,7 @@
       ? host.split('.')[host.split('.').length - 2]
       : host.split('.')[0];
 
-    // 반환 객체의 키(Key)를 아래 로직과 동일하게 카멜 케이스로 수정했습니다.
+    // 반환 객체의 키(Key)를 아래 로직과 동일하게 카멜 케이스
     return {
       sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
       sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
