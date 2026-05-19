@@ -199,10 +199,17 @@
 
     // 이미지 필터링
     function getCleanThumbnail(imageUrls) {
-      if (!imageUrls || imageUrls.length === 0) return '';
-      const spamKeywords = /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty/i;
-      const validImg = imageUrls.find(url => !spamKeywords.test(url) && !url.includes('.gif'));
-      return validImg || imageUrls[0];
+      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) return null;
+
+      // 카페24 시스템용 아이콘 스팸 키워드 확장 (.gif나 별모양 디자인 전체 차단)
+      const spamKeywords = /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty|ico_point|ico_review/i;
+
+      const validImg = imageUrls.find(url => {
+        if (!url || typeof url !== 'string') return false;
+        return !spamKeywords.test(url) && !url.toLowerCase().includes('.gif');
+      });
+
+      return validImg || null; // 가짜 이미지만 있다면 깨진 이미지 대신 null 반환
     }
 
     // 설정 로드: DB의 줄 수 및 노출 개수를 UI에 반영
@@ -308,17 +315,25 @@
         list.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400">데이터가 없습니다.</td></tr>`;
         return;
       }
-      list.innerHTML = data.map(rv => `
+      list.innerHTML = data.map(rv => {
+        const thumbnail = getCleanThumbnail(rv.image_urls);
+        const displayImg = thumbnail ? thumbnail : 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg';
+
+        // 데이터베이스 내부의 알맹이글 파싱 처리
+        const rawContent = rv.content ? rv.content.replace(/<[^>]*>?/gm, '') : '';
+        const displayContent = rawContent.trim() ? rawContent : '본문 내용이 없는 리뷰입니다.';
+
+        return `
         <tr class="hover:bg-blue-50/30 transition-colors">
           <td class="p-5 font-semibold text-gray-700 text-sm">${rv.writer || '익명'}</td>
           <td class="p-5">
             <div class="flex items-start gap-4">
               <div class="img-box rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
-                <img src="${getCleanThumbnail(rv.image_urls) || 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg'}" class="w-full h-full object-cover">
+                <img src="${displayImg}" class="w-full h-full object-cover" onerror="this.src='https://review-it-tau.vercel.app/assets/rit_noimg.jpg'">
               </div>
               <div class="flex-1">
                 <div class="text-sm font-bold text-gray-900 mb-1">${rv.subject || '제목없음'}</div>
-                <div class="text-xs text-gray-500 line-clamp-2">${rv.content ? rv.content.replace(/<[^>]*>?/gm, '') : ''}</div>
+                <div class="text-xs text-gray-500 line-clamp-2">${displayContent}</div>
               </div>
             </div>
           </td>
@@ -334,7 +349,8 @@
               ${rv.is_visible ? '노출중' : '대기중'}
             </button>
           </td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
     }
 
     function handleSearch() { currentSearchKeyword = document.getElementById('search-input').value; currentPage = 0; loadAdminData(); }
