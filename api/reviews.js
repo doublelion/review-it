@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 // 환경 변수로 관리하여 보안 강화
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
   // CORS 설정: 카페24 도메인에서만 호출 가능하게 제한

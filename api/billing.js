@@ -1,7 +1,8 @@
 // api/billing.js (카페24 샘플 데이터 및 예외 처리 완벽 방어 버전)
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+// SUPABASE_KEY도 인식하도록 수정
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
   // 1. CORS 및 가벼운 OPTIONS 요청 처리

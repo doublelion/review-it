@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Vercel 환경변수(Environment Variables)에 등록하세요.
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
