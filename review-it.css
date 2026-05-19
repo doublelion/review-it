@@ -31,6 +31,12 @@
   align-items: center;
 }
 
+.rit-header-buttons svg {
+  fill: currentColor;
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
 #ritCommList,
 .rit-txt-side {
   text-align: left;
@@ -211,12 +217,14 @@
   margin: 0 auto;
 
   display: -webkit-box;
-  -webkit-line-clamp: 3; /* 보여줄 줄 수 */
+  -webkit-line-clamp: 3;
+  /* 보여줄 줄 수 */
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  
-  max-height: 4.8em; /* line-height * 3줄 */
+
+  max-height: 4.8em;
+  /* line-height * 3줄 */
 }
 
 .rit-card {
@@ -549,6 +557,7 @@
   letter-spacing: -0.02em;
   color: #555;
 }
+
 .rit-comm-item div:last-child p {
   margin: 0;
 }
@@ -564,9 +573,10 @@
 /* 모바일(MO) */
 @media (max-width: 768px) {
   .rit-desc {
-    padding-left:16px;
-    padding-right:16px;
+    padding-left: 16px;
+    padding-right: 16px;
   }
+
   #review-it-widget {
     padding: 50px 0;
   }

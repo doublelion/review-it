@@ -292,7 +292,7 @@
           <span class="rit-logo-text">${CONFIG.MALL_NAME}</span>
           <div class="rit-header-buttons">
             <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
-            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+            <svg viewBox="0 0 24 24">
                     <rect x="2" y="2" width="9" height="9" rx="1" />
                     <rect x="13" y="2" width="9" height="9" rx="1" />
                     <rect x="2" y="13" width="9" height="9" rx="1" />
