@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
         console.log(`[테스트 모드] 허용된 관리자(${mall_id}) 우회 접속 승인`);
 
         // Supabase에 상점 정보 저장/갱신
-        await fetch(`${SUPABASE_URL}/rest/v1/stores`, {
+        await fetch(`${SUPABASE_URL}/rest/v1/active_malls`, {
           method: 'POST',
           headers: {
             'apikey': SUPABASE_KEY,
@@ -35,7 +35,11 @@ module.exports = async (req, res) => {
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates'
           },
-          body: JSON.stringify({ mall_id: mall_id, updated_at: new Date().toISOString(), is_active: true })
+          body: JSON.stringify({
+            mall_id: mall_id,
+            updated_at: new Date().toISOString(),
+            status: 'active'
+          })
         });
 
         // 임시 서명 생성 후 admin.html로 바로 점프
@@ -71,7 +75,7 @@ module.exports = async (req, res) => {
 
     // 4. Supabase DB에 로그인 기록 및 쇼핑몰 정보 동기화 (Upsert)
     // 무단 접근을 차단하고, 입점처 목록을 자동으로 관리하기 위함입니다.
-    const supabaseResponse = await fetch(`${SUPABASE_URL}/rest/v1/stores`, {
+    const supabaseResponse = await fetch(`${SUPABASE_URL}/rest/v1/active_malls`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
@@ -82,7 +86,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         mall_id: mall_id,
         updated_at: new Date().toISOString(),
-        is_active: true // 현재 앱 활성화 상태
+        status: 'active' // 현재 앱 활성화 상태
       })
     });
 

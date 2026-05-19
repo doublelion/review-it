@@ -99,7 +99,6 @@
       <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">위젯 환경 설정</h2>
 
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <!-- 그리드 상세 설정 -->
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">그리드 상세 설정</span>
           <div class="flex gap-2 w-full">
@@ -116,14 +115,12 @@
           <p class="text-[10px] text-gray-400 mt-1">* 모바일은 최대 3개까지 권장합니다.</p>
         </div>
 
-        <!-- 노출 개수 설정 -->
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">최대 노출 개수 (최대 15개)</span>
           <input type="number" id="input-limit" min="1" max="15" value="15"
             class="w-full p-2 border rounded text-xs outline-none focus:ring-1 focus:ring-blue-500">
         </div>
 
-        <!-- 위젯 타입 설정 -->
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">위젯 노출 타입</span>
           <div class="rit-switch-group w-full flex justify-between">
@@ -133,13 +130,11 @@
           </div>
         </div>
 
-        <!-- 저장 버튼 섹션 -->
         <div class="lg:col-span-1 flex items-center justify-end">
           <button onclick="saveHeaderSettings()" class="btn-save-main w-full h-full lg:h-auto py-4 shadow-lg">전체 설정
             저장하기</button>
         </div>
 
-        <!-- 헤더 문구 설정 (가로 전체 차지) -->
         <div class="lg:col-span-4 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
@@ -167,7 +162,6 @@
       </div>
     </div>
 
-    <!-- 리뷰 리스트 -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <table class="w-full text-left border-collapse">
         <thead>
@@ -182,7 +176,6 @@
       </table>
     </div>
 
-    <!-- 페이지네이션 -->
     <div class="flex justify-center items-center mt-8 gap-4 mb-10">
       <button onclick="changePage(-1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50"
         id="prev-btn">이전</button>
@@ -212,7 +205,7 @@
       return validImg || imageUrls[0];
     }
 
-    // [수정] 설정 로드: DB의 줄 수 및 노출 개수를 UI에 반영
+    // 설정 로드: DB의 줄 수 및 노출 개수를 UI에 반영
     async function loadSettings() {
       try {
         const res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
@@ -225,7 +218,6 @@
           document.getElementById('input-title').value = s.title || '';
           document.getElementById('input-description').value = s.description || '';
 
-          // [추가] 신규 설정값 로드
           if (s.grid_rows_desktop) document.getElementById('select-grid-pc').value = s.grid_rows_desktop;
           if (s.grid_rows_mobile) document.getElementById('select-grid-mo').value = s.grid_rows_mobile;
           if (s.display_limit) document.getElementById('input-limit').value = s.display_limit;
@@ -235,13 +227,13 @@
       } catch (err) { console.error("설정 로드 실패:", err); }
     }
 
-    // [수정] 설정 저장: 모든 설정값 통합 전송 및 알럿 추가
+    // 설정 저장: 모든 설정값 통합 전송 및 알럿 추가
     async function saveHeaderSettings(targetType = null) {
       try {
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
 
-        // [핵심 보충] 1단계: stores 테이블에 mall_id가 없으면 먼저 생성 (외래키 에러 방지)
-        await fetch(`${SB_URL}/stores?on_conflict=mall_id`, {
+        // 💡 [수정완료] 핵심 보충: 기존 stores 대신 바뀐 active_malls 테이블을 찌르도록 변경 (404 에러 원천 차단)
+        await fetch(`${SB_URL}/active_malls?on_conflict=mall_id`, {
           method: 'POST',
           headers: {
             'apikey': SB_KEY,
@@ -249,7 +241,7 @@
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates'
           },
-          body: JSON.stringify({ mall_id: MALL_ID })
+          body: JSON.stringify({ mall_id: MALL_ID, status: 'active' }) // 기본 상태를 active로 업서트
         });
 
         // 2단계: 기존 설정 저장 로직 실행
@@ -288,11 +280,10 @@
 
     async function updateWidgetType(type) {
       refreshSettingUI(type);
-      // 타입 변경 시에도 자동으로 저장 수행 (알럿은 띄우지 않음)
       await saveHeaderSettings(type);
     }
 
-    // 리뷰 데이터 로딩 및 리스트 렌더링 (기존 로직 유지)
+    // 리뷰 데이터 로딩 및 리스트 렌더링
     async function loadAdminData() {
       try {
         const from = currentPage * itemsPerPage;
@@ -323,7 +314,7 @@
           <td class="p-5">
             <div class="flex items-start gap-4">
               <div class="img-box rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
-                <img src="${getCleanThumbnail(rv.image_urls) || 'https://ecudemo389879.cafe24.com/web/upload/no-img.png'}" class="w-full h-full object-cover">
+                <img src="${getCleanThumbnail(rv.image_urls) || 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg'}" class="w-full h-full object-cover">
               </div>
               <div class="flex-1">
                 <div class="text-sm font-bold text-gray-900 mb-1">${rv.subject || '제목없음'}</div>
@@ -376,19 +367,12 @@
       }
     }
 
-    window.onload = () => { loadSettings(); loadAdminData(); };
-
-
-    // 기존 변수 선언부 밑에 추가
+    // 인증 여부를 체크하는 함수
     const AUTH_SIG = params.get('auth_sig');
-
-    // 인증 여부를 체크하는 함수 추가
     function checkAuthentication() {
-      // 만약 카페24 정식 경로(auth_sig 동반)로 들어온 게 아니라면 
-      // 로그인(인증을 유도하는 랜딩 페이지) 페이지로 튕겨버립니다.
       if (!AUTH_SIG && window.location.hostname !== 'localhost') {
         alert("로그인이 만료되었거나 올바르지 않은 접근입니다.");
-        window.location.href = '/index.html'; // 아까 만든 랜딩/로그인 페이지로 이동
+        window.location.href = '/index.html';
         return false;
       }
       return true;
