@@ -137,7 +137,7 @@
       }
     },
 
-    // 1. loadReviews 교체: 메인페이지 이미지 깨짐(매핑 실패) 완벽 해결
+    // 1. 위젯 소스코드 : 완전 무결한 이미지 필터링 로직 적용
     async loadReviews() {
       try {
         let apiUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
@@ -156,12 +156,26 @@
         list.slice(0, this.settings.display_limit).forEach(r => {
           const id = String(r.id);
           r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
-
-          // [수정] DB 스키마(image_url vs image_urls) 호환성 완벽 대응
+          
+          // [핵심 수정] 어떤 형태의 쓰레기 데이터가 들어와도 완벽하게 걸러내는 강력한 필터
           let validImages = [];
-          if (Array.isArray(r.image_urls) && r.image_urls.length > 0) validImages = r.image_urls;
-          else if (r.image_url) validImages = [r.image_url];
-
+          try {
+            let urls = r.image_urls;
+            // 만약 배열이 텍스트(String) 형태로 잘못 저장되어 있다면 파싱 시도
+            if (typeof urls === 'string' && urls.startsWith('[')) urls = JSON.parse(urls); 
+            
+            if (Array.isArray(urls)) {
+              // URL이 존재하고, 문자열이며, 비어있지 않고, gif나 스팸 키워드가 없는 진짜 이미지만 추출
+              validImages = urls.filter(u => u && typeof u === 'string' && u.trim() !== '' && !u.includes('.gif') && !CONFIG.SPAM_KEYWORDS.test(u));
+            } else if (r.image_url && typeof r.image_url === 'string') { 
+              // 초창기 단일 텍스트 데이터 호환
+              validImages = [r.image_url].filter(u => u.trim() !== '' && !u.includes('.gif') && !CONFIG.SPAM_KEYWORDS.test(u));
+            }
+          } catch(e) {
+            console.warn("이미지 데이터 파싱 오류, 기본 이미지로 대체합니다.", e);
+          }
+          
+          // 정상적인 이미지가 단 1개라도 없으면 무조건 DEFAULT_IMG 사용 (깨짐 완벽 방지)
           r.all_images = validImages.length > 0 ? validImages : [CONFIG.DEFAULT_IMG];
           r.is_parsed = false;
 
@@ -492,7 +506,7 @@
       `;
       }).join('');
     },
-    
+
     closeModal() {
       document.getElementById('ritModal').style.display = 'none';
       document.body.style.cssText = "";

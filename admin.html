@@ -235,23 +235,12 @@
     }
 
     // 설정 저장: 모든 설정값 통합 전송 및 알럿 추가
+    // 2. 관리자 소스코드 교체: RLS 에러를 우회하는 안전한 저장 로직
     async function saveHeaderSettings(targetType = null) {
       try {
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
 
-        // 💡 [수정완료] 핵심 보충: 기존 stores 대신 바뀐 active_malls 테이블을 찌르도록 변경 (404 에러 원천 차단)
-        await fetch(`${SB_URL}/active_malls?on_conflict=mall_id`, {
-          method: 'POST',
-          headers: {
-            'apikey': SB_KEY,
-            'Authorization': `Bearer ${SB_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
-          },
-          body: JSON.stringify({ mall_id: MALL_ID, status: 'active' }) // 기본 상태를 active로 업서트
-        });
-
-        // 2단계: 기존 설정 저장 로직 실행
+        // 저장할 데이터 취합
         const payload = {
           mall_id: MALL_ID,
           display_type: currentType,
@@ -263,25 +252,47 @@
           display_limit: parseInt(document.getElementById('input-limit').value)
         };
 
-        const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
-          method: 'POST',
-          headers: {
-            'apikey': SB_KEY,
-            'Authorization': `Bearer ${SB_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
-          },
-          body: JSON.stringify(payload)
+        // 1단계: 기존 설정이 있는지 먼저 조회 (RLS Insert 충돌 방지)
+        const checkRes = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
+          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
         });
+        const existingData = await checkRes.json();
+
+        let res;
+        // 2단계: 데이터 존재 여부에 따라 PATCH(수정) 또는 POST(생성) 분기 처리
+        if (existingData && existingData.length > 0) {
+          // 이미 존재하면 안전하게 PATCH(업데이트)만 진행
+          res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': SB_KEY,
+              'Authorization': `Bearer ${SB_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          // 없으면 POST로 신규 생성
+          res = await fetch(`${SB_URL}/widget_settings`, {
+            method: 'POST',
+            headers: {
+              'apikey': SB_KEY,
+              'Authorization': `Bearer ${SB_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+        }
 
         if (res.ok) {
           if (!targetType) alert('✅ 설정이 안전하게 저장되었습니다.\n쇼핑몰 위젯에 즉시 반영됩니다.');
         } else {
           const errRes = await res.json();
-          throw new Error(errRes.message);
+          throw new Error(errRes.message || '데이터베이스 보안 정책(RLS)에 의해 저장이 거부되었습니다.');
         }
       } catch (err) {
         alert('❌ 저장 중 오류 발생: ' + err.message);
+        console.error("[REVIEW-IT ADMIN ERROR]", err);
       }
     }
 
