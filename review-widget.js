@@ -253,11 +253,19 @@
           return {
             slidesPerView: isPc ? pcCols : moCols,
             spaceBetween: isPc ? 20 : 12,
-            //centeredSlides: true, // [추가] 슬라이드 중앙 정렬
-            loop: reviews.length > 5, // 슬라이드가 충분할 때만 루프
+            loop: reviews.length > 5,
             observer: true,
             observeParents: true,
-            roundLengths: true // 텍스트 깨짐 방지
+            roundLengths: true,
+
+            // --- 부드러운 오토플레이 추가 설정 ---
+            autoplay: {
+              delay: 3000,           // 3초마다 전환 (리뷰를 읽을 시간을 충분히 제공)
+              disableOnInteraction: false, // 사용자가 드래그해도 오토플레이가 유지됨
+              pauseOnMouseEnter: true     // 마우스 오버 시 멈춤 (리뷰 가독성 향상)
+            },
+            speed: 1000,             // 전환 속도 1초 (기본 300ms보다 부드러움)
+            // -----------------------------------
           };
         };
 
