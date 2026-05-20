@@ -572,6 +572,9 @@
 
 /* 모바일(MO) */
 @media (max-width: 768px) {
+  .rit-nav-btn {
+    display: none;
+  }
   .rit-desc {
     padding-left: 16px;
     padding-right: 16px;
