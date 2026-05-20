@@ -221,15 +221,18 @@
     }
 
     // 설정 로드
+    // 💡 설정 로드 (데이터 유무에 따른 예외처리 강화)
     async function loadSettings() {
       try {
         const res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
           headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
         });
         const data = await res.json();
+        
         if (data && data.length > 0) {
+          // DB에 저장된 설정이 있는 경우 연동
           const s = data[0];
-          if (document.getElementById('input-tagline')) document.getElementById('input-tagline').value = s.tagline || '';
+          document.getElementById('input-tagline').value = s.tagline || '';
           document.getElementById('input-title').value = s.title || '';
           document.getElementById('input-description').value = s.description || '';
 
@@ -238,8 +241,16 @@
           if (s.display_limit) document.getElementById('input-limit').value = s.display_limit;
 
           refreshSettingUI(s.display_type || 'grid');
+        } else {
+          // DB에 설정이 없는 최초 상태일 경우 UI 빈칸 방지 (기본값 세팅)
+          document.getElementById('input-tagline').value = 'REVIEW-IT';
+          document.getElementById('input-title').value = 'PHOTO FEED';
+          document.getElementById('input-description').value = '기록으로 증명하는 리얼 리뷰 피드';
+          refreshSettingUI('grid');
         }
-      } catch (err) { console.error("설정 로드 실패:", err); }
+      } catch (err) { 
+        console.error("설정 로드 실패:", err); 
+      }
     }
 
     // 💡 설정 저장 (권한 허용에 맞춰 완벽히 동작하는 2단계 Upsert 로직)
