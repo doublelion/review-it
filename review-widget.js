@@ -142,7 +142,7 @@
       try {
         let apiUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
         if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
-        apiUrl += `&order=created_at.desc`;
+        apiUrl += `&order=created_at.desc&limit=${this.settings.display_limit}`;
 
         const res = await fetch(apiUrl, {
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
@@ -153,31 +153,20 @@
         this.data = {};
         this.listOrder = [];
 
-        await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
+        // [개선] Promise.all 제거 -> 서버 동시 요청 폭주 방지
+        list.forEach(r => {
           const id = String(r.id);
-
-          // 1. 실시간 파싱 시도
-          const separateData = await this._fetchAndSeparateContent(r.article_no);
-
-          if (separateData) {
-            // [핵심 보정] 이미지가 없더라도 텍스트 파싱 결과가 있다면 무조건 반영
-            r.clean_text_body = separateData.text || r.content;
-            r.all_images = (separateData.images && separateData.images.length > 0)
-              ? separateData.images
-              : (r.image_url ? [r.image_url] : [CONFIG.DEFAULT_IMG]);
-          } else {
-            // 파싱 자체가 실패한 경우 DB 데이터 사용
-            r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
-            r.all_images = (r.image_url) ? [r.image_url] : [CONFIG.DEFAULT_IMG];
-          }
+          // DB에 저장된 값을 우선 사용 (과부하 방지)
+          r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
+          r.is_parsed = false; // 나중에 상세창 열릴 때 파싱
 
           this.data[id] = r;
           this.listOrder.push(id);
-        }));
+        });
 
-        this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-
-      } catch (e) { console.error("[REVIEW-IT] 데이터 처리 에러:", e); }
+        // 화면 렌더링은 즉시 수행 (서버 요청 대기 없음)
+        this.renderWidget();
+      } catch (e) { console.error("[REVIEW-IT] 데이터 로드 에러:", e); }
     },
 
     renderWidget() {
