@@ -137,7 +137,7 @@
       }
     },
 
-    // 1. 위젯 소스코드 : 완전 무결한 이미지 필터링 로직 적용
+    // 1. 위젯 소스코드 : 완전 무결한 이미지 필터링 & 본문 이미지 강제 구출 로직 적용
     async loadReviews() {
       try {
         let apiUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
@@ -156,26 +156,54 @@
         list.slice(0, this.settings.display_limit).forEach(r => {
           const id = String(r.id);
           r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
-          
-          // [핵심 수정] 어떤 형태의 쓰레기 데이터가 들어와도 완벽하게 걸러내는 강력한 필터
+
           let validImages = [];
+
+          // [STEP 1] DB image_urls 파싱 및 필터링 강화
           try {
             let urls = r.image_urls;
-            // 만약 배열이 텍스트(String) 형태로 잘못 저장되어 있다면 파싱 시도
-            if (typeof urls === 'string' && urls.startsWith('[')) urls = JSON.parse(urls); 
-            
+
+            // 1. JSON 문자열 방어 (이스케이프 문자열로 들어올 경우)
+            if (typeof urls === 'string' && urls.startsWith('[')) urls = JSON.parse(urls);
+            // 2. 단일 URL 문자열 방어 (구버전 호환)
+            else if (typeof urls === 'string' && urls.startsWith('http')) urls = [urls];
+            else if (!urls && r.image_url) urls = [r.image_url];
+
+            // 3. 정상 배열 필터링
             if (Array.isArray(urls)) {
-              // URL이 존재하고, 문자열이며, 비어있지 않고, gif나 스팸 키워드가 없는 진짜 이미지만 추출
-              validImages = urls.filter(u => u && typeof u === 'string' && u.trim() !== '' && !u.includes('.gif') && !CONFIG.SPAM_KEYWORDS.test(u));
-            } else if (r.image_url && typeof r.image_url === 'string') { 
-              // 초창기 단일 텍스트 데이터 호환
-              validImages = [r.image_url].filter(u => u.trim() !== '' && !u.includes('.gif') && !CONFIG.SPAM_KEYWORDS.test(u));
+              validImages = urls.filter(u =>
+                u && typeof u === 'string' &&
+                u.trim() !== '' &&
+                !u.includes('noimg') && // 기본 이미지 찌꺼기 방지
+                !CONFIG.SPAM_KEYWORDS.test(u)
+                // 주의: 카페24는 일반 이미지도 gif로 썸네일을 생성하는 경우가 있어 .gif 필터링은 일단 제외하거나 신중히 적용해야 합니다.
+              );
             }
-          } catch(e) {
-            console.warn("이미지 데이터 파싱 오류, 기본 이미지로 대체합니다.", e);
+          } catch (e) {
+            console.warn("[REVIEW-IT] DB 이미지 데이터 파싱 오류:", e);
           }
-          
-          // 정상적인 이미지가 단 1개라도 없으면 무조건 DEFAULT_IMG 사용 (깨짐 완벽 방지)
+
+          // [STEP 2] 🚨 방어 로직: DB 파싱 후에도 이미지가 없다면, r.content(본문)에서 이미지 직접 구출
+          if (validImages.length === 0 && r.content) {
+            try {
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = r.content;
+              const imgs = tempDiv.querySelectorAll('img');
+
+              imgs.forEach(img => {
+                let src = img.getAttribute('src');
+                if (src && !CONFIG.SPAM_KEYWORDS.test(src) && !src.includes('noimg')) {
+                  // 상대 경로를 절대 경로로 보정
+                  const finalSrc = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
+                  validImages.push(finalSrc);
+                }
+              });
+            } catch (e) {
+              console.warn("[REVIEW-IT] 본문 이미지 추출 실패:", e);
+            }
+          }
+
+          // 최종 판단: 강제 추출까지 거쳤는데도 없으면 그때 DEFAULT_IMG 적용
           r.all_images = validImages.length > 0 ? validImages : [CONFIG.DEFAULT_IMG];
           r.is_parsed = false;
 
@@ -184,7 +212,9 @@
         });
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-      } catch (e) { console.error("[REVIEW-IT] 데이터 처리 에러:", e); }
+      } catch (e) {
+        console.error("[REVIEW-IT] 데이터 처리 에러:", e);
+      }
     },
 
     renderWidget() {
@@ -490,15 +520,15 @@
       }
 
       container.innerHTML = headerHtml + comments.map(c => {
-        // [수정] 답변은 모두 담당자이므로 마스킹(maskName) 처리 제거 (원본 그대로 노출)
+        // 답변은 모두 담당자이므로 마스킹(maskName) 처리 제거
         const displayName = c.writer;
         const bgStyle = 'background:#f9f9f9; border:1px solid transparent;';
-        const label = '<span style="color:#111; font-weight:800; margin-right:5px;">[SHOP]</span>';
+        //const label = '<span style="color:#111; font-weight:800; margin-right:5px;">[SHOP]</span>';
 
         return `
         <div class="rit-comm-item" style="margin-bottom:10px; ${bgStyle} padding:14px; border-radius:10px; font-size:12px;">
           <div style="font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#111;">${label}${displayName}</span>
+            <span style="color:#111;">${displayName}</span>
             <span style="font-weight:400; color:#bbb; font-size:11px;">${c.date}</span>
           </div>
           <div style="color:#444; font-weight:400; line-height:1.5;">${c.content}</div>
