@@ -278,14 +278,10 @@
       this.initModal();
     },
 
-    // initModal
+    // 2. initModal 교체: 화살표를 모달 밖으로 빼고 4배(60px)로 확대
     initModal() {
       let modalContainer = document.getElementById('ritModal');
       if (modalContainer) return;
-
-      // 세련된 선형 Chevron SVG 정의
-      const prevSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rit-nav-icon"><polyline points="15 18 9 12 15 6"></polyline></svg>';
-      const nextSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rit-nav-icon"><polyline points="9 18 15 12 9 6"></polyline></svg>';
 
       modalContainer = document.createElement('div');
       modalContainer.id = 'ritModal';
@@ -294,37 +290,35 @@
       modalContainer.innerHTML = `
     <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
     
-    <div class="rit-modal-core-wrapper">
-       <button class="rit-nav-btn rit-nav-prev-v9" onclick="ReviewApp.navigateReview(-1)">${prevSvg}</button>
-       <button class="rit-nav-btn rit-nav-next-v9" onclick="ReviewApp.navigateReview(1)">${nextSvg}</button>
+    <button class="rit-nav-btn rit-nav-prev" onclick="ReviewApp.navigateReview(-1)" style="position:fixed; left:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10094;</button>
+    <button class="rit-nav-btn rit-nav-next" onclick="ReviewApp.navigateReview(1)" style="position:fixed; right:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10095;</button>
 
-       <div class="rit-modal-window">
-          <div class="rit-modal-header">
-             <span class="rit-logo-text">${CONFIG.MALL_NAME}</span>
-             <div class="rit-header-buttons">
-               <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
-               <svg viewBox="0 0 24 24">
-                       <rect x="2" y="2" width="9" height="9" rx="1" />
-                       <rect x="13" y="2" width="9" height="9" rx="1" />
-                       <rect x="2" y="13" width="9" height="9" rx="1" />
-                       <rect x="13" y="13" width="9" height="9" rx="1" />
-                     </svg>GRID VIEW</button>
-               <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
-             </div>
+    <div class="rit-modal-window">
+       <div class="rit-modal-header">
+          <span class="rit-logo-text">${CONFIG.MALL_NAME}</span>
+          <div class="rit-header-buttons">
+            <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
+            <svg viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="9" height="9" rx="1" />
+                    <rect x="13" y="2" width="9" height="9" rx="1" />
+                    <rect x="2" y="13" width="9" height="9" rx="1" />
+                    <rect x="13" y="13" width="9" height="9" rx="1" />
+                  </svg>GRID VIEW</button>
+            <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
           </div>
-          <div class="rit-modal-body">
-             <div id="ritDetailView" class="rit-flex-container">
-               <div id="ritModalImg" class="rit-img-side"></div>
-               <div class="rit-txt-side">
-                 <div id="ritMetaArea"></div>
-                 <h3 id="ritSubject"></h3>
-                 <div id="ritContent" class="rit-body-text"></div>
-                 <div id="ritCommList"></div>
-               </div>
-             </div>
-             <div id="ritGridView" class="rit-grid-overlay rit-hidden">
-               <div id="ritGridInner" class="rit-grid-box-wrap"></div>
-             </div>
+       </div>
+       <div class="rit-modal-body">
+          <div id="ritDetailView" class="rit-flex-container">
+            <div id="ritModalImg" class="rit-img-side"></div>
+            <div class="rit-txt-side">
+              <div id="ritMetaArea"></div>
+              <h3 id="ritSubject"></h3>
+              <div id="ritContent" class="rit-body-text"></div>
+              <div id="ritCommList"></div>
+            </div>
+          </div>
+          <div id="ritGridView" class="rit-grid-overlay rit-hidden">
+            <div id="ritGridInner" class="rit-grid-box-wrap"></div>
           </div>
        </div>
     </div>
@@ -414,12 +408,8 @@
 
       this.loadComments(d.article_no);
     },
-
-    // 이전/다음 리뷰 탐색 (단순 배열 인덱스 활용)
+    // 4. 신규 함수: 이전/다음 리뷰 탐색 (단순 배열 인덱스 활용)
     navigateReview(direction) {
-      // GRID VIEW가 켜져있을 때는 전체 모달 스와이프 내비게이션을 막습니다. (내부 그리드 조작 우선)
-      if (!document.getElementById('ritGridView').classList.contains('rit-hidden')) return;
-
       const currentIndex = this.listOrder.indexOf(this.currentReviewId);
       if (currentIndex === -1) return;
 
@@ -524,76 +514,7 @@
         link.href = 'https://review-it-tau.vercel.app/review-it.css';
         document.head.appendChild(link);
       }
-      if (!document.getElementById('rit-inline-nav-css')) {
-        const style = document.createElement('style');
-        style.id = 'rit-inline-nav-css';
-        style.innerHTML = `
-          /* 모달 코어 컨테이너: 리사이징 대응 핵심 */
-          .rit-modal-core-wrapper {
-            position: relative;
-            max-width: calc(100% - 160px); /* 데탑 양옆 버튼 공간 확보 */
-            pointer-events: none; /* 배경 클릭 닫기 허용 */
-          }
-          .rit-modal-core-wrapper > * { pointer-events: auto; } /* 컨텐츠 포인터 이벤트 복원 */
-
-          /* 신규 세련된 SVG 내비게이션 버튼 기본 스타일 */
-          .rit-nav-btn-v9 {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.9); /* 이미지 위에서도 보이도록 은은한 배경 */
-            color: #111;
-            border: none;
-            cursor: pointer;
-            z-index: 9999;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            transition: all 0.2s ease-in-out;
-            padding: 0;
-          }
-          .rit-nav-btn-v9:hover {
-            background: #fff;
-            transform: translateY(-50%) scale(1.08);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-          }
-          .rit-nav-btn-v9:active { transform: translateY(-50%) scale(0.95); }
-
-          /* 아이콘 자체 스타일 */
-          .rit-nav-icon {
-            width: 20px; height: 20px;
-            stroke-width: 2.5; /* 선 굵기 조절로 세련미 확보 */
-          }
-
-          /* 데스크탑: 모달 창 리사이징 시 양옆에 딱 붙어서 따라다님 */
-          @media (min-width: 1024px) {
-            .rit-modal-core-wrapper { max-width: calc(100% - 160px); }
-            .rit-nav-prev-v9 { left: -60px; } /* 모달 바로 옆 위치 */
-            .rit-nav-next-v9 { right: -60px; }
-          }
-
-          /* 모바일 최적화: 간섭 완전 제거 핵심 */
-          @media (max-width: 1023px) {
-            .rit-modal-core-wrapper { max-width: calc(100% - 20px); } /* 화면 가득 채움 */
-            
-            /* [핵심 변경] 모바일에서는 외부 버튼이 내부 스와이퍼와 겹치므로 제거합니다. */
-            .rit-nav-btn-v9 { display: none !important; }
-            
-            /* 대신 스와이프 제스처를 위한 가이드를 제공하거나, 
-               필요시 모달 바디 상하 여백에 아주 작게 배치할 수 있지만 
-               스와이프 제스처가 있는 환경에서는 제거가 가장 깔끔합니다. */
-          }
-        `;
-        document.head.appendChild(style);
-      }
-
     }
-
-
   };
 
   window.ReviewApp = ReviewApp;
