@@ -137,6 +137,7 @@
       }
     },
 
+    // 1. loadReviews 교체: 최초 로드 시 불필요한 파싱 제거 (초고속 렌더링)
     async loadReviews() {
       try {
         let apiUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
@@ -152,30 +153,18 @@
         this.data = {};
         this.listOrder = [];
 
-        await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
+        list.slice(0, this.settings.display_limit).forEach(r => {
           const id = String(r.id);
-
-          // 1. 실시간 파싱 시도
-          const separateData = await this._fetchAndSeparateContent(r.article_no);
-
-          if (separateData) {
-            // [핵심 보정] 이미지가 없더라도 텍스트 파싱 결과가 있다면 무조건 반영
-            r.clean_text_body = separateData.text || r.content;
-            r.all_images = (separateData.images && separateData.images.length > 0)
-              ? separateData.images
-              : (r.image_url ? [r.image_url] : [CONFIG.DEFAULT_IMG]);
-          } else {
-            // 파싱 자체가 실패한 경우 DB 데이터 사용
-            r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
-            r.all_images = (r.image_url) ? [r.image_url] : [CONFIG.DEFAULT_IMG];
-          }
+          // DB 원본 데이터만 세팅 (상세 파싱은 모달 오픈 시 지연 실행)
+          r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
+          r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
+          r.is_parsed = false; // 파싱 여부 캐싱 플래그
 
           this.data[id] = r;
           this.listOrder.push(id);
-        }));
+        });
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-
       } catch (e) { console.error("[REVIEW-IT] 데이터 처리 에러:", e); }
     },
 
@@ -301,7 +290,11 @@
             <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
           </div>
        </div>
-       <div class="rit-modal-body">
+       <div class="rit-modal-body" style="position:relative;">
+          <!-- 이전/다음 컨트롤러 (미니멀 화살표) -->
+          <button class="rit-nav-btn rit-nav-prev" onclick="ReviewApp.navigateReview(-1)" style="position:absolute; left:0; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:24px; cursor:pointer; color:#333; z-index:10;">&#10094;</button>
+          <button class="rit-nav-btn rit-nav-next" onclick="ReviewApp.navigateReview(1)" style="position:absolute; right:0; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:24px; cursor:pointer; color:#333; z-index:10;">&#10095;</button>
+
           <div id="ritDetailView" class="rit-flex-container">
             <div id="ritModalImg" class="rit-img-side"></div>
             <div class="rit-txt-side">
@@ -342,81 +335,78 @@
       await this.renderDetail(id);
     },
 
-    // ReviewApp 객체 내의 관련 함수를 아래 내용으로 교체/보완하세요.
-
+    // 3. renderDetail 교체: 지연 로딩(Lazy Fetch) 적용 및 현재 ID 트래킹
     async renderDetail(id) {
+      this.currentReviewId = id; // 네비게이션을 위한 현재 ID 저장
       const d = this.data[id];
-      const modal = document.getElementById('ritModal');
       const imgSide = document.getElementById('ritModalImg');
       const contentSide = document.getElementById('ritContent');
 
-      // 초기화 및 로딩 표시
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
-      contentSide.innerHTML = '<div class="rit-loading">내용을 읽어오는 중입니다...</div>';
 
-      // [수정] 분리 추출된 이미지(all_images) 렌더링
+      // 파싱 전 로딩 처리
+      contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
+
+      // 한 번도 파싱하지 않은 리뷰일 경우에만 fetch 실행
+      if (!d.is_parsed) {
+        const separateData = await this._fetchAndSeparateContent(d.article_no);
+        if (separateData) {
+          d.clean_text_body = separateData.text || d.content;
+          d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
+        }
+        d.is_parsed = true; // 완료 캐싱
+      }
+
+      // 이미지 렌더링
       if (d.all_images && d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
         imgSide.innerHTML = `
       <div class="swiper rit-modal-swiper">
         <div class="swiper-wrapper">
-          ${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}" alt="review-image"></div>`).join('')}
+          ${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}" alt="review"></div>`).join('')}
         </div>
         <div class="rit-fraction"></div>
-        <div class="swiper-button-next"></div>
-        <div class="swiper-button-prev"></div>
+        <div class="swiper-button-next"></div><div class="swiper-button-prev"></div>
       </div>`;
-
         if (window.Swiper) {
           setTimeout(() => {
             new Swiper('.rit-modal-swiper', {
               pagination: { el: '.rit-fraction', type: 'fraction' },
               navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
-              centeredSlides: true,
-              autoHeight: false, // 높이 자동 조절 해제 (요동 방지)
-              loop: d.all_images.length > 1,
-              speed: 400, // 전환 속도를 부드럽게
-              watchOverflow: true
+              centeredSlides: true, loop: d.all_images.length > 1
             });
           }, 50);
         }
-
       } else {
-        // 이미지가 없는 경우 기본 이미지 혹은 안내 문구
         imgSide.innerHTML = `<div class="rit-no-image"><span>REVIEW-IT</span></div>`;
       }
 
-      // [수정] 메타 정보 (이름, 날짜, 별점, 조회수) - 감각적 레이아웃
-      // d.hit_count 또는 d.hit 등 DB 컬럼명에 맞춰 수정하세요.
+      // 텍스트 및 메타 렌더링
       const hits = d.hit_count || d.hit || Math.floor(Math.random() * 50) + 1;
-
       document.getElementById('ritMetaArea').innerHTML = `
-    <div class="rit-meta-container">
-      <div class="rit-meta-top">
-        <div class="rit-meta-bottom">
-          <span class="rit-author">${this.maskName(d.writer)}</span>
-          <span class="rit-sep"></span>
-          <span class="rit-date">${d.created_at.split('T')[0]}</span>
-        </div>
-        <div class="rit-stars-gold">
-          <img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img">
-          <span class="rit-star-num">${d.stars || 5}.0</span>
-        </div>
-        <div class="rit-meta-stats">
-          <span class="rit-stat-item"><i class="rit-icon-eye"></i> ${hits}</span>
-        </div>
-      </div>
-    </div>
-  `;
-
+        <div class="rit-meta-container">
+          <div class="rit-meta-top">
+            <span class="rit-author">${this.maskName(d.writer)}</span> <span class="rit-date">${d.created_at.split('T')[0]}</span>
+            <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
+          </div>
+        </div>`;
       document.getElementById('ritSubject').innerText = d.subject;
-
-      // 파싱된 데이터가 있으면 그것을 쓰고, 없으면 DB의 content를 사용
-      setTimeout(() => {
-        contentSide.innerHTML = d.clean_text_body || d.content || "리뷰 본문 내용이 없습니다.";
-      }, 100);
+      contentSide.innerHTML = d.clean_text_body || "본문이 없습니다.";
 
       this.loadComments(d.article_no);
+    },
+    // 4. 신규 함수: 이전/다음 리뷰 탐색 (단순 배열 인덱스 활용)
+    navigateReview(direction) {
+      const currentIndex = this.listOrder.indexOf(this.currentReviewId);
+      if (currentIndex === -1) return;
+
+      let nextIndex = currentIndex + direction;
+      // 끝에 도달하면 처음/마지막으로 루프 처리
+      if (nextIndex < 0) nextIndex = this.listOrder.length - 1;
+      if (nextIndex >= this.listOrder.length) nextIndex = 0;
+
+      // 다음 리뷰 렌더링
+      this.renderDetail(this.listOrder[nextIndex]);
     },
 
     toggleGrid() {
