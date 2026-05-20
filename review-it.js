@@ -1,7 +1,7 @@
 /**
  * @Project: Review-It Universal Collector Engine
- * @Version: v9.6 (Precision Parsing Edition)
- * @Goal: 닉네임 마스킹 방지, 날짜 정밀 수집, 별점 파싱
+ * @Version: v1.0.0
+ * @Goal: 
  */
 (function (window) {
   const getDynamicConfig = () => {

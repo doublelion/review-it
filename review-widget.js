@@ -1,7 +1,6 @@
 /**
- * @Project: Review-It Universal Widget Engine v9.5 (Ultimate Parsing Edition)
- * @Update: 이미지/텍스트 정밀 분리 로직, 상세페이지 상품 타겟팅, 카페24 구버전 Swiper 호환
- * @Philosophy: "Install & Forget" - 데이터 수집과 완벽한 렌더링
+ * @Project: Review-It Universal Widget Engine v1.0.0
+ * @Update: 
  */
 (function (window) {
   const getDynamicConfig = () => {
