@@ -253,19 +253,23 @@
           return {
             slidesPerView: isPc ? pcCols : moCols,
             spaceBetween: isPc ? 20 : 12,
-            loop: reviews.length > 5,
+            loop: true, // 무한 루프를 위해 필수
+            speed: 5000, // 전환 속도를 매우 길게 설정하여 아주 천천히 흐르게 함
+
+            // --- 가장 자연스러운 흐름을 위한 설정 ---
+            autoplay: {
+              delay: 0, // 멈추는 시간 없이 즉시 전환
+              disableOnInteraction: false, // 고객이 터치해도 다시 자동으로 흐름
+              pauseOnMouseEnter: true, // 마우스 올리면 정지(가독성)
+              waitForTransition: false
+            },
+            allowTouchMove: true, // 고객이 직접 넘겨볼 수 있음
+            grabCursor: true,
+            // ------------------------------------
+
             observer: true,
             observeParents: true,
-            roundLengths: true,
-
-            // --- 부드러운 오토플레이 추가 설정 ---
-            autoplay: {
-              delay: 3000,           // 3초마다 전환 (리뷰를 읽을 시간을 충분히 제공)
-              disableOnInteraction: false, // 사용자가 드래그해도 오토플레이가 유지됨
-              pauseOnMouseEnter: true     // 마우스 오버 시 멈춤 (리뷰 가독성 향상)
-            },
-            speed: 1000,             // 전환 속도 1초 (기본 300ms보다 부드러움)
-            // -----------------------------------
+            roundLengths: true
           };
         };
 
