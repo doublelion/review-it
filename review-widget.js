@@ -153,68 +153,31 @@
         this.data = {};
         this.listOrder = [];
 
-        list.slice(0, this.settings.display_limit).forEach(r => {
+        await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
           const id = String(r.id);
-          r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
 
-          let validImages = [];
+          // 1. 실시간 파싱 시도
+          const separateData = await this._fetchAndSeparateContent(r.article_no);
 
-          // [STEP 1] DB image_urls 파싱 및 필터링 강화
-          try {
-            let urls = r.image_urls;
-
-            // 1. JSON 문자열 방어 (이스케이프 문자열로 들어올 경우)
-            if (typeof urls === 'string' && urls.startsWith('[')) urls = JSON.parse(urls);
-            // 2. 단일 URL 문자열 방어 (구버전 호환)
-            else if (typeof urls === 'string' && urls.startsWith('http')) urls = [urls];
-            else if (!urls && r.image_url) urls = [r.image_url];
-
-            // 3. 정상 배열 필터링
-            if (Array.isArray(urls)) {
-              validImages = urls.filter(u =>
-                u && typeof u === 'string' &&
-                u.trim() !== '' &&
-                !u.includes('noimg') && // 기본 이미지 찌꺼기 방지
-                !CONFIG.SPAM_KEYWORDS.test(u)
-                // 주의: 카페24는 일반 이미지도 gif로 썸네일을 생성하는 경우가 있어 .gif 필터링은 일단 제외하거나 신중히 적용해야 합니다.
-              );
-            }
-          } catch (e) {
-            console.warn("[REVIEW-IT] DB 이미지 데이터 파싱 오류:", e);
+          if (separateData) {
+            // [핵심 보정] 이미지가 없더라도 텍스트 파싱 결과가 있다면 무조건 반영
+            r.clean_text_body = separateData.text || r.content;
+            r.all_images = (separateData.images && separateData.images.length > 0)
+              ? separateData.images
+              : (r.image_url ? [r.image_url] : [CONFIG.DEFAULT_IMG]);
+          } else {
+            // 파싱 자체가 실패한 경우 DB 데이터 사용
+            r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
+            r.all_images = (r.image_url) ? [r.image_url] : [CONFIG.DEFAULT_IMG];
           }
-
-          // [STEP 2] 🚨 방어 로직: DB 파싱 후에도 이미지가 없다면, r.content(본문)에서 이미지 직접 구출
-          if (validImages.length === 0 && r.content) {
-            try {
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = r.content;
-              const imgs = tempDiv.querySelectorAll('img');
-
-              imgs.forEach(img => {
-                let src = img.getAttribute('src');
-                if (src && !CONFIG.SPAM_KEYWORDS.test(src) && !src.includes('noimg')) {
-                  // 상대 경로를 절대 경로로 보정
-                  const finalSrc = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
-                  validImages.push(finalSrc);
-                }
-              });
-            } catch (e) {
-              console.warn("[REVIEW-IT] 본문 이미지 추출 실패:", e);
-            }
-          }
-
-          // 최종 판단: 강제 추출까지 거쳤는데도 없으면 그때 DEFAULT_IMG 적용
-          r.all_images = validImages.length > 0 ? validImages : [CONFIG.DEFAULT_IMG];
-          r.is_parsed = false;
 
           this.data[id] = r;
           this.listOrder.push(id);
-        });
+        }));
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-      } catch (e) {
-        console.error("[REVIEW-IT] 데이터 처리 에러:", e);
-      }
+
+      } catch (e) { console.error("[REVIEW-IT] 데이터 처리 에러:", e); }
     },
 
     renderWidget() {
