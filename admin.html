@@ -59,6 +59,7 @@
       color: #fff;
     }
 
+    /* 버튼 정리 */
     .btn-save-main {
       background: #2563eb;
       color: white;
@@ -196,31 +197,22 @@
     const itemsPerPage = 15;
     let currentSearchKeyword = '';
 
-    // 💡 [핵심 수정] 어드민 리스트 썸네일도 jsonb 배열 텍스트 꼬임에 완벽히 대응하도록 파싱 로직 강화
-    function getCleanThumbnail(rawUrls) {
-      if (!rawUrls) return null;
+    // 이미지 필터링
+    function getCleanThumbnail(imageUrls) {
+      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) return null;
 
-      let urls = rawUrls;
-      try {
-        if (typeof urls === 'string') {
-          if (urls.trim().startsWith('[')) urls = JSON.parse(urls);
-          else if (urls.trim() !== '') urls = [urls]; // 단일 URL 텍스트인 경우
-        }
-      } catch (e) {
-        console.warn("어드민 이미지 파싱 오류:", e);
-      }
-
-      if (!Array.isArray(urls) || urls.length === 0) return null;
-
+      // 카페24 시스템용 아이콘 스팸 키워드 확장 (.gif나 별모양 디자인 전체 차단)
       const spamKeywords = /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty|ico_point|ico_review/i;
-      const validImg = urls.find(url => {
+
+      const validImg = imageUrls.find(url => {
         if (!url || typeof url !== 'string') return false;
         return !spamKeywords.test(url) && !url.toLowerCase().includes('.gif');
       });
 
-      return validImg || null;
+      return validImg || null; // 가짜 이미지만 있다면 깨진 이미지 대신 null 반환
     }
 
+    // 설정 로드: DB의 줄 수 및 노출 개수를 UI에 반영
     async function loadSettings() {
       try {
         const res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
@@ -242,13 +234,12 @@
       } catch (err) { console.error("설정 로드 실패:", err); }
     }
 
-    // 💡 [수정완료] GET -> PATCH/POST 분기 로직을 버리고, Supabase의 강력한 Upsert 기능으로 교체
+    // 설정 저장: 모든 설정값 통합 전송 및 알럿 추가
     async function saveHeaderSettings(targetType = null) {
       try {
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
 
-        // 1단계: 부모 테이블(active_malls)에 mall_id가 무조건 존재하도록 선제적 업서트 
-        // (스크린샷 우측의 409 외래키 충돌 에러 원천 차단)
+        // 💡 [수정완료] 핵심 보충: 기존 stores 대신 바뀐 active_malls 테이블을 찌르도록 변경 (404 에러 원천 차단)
         await fetch(`${SB_URL}/active_malls?on_conflict=mall_id`, {
           method: 'POST',
           headers: {
@@ -260,7 +251,7 @@
           body: JSON.stringify({ mall_id: MALL_ID, status: 'active' }) // 기본 상태를 active로 업서트
         });
 
-        // 2단계: 입력된 텍스트와 설정값들을 수집 (타이틀, 제목, 상세설명 모두 포함)
+        // 2단계: 기존 설정 저장 로직 실행
         const payload = {
           mall_id: MALL_ID,
           display_type: currentType,
@@ -272,14 +263,13 @@
           display_limit: parseInt(document.getElementById('input-limit').value)
         };
 
-        // 3단계: widget_settings 테이블에 Upsert (있으면 덮어쓰고, 없으면 새로 생성)
         const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
           method: 'POST',
           headers: {
             'apikey': SB_KEY,
             'Authorization': `Bearer ${SB_KEY}`,
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates' // 이것이 핵심입니다.
+            'Prefer': 'resolution=merge-duplicates'
           },
           body: JSON.stringify(payload)
         });
@@ -288,11 +278,10 @@
           if (!targetType) alert('✅ 설정이 안전하게 저장되었습니다.\n쇼핑몰 위젯에 즉시 반영됩니다.');
         } else {
           const errRes = await res.json();
-          throw new Error(errRes.message || '데이터베이스 저장 실패');
+          throw new Error(errRes.message);
         }
       } catch (err) {
-        alert('❌ 저장 중 오류 발생: ' + err.message + '\n\n* DB 정책 문제가 지속되면 알려주세요.');
-        console.error("[REVIEW-IT ADMIN ERROR]", err);
+        alert('❌ 저장 중 오류 발생: ' + err.message);
       }
     }
 
@@ -301,6 +290,7 @@
       await saveHeaderSettings(type);
     }
 
+    // 리뷰 데이터 로딩 및 리스트 렌더링
     async function loadAdminData() {
       try {
         const from = currentPage * itemsPerPage;
@@ -329,6 +319,7 @@
         const thumbnail = getCleanThumbnail(rv.image_urls);
         const displayImg = thumbnail ? thumbnail : 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg';
 
+        // 데이터베이스 내부의 알맹이글 파싱 처리
         const rawContent = rv.content ? rv.content.replace(/<[^>]*>?/gm, '') : '';
         const displayContent = rawContent.trim() ? rawContent : '본문 내용이 없는 리뷰입니다.';
 
@@ -375,18 +366,24 @@
       const target = document.getElementById(`btn-${type}`);
       if (target) target.classList.add('active');
     }
-
     async function toggleVisibility(id, currentStatus) {
       try {
         const res = await fetch(`${SB_URL}/reviews?id=eq.${id}&mall_id=eq.${MALL_ID}`, {
           method: 'PATCH',
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({ is_visible: !currentStatus })
         });
         if (res.ok) loadAdminData();
-      } catch (err) { console.error("노출 상태 변경 실패:", err); }
+      } catch (err) {
+        console.error("노출 상태 변경 실패:", err);
+      }
     }
 
+    // 인증 여부를 체크하는 함수
     const AUTH_SIG = params.get('auth_sig');
     function checkAuthentication() {
       if (!AUTH_SIG && window.location.hostname !== 'localhost') {
