@@ -137,7 +137,7 @@
       }
     },
 
-    // 1. loadReviews 교체: 최초 로드 시 불필요한 파싱 제거 (초고속 렌더링)
+    // 1. loadReviews 교체: 메인페이지 이미지 깨짐(매핑 실패) 완벽 해결
     async loadReviews() {
       try {
         let apiUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
@@ -155,10 +155,15 @@
 
         list.slice(0, this.settings.display_limit).forEach(r => {
           const id = String(r.id);
-          // DB 원본 데이터만 세팅 (상세 파싱은 모달 오픈 시 지연 실행)
           r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
-          r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
-          r.is_parsed = false; // 파싱 여부 캐싱 플래그
+
+          // [수정] DB 스키마(image_url vs image_urls) 호환성 완벽 대응
+          let validImages = [];
+          if (Array.isArray(r.image_urls) && r.image_urls.length > 0) validImages = r.image_urls;
+          else if (r.image_url) validImages = [r.image_url];
+
+          r.all_images = validImages.length > 0 ? validImages : [CONFIG.DEFAULT_IMG];
+          r.is_parsed = false;
 
           this.data[id] = r;
           this.listOrder.push(id);
@@ -266,6 +271,7 @@
       this.initModal();
     },
 
+    // 2. initModal 교체: 화살표를 모달 밖으로 빼고 4배(60px)로 확대
     initModal() {
       let modalContainer = document.getElementById('ritModal');
       if (modalContainer) return;
@@ -276,6 +282,10 @@
       modalContainer.style.display = 'none';
       modalContainer.innerHTML = `
     <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
+    
+    <button class="rit-nav-btn rit-nav-prev" onclick="ReviewApp.navigateReview(-1)" style="position:fixed; left:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10094;</button>
+    <button class="rit-nav-btn rit-nav-next" onclick="ReviewApp.navigateReview(1)" style="position:fixed; right:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10095;</button>
+
     <div class="rit-modal-window">
        <div class="rit-modal-header">
           <span class="rit-logo-text">${CONFIG.MALL_NAME}</span>
@@ -290,11 +300,7 @@
             <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
           </div>
        </div>
-       <div class="rit-modal-body" style="position:relative;">
-          <!-- 이전/다음 컨트롤러 (미니멀 화살표) -->
-          <button class="rit-nav-btn rit-nav-prev" onclick="ReviewApp.navigateReview(-1)" style="position:absolute; left:0; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:24px; cursor:pointer; color:#333; z-index:10;">&#10094;</button>
-          <button class="rit-nav-btn rit-nav-next" onclick="ReviewApp.navigateReview(1)" style="position:absolute; right:0; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:24px; cursor:pointer; color:#333; z-index:10;">&#10095;</button>
-
+       <div class="rit-modal-body">
           <div id="ritDetailView" class="rit-flex-container">
             <div id="ritModalImg" class="rit-img-side"></div>
             <div class="rit-txt-side">
@@ -419,7 +425,7 @@
       } else { gv.classList.add('rit-hidden'); }
     },
 
-    // 댓글 엔진 (v9.5 계승)
+    // 3. loadComments 교체: 게시글 번호(articleNo)를 렌더러로 전달
     async loadComments(articleNo) {
       const commContainer = document.getElementById('ritCommList');
       if (!commContainer) return;
@@ -439,39 +445,41 @@
           return { writer, content, date };
         }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호'));
 
-        this.renderComments(comments);
+        // [수정] 원문 링크 생성을 위해 articleNo 같이 넘김
+        this.renderComments(comments, articleNo);
       } catch (e) { commContainer.innerHTML = ''; }
     },
 
-    renderComments(comments) {
+    // 4. renderComments 교체: 원문보기 링크 추가 및 담당자 ID 마스킹 해제
+    renderComments(comments, articleNo) {
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
+      const detailUrl = `/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`;
+
+      // [수정] 요청하신 원문보기 HTML 디자인 적용 (헤더 부분)
+      const headerHtml = `
+        <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:flex-end;">
+          <h4 style="font-size:11px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#111; margin:0;">Comments <span style="color:#999; font-weight:normal;">(${comments.length})</span></h4>
+          <a href="${detailUrl}" target="_blank" style="font-size:10px; color:#999; text-decoration:underline; text-underline-offset:4px;">리뷰 원문보기</a>
+        </div>
+      `;
+
       if (comments.length === 0) {
-        container.innerHTML = `
-      <div class="rit-no-comm" style="margin-top:30px; padding:20px; text-align:center; border-top:1px solid #f2f2f2;">
-        <p style="font-size:13px; color:#bbb; font-weight:400; margin:0; letter-spacing:-0.5px;">
-          운영자가 소식 확인 중입니다.<br>정성스러운 답변으로 곧 찾아뵐게요!
-        </p>
-      </div>`;
+        container.innerHTML = headerHtml + `
+        <div class="rit-no-comm" style="margin-top:10px; padding:20px; text-align:center;">
+          <p style="font-size:12px; color:#bbb; font-weight:400; margin:0; letter-spacing:-0.5px;">
+            운영자가 소식 확인 중입니다.<br>정성스러운 답변으로 곧 찾아뵐게요!
+          </p>
+        </div>`;
         return;
       }
 
-      container.innerHTML = `
-    <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px;">
-      <span style="font-weight:800; font-size:13px; color:#333;">COMMENT (${comments.length})</span>
-    </div>
-    ${comments.map(c => {
-        const isAdmin = CONFIG.ADMIN_KEYWORDS.some(k => c.writer.includes(k));
-
-        const displayName = isAdmin ? c.writer : this.maskName(c.writer);
-
-        const bgStyle = isAdmin
-          ? 'background:#fcf8f2; border:1px solid #f3e9d9;'
-          : 'background:#f9f9f9; border:1px solid transparent;';
-
-        const label = isAdmin ? '<span style="color:#b38a58; font-weight:800; margin-right:5px;">[SHOP]</span>' : '';
-        const textColor = isAdmin ? '#333' : '#555';
+      container.innerHTML = headerHtml + comments.map(c => {
+        // [수정] 답변은 모두 담당자이므로 마스킹(maskName) 처리 제거 (원본 그대로 노출)
+        const displayName = c.writer;
+        const bgStyle = 'background:#f9f9f9; border:1px solid transparent;';
+        const label = '<span style="color:#111; font-weight:800; margin-right:5px;">[SHOP]</span>';
 
         return `
         <div class="rit-comm-item" style="margin-bottom:10px; ${bgStyle} padding:14px; border-radius:10px; font-size:12px;">
@@ -479,12 +487,12 @@
             <span style="color:#111;">${label}${displayName}</span>
             <span style="font-weight:400; color:#bbb; font-size:11px;">${c.date}</span>
           </div>
-          <div style="color:${textColor}; font-weight:${isAdmin ? '500' : '400'}">${c.content}</div>
+          <div style="color:#444; font-weight:400; line-height:1.5;">${c.content}</div>
         </div>
       `;
-      }).join('')}`;
+      }).join('');
     },
-
+    
     closeModal() {
       document.getElementById('ritModal').style.display = 'none';
       document.body.style.cssText = "";
