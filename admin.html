@@ -143,7 +143,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Tagline (상단 소제목)</label>
-              <input type="text" id="input-tagline" placeholder="예: CUSTOMER REVIEW"
+              <input type="text" id="input-tagline" placeholder="예: Verified Authenticity"
                 class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none">
             </div>
             <div>
@@ -243,7 +243,7 @@
           refreshSettingUI(s.display_type || 'grid');
         } else {
           // DB에 설정이 없는 최초 상태일 경우 UI 빈칸 방지 (기본값 세팅)
-          document.getElementById('input-tagline').value = 'REVIEW-IT';
+          document.getElementById('input-tagline').value = 'Verified Authenticity';
           document.getElementById('input-title').value = 'People Choice';
           document.getElementById('input-description').value = '당신의 선택에 확신을 더하는 기록 텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.';
           refreshSettingUI('grid');
