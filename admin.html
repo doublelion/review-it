@@ -242,11 +242,25 @@
       } catch (err) { console.error("설정 로드 실패:", err); }
     }
 
-    // 💡 RLS 충돌을 피하기 위한 GET -> PATCH / POST 분기 로직 (완벽하게 다듬어짐)
+    // 💡 [수정완료] GET -> PATCH/POST 분기 로직을 버리고, Supabase의 강력한 Upsert 기능으로 교체
     async function saveHeaderSettings(targetType = null) {
       try {
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
 
+        // 1단계: 부모 테이블(active_malls)에 mall_id가 무조건 존재하도록 선제적 업서트 
+        // (스크린샷 우측의 409 외래키 충돌 에러 원천 차단)
+        await fetch(`${SB_URL}/active_malls?on_conflict=mall_id`, {
+          method: 'POST',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({ mall_id: MALL_ID, status: 'active' }) // 기본 상태를 active로 업서트
+        });
+
+        // 2단계: 입력된 텍스트와 설정값들을 수집 (타이틀, 제목, 상세설명 모두 포함)
         const payload = {
           mall_id: MALL_ID,
           display_type: currentType,
@@ -258,34 +272,26 @@
           display_limit: parseInt(document.getElementById('input-limit').value)
         };
 
-        const checkRes = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+        // 3단계: widget_settings 테이블에 Upsert (있으면 덮어쓰고, 없으면 새로 생성)
+        const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
+          method: 'POST',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates' // 이것이 핵심입니다.
+          },
+          body: JSON.stringify(payload)
         });
-        const existingData = await checkRes.json();
-
-        let res;
-        if (existingData && existingData.length > 0) {
-          res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
-            method: 'PATCH',
-            headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-        } else {
-          res = await fetch(`${SB_URL}/widget_settings`, {
-            method: 'POST',
-            headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-        }
 
         if (res.ok) {
           if (!targetType) alert('✅ 설정이 안전하게 저장되었습니다.\n쇼핑몰 위젯에 즉시 반영됩니다.');
         } else {
           const errRes = await res.json();
-          throw new Error(errRes.message || '데이터베이스 권한 거부');
+          throw new Error(errRes.message || '데이터베이스 저장 실패');
         }
       } catch (err) {
-        alert('❌ 저장 중 오류 발생: ' + err.message + '\n\n* DB 정책(RLS) 업데이트가 필요할 수 있습니다.');
+        alert('❌ 저장 중 오류 발생: ' + err.message + '\n\n* DB 정책 문제가 지속되면 알려주세요.');
         console.error("[REVIEW-IT ADMIN ERROR]", err);
       }
     }
