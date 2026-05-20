@@ -24,6 +24,16 @@
   const CONFIG = getDynamicConfig();
 
   async function sync() {
+    const lastSync = localStorage.getItem('rit_last_sync');
+    const now = new Date().getTime();
+    const COOLDOWN_MS = 1000 * 60 * 60; // 1시간 쿨타임
+
+    // 최근 1시간 이내에 동기화를 했다면 실행 취소
+    if (lastSync && (now - parseInt(lastSync) < COOLDOWN_MS)) {
+      console.log(`⏳ [REVIEW-IT] 동기화 쿨타임 대기 중입니다.`);
+      return;
+    }
+
     console.log(`🚀 [REVIEW-IT] ${CONFIG.mallId} 상점 데이터 동기화 시작...`);
 
     const items = document.querySelectorAll(`
@@ -85,6 +95,11 @@
       return;
     }
 
+    // 배열 크기 제한 (한 번에 최대 20개까지만 수집하여 부하 방지)
+    const limitedPayload = payload.slice(0, 20);
+
+    if (limitedPayload.length === 0) return;
+
     try {
       const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
         method: 'POST',
@@ -94,7 +109,7 @@
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(limitedPayload)
       });
 
       if (res.ok) {

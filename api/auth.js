@@ -2,11 +2,9 @@
 const crypto = require('crypto');
 
 // 카페24 개발자 센터에서 발급받은 App Secret Key (Vercel 환경변수에 등록 권장)
-const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET || 'XBhpYBU5I5GkmiFQljubyC';
-
-// Supabase 정보 (Vercel 환경변수에 등록 권장)
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ozxnynnntkjjjhyszbms.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt';
+const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 // api/auth.js 중 일부 수정
 module.exports = async (req, res) => {
