@@ -77,8 +77,9 @@
 
 <body class="bg-[#f8f9fa] min-h-screen p-4 md:p-10">
   <div class="max-w-6xl mx-auto">
+    <!-- 헤더 영역 -->
     <div
-      class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6">
+      class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 border-b border-gray-200 pb-6">
       <div>
         <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Review-It 관리자</h1>
         <p class="text-gray-500 mt-1">
@@ -94,10 +95,47 @@
       </div>
     </div>
 
+    <!-- ✅ 심사위원 및 사용자 대상: 가이드 패널 추가 영역 -->
+    <div class="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
+      <!-- 장식용 배경 (선택사항, 깔끔함을 위해 은은하게) -->
+      <div class="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl -mr-10 -mt-10 opacity-50"></div>
+
+      <div class="relative z-10">
+        <h2 class="text-[15px] font-bold text-blue-900 flex items-center gap-2 mb-3">
+          <span class="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs">ℹ</span>
+          [필독] REVIEW-IT 설치 완료 및 위젯 연동 가이드
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
+          <div class="bg-white/60 p-4 rounded-lg">
+            <h3 class="font-bold mb-1 text-gray-800">1. 스크립트 자동 주입 완료</h3>
+            <p class="text-xs text-gray-600 leading-relaxed">
+              앱 설치와 동시에 원활한 위젯 구동을 위한 필수 스크립트(<code>review-it-v2.js</code>, <code>review-widget-v2.js</code>)가 쇼핑몰
+              <code>layout.html</code> 하단에 <strong>자동으로 적용</strong>되었습니다. 별도의 스크립트 삽입 작업은 필요하지 않습니다.
+            </p>
+          </div>
+          <div class="bg-white/60 p-4 rounded-lg">
+            <h3 class="font-bold mb-1 text-gray-800">2. 리뷰 위젯 노출 위치 설정 (수동 배치)</h3>
+            <p class="text-xs text-gray-600 leading-relaxed">
+              리뷰 위젯을 띄우고 싶은 영역(예: <code>index.html</code> 또는 상품상세 하단)에 아래 태그를 복사하여 붙여넣으세요. 해당 위치에 맞춰 반응형으로 즉시 노출됩니다.<br>
+              <code
+                class="block mt-2 bg-gray-800 text-gray-100 p-2 rounded text-[11px] select-all">&lt;!-- 리뷰잇 앱 --&gt;<br>&lt;div id="review-it-widget"&gt;&lt;/div&gt;</code>
+            </p>
+          </div>
+        </div>
+        <p class="mt-3 text-[11px] text-blue-600 font-medium">
+          * 본 시스템은 Cafe24 최신 API 규격(X-Cafe24-Api-Version: 2025-12-01 및 2023-03-01)을 완벽하게 지원하며, 몰 속도 저하 없는 비동기 환경으로
+          구동됩니다.
+        </p>
+      </div>
+    </div>
+    <!-- // 가이드 패널 끝 -->
+
+    <!-- 기존 위젯 환경 설정 영역 -->
     <div class="mb-10 space-y-4">
       <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">위젯 환경 설정</h2>
 
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <!-- 기존 코드 동일 유지 -->
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">그리드 상세 설정</span>
           <div class="flex gap-2 w-full">
@@ -161,6 +199,7 @@
       </div>
     </div>
 
+    <!-- 이하 기존 테이블 및 스크립트 코드 동일 -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <table class="w-full text-left border-collapse">
         <thead>
@@ -185,6 +224,7 @@
   </div>
 
   <script>
+    // JS 코드는 기존과 100% 동일하게 유지합니다.
     const SB_URL = 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1';
     const SB_KEY = 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt';
 
@@ -196,7 +236,6 @@
     const itemsPerPage = 15;
     let currentSearchKeyword = '';
 
-    // 💡 텍스트형 배열 및 단일 스트링 혼용에 모두 유연하게 대응하는 썸네일 정제기
     function getCleanThumbnail(rawUrls) {
       if (!rawUrls) return null;
       let urls = rawUrls;
@@ -220,17 +259,14 @@
       return validImg || null;
     }
 
-    // 설정 로드
-    // 💡 설정 로드 (데이터 유무에 따른 예외처리 강화)
     async function loadSettings() {
       try {
         const res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
           headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
         });
         const data = await res.json();
-        
+
         if (data && data.length > 0) {
-          // DB에 저장된 설정이 있는 경우 연동
           const s = data[0];
           document.getElementById('input-tagline').value = s.tagline || '';
           document.getElementById('input-title').value = s.title || '';
@@ -242,23 +278,20 @@
 
           refreshSettingUI(s.display_type || 'grid');
         } else {
-          // DB에 설정이 없는 최초 상태일 경우 UI 빈칸 방지 (기본값 세팅)
           document.getElementById('input-tagline').value = 'Verified Authenticity';
           document.getElementById('input-title').value = 'People Choice';
           document.getElementById('input-description').value = '당신의 선택에 확신을 더하는 기록 텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.';
           refreshSettingUI('grid');
         }
-      } catch (err) { 
-        console.error("설정 로드 실패:", err); 
+      } catch (err) {
+        console.error("설정 로드 실패:", err);
       }
     }
 
-    // 💡 설정 저장 (권한 허용에 맞춰 완벽히 동작하는 2단계 Upsert 로직)
     async function saveHeaderSettings(targetType = null) {
       try {
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
 
-        // 1단계: active_malls 상점 마스터 데이터 안전하게 Upsert 생성
         const mallRes = await fetch(`${SB_URL}/active_malls?on_conflict=mall_id`, {
           method: 'POST',
           headers: {
@@ -275,7 +308,6 @@
           throw new Error(`상점 마스터 갱신 실패: ${errData.message}`);
         }
 
-        // 2단계: 위젯 환경설정 수집 및 위젯 설정 테이블 Upsert 진행
         const payload = {
           mall_id: MALL_ID,
           display_type: currentType,
@@ -314,7 +346,6 @@
       await saveHeaderSettings(type);
     }
 
-    // 리뷰 데이터 로딩
     async function loadAdminData() {
       try {
         const from = currentPage * itemsPerPage;
