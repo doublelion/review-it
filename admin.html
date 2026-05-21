@@ -377,6 +377,11 @@
         const rawContent = rv.content ? rv.content.replace(/<[^>]*>?/gm, '') : '';
         const displayContent = rawContent.trim() ? rawContent : '본문 내용이 없는 리뷰입니다.';
 
+        // [핵심 패치 1] 별점 데이터 방어 및 시각화 로직 추가
+        const starCount = rv.stars ?? 5; // || 대신 ?? 를 사용하여 0점 오류 방어
+        const activeStars = '★'.repeat(starCount);
+        const inactiveStars = '☆'.repeat(5 - starCount);
+
         return `
         <tr class="hover:bg-blue-50/30 transition-colors">
           <td class="p-5 font-semibold text-gray-700 text-sm">${rv.writer || '익명'}</td>
@@ -392,14 +397,15 @@
             </div>
           </td>
           <td class="p-5 text-center">
-            <div class="inline-flex items-center px-2 py-1 bg-amber-50 rounded-md">
-              <span class="text-amber-500 text-xs mr-1">★</span>
-              <span class="text-amber-700 font-bold text-sm">${rv.stars || 5}</span>
+            <!-- [핵심 패치 2] 직관적인 별점 렌더링 UI 적용 -->
+            <div class="inline-flex items-center px-3 py-1.5 bg-amber-50 rounded-md shadow-sm border border-amber-100">
+              <span class="text-amber-500 text-sm tracking-widest">${activeStars}<span class="text-amber-200">${inactiveStars}</span></span>
+              <span class="ml-2 text-amber-800 font-bold text-sm">${starCount}.0</span>
             </div>
           </td>
           <td class="p-5 text-center">
             <button onclick="toggleVisibility('${rv.id}', ${rv.is_visible})" 
-              class="w-24 py-2 rounded-full text-[11px] font-black transition-all ${rv.is_visible ? 'bg-blue-600 text-white' : 'bg-white border text-gray-400'}">
+              class="w-24 py-2 rounded-full text-[11px] font-black transition-all shadow-sm ${rv.is_visible ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border text-gray-500 hover:bg-gray-50'}">
               ${rv.is_visible ? '노출중' : '대기중'}
             </button>
           </td>

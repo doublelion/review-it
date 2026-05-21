@@ -77,6 +77,16 @@
       let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
       let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
 
+      // [핵심 패치] 리스트에서 별점 이미지 찾아서 숫자 추출
+      let extractedStar = 5; // 기본값
+      const starImg = el.querySelector('img[src*="icon-star-rating"]');
+      if (starImg) {
+        const match = starImg.getAttribute('src').match(/icon-star-rating(\d+)/);
+        if (match && match[1]) {
+          extractedStar = parseInt(match[1], 10);
+        }
+      }
+
       payload.push({
         mall_id: CONFIG.mallId,
         article_no: String(articleNo),
@@ -84,7 +94,7 @@
         subject: link.innerText.trim() || "포토 리뷰입니다.",
         content: "본문을 불러오는 중입니다...",
         writer: cleanWriter || "고객",
-        stars: 5,
+        stars: extractedStar, // 하드코딩 5에서 동적 추출 값으로 변경
         image_urls: thumbUrl ? [thumbUrl] : [],
         is_visible: true
       });

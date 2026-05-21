@@ -100,17 +100,28 @@
     // 이미지와 텍스트 분리 로직 강화
     async _fetchAndSeparateContent(articleNo) {
       try {
-        // 1. 카페24 상세글 fetch 시도
         const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
         if (!res.ok) throw new Error("Network response was not ok");
 
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
+        // [긴급 패치] 별점 이미지에서 숫자 파싱
+        let extractedStar = null;
+        const starImg = doc.querySelector('img[src*="icon-star-rating"]');
+        if (starImg) {
+          // icon-star-rating2.svg 에서 '2' 추출
+          const match = starImg.src.match(/icon-star-rating(\d+)/);
+          if (match && match[1]) {
+            extractedStar = parseInt(match[1], 10);
+          }
+        }
+
         // 셀렉터 확장 (카페24 구버전/신버전/커스텀 스킨 대응)
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail, .v2-board-read-content');
 
-        if (!contentArea) return { images: [], text: "" };
+        // contentArea가 없더라도 별점은 찾았을 수 있으므로 별점도 반환
+        if (!contentArea) return { images: [], text: "", star: extractedStar };
 
         const extractedImages = [];
         // 이미지 태그 및 배경 이미지(style)까지 체크
@@ -128,11 +139,12 @@
 
         return {
           images: extractedImages,
-          text: contentArea.innerHTML.trim()
+          text: contentArea.innerHTML.trim(),
+          star: extractedStar // 별점 데이터 추가 반환
         };
       } catch (e) {
         console.warn("[REVIEW-IT] 상세 페이지 파싱 실패, articleNo:", articleNo, e);
-        return null; // 실패 시 null 반환하여 DB 데이터 쓰도록 유도
+        return null;
       }
     },
 
@@ -164,6 +176,11 @@
             r.all_images = (separateData.images && separateData.images.length > 0)
               ? separateData.images
               : (r.image_url ? [r.image_url] : [CONFIG.DEFAULT_IMG]);
+
+            // [긴급 패치] 파싱된 별점이 존재하면 DB 값을 실시간으로 덮어씀
+            if (separateData.star !== null && !isNaN(separateData.star)) {
+              r.stars = separateData.star;
+            }
           } else {
             // 파싱 자체가 실패한 경우 DB 데이터 사용
             r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
