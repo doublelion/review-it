@@ -21,7 +21,8 @@ module.exports = async (req, res) => {
     // =====================================================================
     const redirectToAuth = () => {
       console.log(`[설치/재설치 시작] ${mall_id} 상점을 권한 요청 화면으로 이동시킵니다.`);
-      const state = crypto.randomBytes(16).toString('hex');
+      // const state = crypto.randomBytes(16).toString('hex');
+      const state = mall_id;
       const authUrl = `https://${mall_id}.cafe24api.com/api/v2/oauth/authorize?response_type=code&client_id=${CAFE24_CLIENT_ID}&state=${state}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(CAFE24_SCOPE)}`;
       return res.redirect(authUrl);
     };

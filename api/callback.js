@@ -1,6 +1,3 @@
-// 💡 [수정 완료] node-fetch 관련 require 코드를 완전히 제거했습니다. 
-// Vercel 자체 내장 fetch가 자동으로 작동하므로 에러가 발생하지 않습니다.
-
 const CAFE24_CLIENT_ID = process.env.CAFE24_CLIENT_ID;
 const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -9,11 +6,13 @@ const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
 module.exports = async (req, res) => {
   try {
-    const { code, mall_id } = req.query;
+    // 💡 수정 핵심: 카페24가 돌려준 state 값을 mall_id로 사용합니다!
+    const { code, state } = req.query;
+    const mall_id = state; 
 
     if (!code || !mall_id) {
       console.error('콜백 파라미터 누락:', req.query);
-      return res.status(400).send('인증 코드 또는 쇼핑몰 ID가 누락되었습니다.');
+      return res.status(400).send('인증 코드 또는 쇼핑몰 ID(state)가 누락되었습니다.');
     }
 
     // 1. 카페24에 Access Token 발급 요청
@@ -40,12 +39,11 @@ module.exports = async (req, res) => {
     }
 
     // =================================================================
-    // 💡 대표님이 주신 SQL 테이블(active_malls) 구조에 맞춰 토큰을 DB에 저장합니다.
+    // 💡 DB에 토큰 및 상점 상태(active) 저장
     // =================================================================
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token;
 
-    // 만료 시간 계산 (현재 시간 + 카페24가 준 유효 초)
     const expiresAt = new Date(Date.now() + tokenData.expires_at * 1000).toISOString();
     const refreshExpiresAt = new Date(Date.now() + tokenData.refresh_token_expires_at * 1000).toISOString();
 
@@ -55,7 +53,7 @@ module.exports = async (req, res) => {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${SUPABASE_KEY}`,
         'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates' // 이미 테이블에 mall_id가 있으면 업데이트(UPSERT)
+        'Prefer': 'resolution=merge-duplicates'
       },
       body: JSON.stringify({
         mall_id: mall_id,
