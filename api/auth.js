@@ -8,7 +8,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 // 💡 필수 추가: 우리 앱의 권한 스코프 (카페24 앱 설정에 등록한 것과 동일해야 함)
 // 예시: 상품 읽기, 리뷰 읽기/쓰기 권한 등
-const CAFE24_SCOPE = 'mall.read_product,mall.read_community,mall.write_community';
+const CAFE24_SCOPE = 'mall.read_product';
 
 // 💡 필수 추가: 카페24에서 권한 승인 후 코드를 보내줄 리다이렉트 주소
 // 대표님이 설정하신 Callback 주소를 사용해야 합니다. 
