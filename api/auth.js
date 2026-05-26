@@ -67,8 +67,8 @@ module.exports = async (req, res) => {
         }
       }
 
-      // 3. Supabase DB에서 진짜 설치된 상태(토큰 유무)인지 확인
-      const dbCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/active_malls?select=access_token&mall_id=eq.${mall_id}`, {
+      // 🚨 [수정된 핵심 로직] 3. DB에서 토큰뿐만 아니라 "status" 상태도 함께 가져와서 검사합니다!
+      const dbCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/active_malls?select=access_token,status&mall_id=eq.${mall_id}`, {
         method: 'GET',
         headers: {
           'apikey': SUPABASE_KEY,
@@ -77,14 +77,26 @@ module.exports = async (req, res) => {
       });
 
       const dbMalls = await dbCheckRes.json();
+      const mallData = dbMalls && dbMalls.length > 0 ? dbMalls[0] : null;
 
-      if (!dbMalls || dbMalls.length === 0 || !dbMalls[0].access_token) {
+      // [방어 1] 앱 정보가 아예 없거나 토큰이 없는 경우 -> 재설치 유도
+      if (!mallData || !mallData.access_token) {
         console.log(`[접근 차단] ${mall_id} - 토큰이 없으므로 재설치를 요구합니다.`);
         return redirectToAuth();
       }
 
-      // 4. 정상 유저라면 접속 기록(updated_at)만 갱신
-      // 💡 [수정 포인트] 주소 뒤에 ?on_conflict=mall_id를 명시하여 중복 에러를 방지합니다.
+      // [방어 2] 결제 만료 또는 앱 삭제로 상태가 inactive인 경우 -> 알럿창 띄우고 뒤로 튕겨냄!
+      if (mallData.status !== 'active') {
+        console.log(`[접근 차단] ${mall_id} - 만료/삭제된 상점(inactive)입니다. 쫓아냅니다.`);
+        return res.status(403).send(`
+          <script>
+            alert("리뷰잇 이용 기간이 만료되었거나 앱이 삭제된 상태입니다.\\n카페24 앱스토어에서 결제 상태를 다시 확인해주세요.");
+            window.history.back();
+          </script>
+        `);
+      }
+
+      // 4. 정상 유저(active)라면 접속 기록(updated_at)만 갱신
       await fetch(`${SUPABASE_URL}/rest/v1/active_malls?on_conflict=mall_id`, {
         method: 'POST',
         headers: {
