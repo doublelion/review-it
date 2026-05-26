@@ -6,7 +6,7 @@ const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
 module.exports = async (req, res) => {
   try {
-    // 💡 수정 핵심: 카페24가 돌려준 state 값을 mall_id로 사용합니다!
+    // 💡 api/auth.js에서 보낸 state 값을 mall_id로 꺼내 씁니다.
     const { code, state } = req.query;
     const mall_id = state; 
 
@@ -39,13 +39,13 @@ module.exports = async (req, res) => {
     }
 
     // =================================================================
-    // 💡 DB에 토큰 및 상점 상태(active) 저장
+    // 💡 [수정됨] 날짜 계산 오류 해결! 
+    // 카페24가 주는 텍스트 날짜(예: "2026-05-26T17:33:00.000")를 그대로 DB에 넣습니다.
     // =================================================================
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token;
-
-    const expiresAt = new Date(Date.now() + tokenData.expires_at * 1000).toISOString();
-    const refreshExpiresAt = new Date(Date.now() + tokenData.refresh_token_expires_at * 1000).toISOString();
+    const expiresAt = tokenData.expires_at; 
+    const refreshExpiresAt = tokenData.refresh_token_expires_at;
 
     const supabaseResponse = await fetch(`${SUPABASE_URL}/rest/v1/active_malls`, {
       method: 'POST',
@@ -78,7 +78,8 @@ module.exports = async (req, res) => {
     return res.redirect(`/admin.html?mall_id=${mall_id}`);
 
   } catch (error) {
-    console.error('콜백 처리 중 에러:', error);
+    // 🔥 만약 또 500 에러가 난다면, Vercel 로그에 이 부분이 어떻게 찍히는지 꼭 확인해 주세요!
+    console.error('🔥 콜백 처리 중 에러:', error);
     return res.status(500).send('서버 내부 에러가 발생했습니다.');
   }
 };
