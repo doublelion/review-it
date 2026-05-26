@@ -1,3 +1,5 @@
+const crypto = require('crypto'); // 💡 입장권(HMAC) 생성을 위해 암호화 모듈을 추가합니다.
+
 const CAFE24_CLIENT_ID = process.env.CAFE24_CLIENT_ID;
 const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -38,14 +40,13 @@ module.exports = async (req, res) => {
     }
 
     // =================================================================
-    // 💡 DB에 토큰 및 상점 상태(active) 저장
+    // 2. DB에 토큰 및 상점 상태(active) 저장
     // =================================================================
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token;
     const expiresAt = tokenData.expires_at; 
     const refreshExpiresAt = tokenData.refresh_token_expires_at;
 
-    // 💡 [수정 포인트] 주소 뒤에 ?on_conflict=mall_id를 추가하여 기존 상점 정보가 있어도 깔끔하게 덮어쓰도록 처리했습니다.
     const supabaseResponse = await fetch(`${SUPABASE_URL}/rest/v1/active_malls?on_conflict=mall_id`, {
       method: 'POST',
       headers: {
@@ -73,8 +74,13 @@ module.exports = async (req, res) => {
 
     console.log(`[설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
 
-    // 3. 모든 처리 완료 후 관리자 페이지로 이동
-    return res.redirect(`/admin.html?mall_id=${mall_id}`);
+    // =================================================================
+    // 💡 [핵심 수정] admin.html이 요구하는 보안 입장권(auth_sig)을 생성합니다.
+    // =================================================================
+    const authSignature = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
+
+    // 입장권을 주소에 포함하여 관리자 페이지로 안전하게 이동시킵니다.
+    return res.redirect(`/admin.html?mall_id=${mall_id}&auth_sig=${authSignature}`);
 
   } catch (error) {
     console.error('🔥 콜백 처리 중 에러:', error);
