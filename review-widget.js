@@ -66,7 +66,15 @@
     async init() {
       this.injectCSS();
       await this.loadWidgetSettings();
-      await this.loadReviews();
+      const hasReviews = await this.loadReviews(); // 반환값 확인
+
+      // 리뷰 데이터가 하나도 없거나 RLS로 차단된 경우(앱 삭제 등) 렌더링 중단 및 숨김 처리
+      if (!hasReviews) {
+        const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+        if (container) container.style.display = 'none';
+        return;
+      }
+
       this.renderWidget();
     },
 
@@ -159,7 +167,9 @@
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
         const list = await res.json();
-        if (!list || list.length === 0) return;
+
+        // 💡 데이터가 없으면 false 반환 (RLS에 의해 차단된 inactive 상점 포함)
+        if (!list || list.length === 0) return false;
 
         this.data = {};
         this.listOrder = [];
@@ -193,7 +203,12 @@
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
 
-      } catch (e) { console.error("[REVIEW-IT] 데이터 처리 에러:", e); }
+        return true; // 💡 데이터 세팅 성공 시 true 반환
+
+      } catch (e) {
+        console.error("[REVIEW-IT] 데이터 처리 에러:", e);
+        return false;
+      }
     },
 
     renderWidget() {
