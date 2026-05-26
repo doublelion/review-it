@@ -1,16 +1,14 @@
 const crypto = require('crypto');
 
 // 환경변수
-const CAFE24_CLIENT_ID = process.env.CAFE24_CLIENT_ID; 
+const CAFE24_CLIENT_ID = process.env.CAFE24_CLIENT_ID;
 const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 // 앱, 상품, 게시물 권한을 모두 포함
 const CAFE24_SCOPE = 'mall.read_application,mall.write_application,mall.read_product,mall.read_community,mall.write_community';
-
-// 카페24에서 권한 승인 후 코드를 보내줄 리다이렉트 주소
-const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback'; 
+const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
 module.exports = async (req, res) => {
   try {
@@ -25,32 +23,30 @@ module.exports = async (req, res) => {
     // =====================================================================
     if (!hmac && !code) {
       console.log(`[앱 설치 시작] ${mall_id} 상점을 권한 요청 화면으로 이동시킵니다.`);
-
-      const state = crypto.randomBytes(16).toString('hex'); // CSRF 방지용
-
-      // 권한 요청 URL 생성 및 리다이렉트
+      const state = crypto.randomBytes(16).toString('hex');
       const authUrl = `https://${mall_id}.cafe24api.com/api/v2/oauth/authorize?response_type=code&client_id=${CAFE24_CLIENT_ID}&state=${state}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(CAFE24_SCOPE)}`;
-      
       return res.redirect(authUrl);
     }
 
     // =====================================================================
-    // STEP 2: [보류] 권한 동의 후 토큰 발급 로직 
-    // (이 부분은 api/callback.js 에서 처리하므로 여기서는 패스합니다.)
-    // =====================================================================
-
-    // =====================================================================
-    // STEP 3: 카페24에서 이미 설치된 앱을 실행할 때 (HMAC 검증)
+    // STEP 2: 카페24에서 이미 설치된 앱을 실행할 때 (HMAC 검증)
     // =====================================================================
     if (hmac) {
-      // 💡 [수정됨] 카페24가 보내는 모든 쿼리 파라미터를 동적으로 모아서 검증합니다.
-      const { hmac: receivedHmac, ...queryParams } = req.query;
-      
-      // 파라미터 키값을 알파벳 순서로 정렬
-      const sortedKeys = Object.keys(queryParams).sort();
-      
-      // key=value 형태로 문자열 조합
-      const message = sortedKeys.map(key => `${key}=${queryParams[key]}`).join('&');
+      // 🚨 핵심 수정: Vercel의 자동 한글 변환을 우회하기 위해 req.url에서 날것 그대로의 문자열을 추출합니다.
+      const queryString = req.url.split('?')[1] || '';
+
+      // hmac을 제외한 나머지 파라미터들만 추출
+      const rawParams = queryString.split('&').filter(part => !part.startsWith('hmac='));
+
+      // 키(key)를 기준으로 알파벳 오름차순 정렬
+      rawParams.sort((a, b) => {
+        const keyA = a.split('=')[0];
+        const keyB = b.split('=')[0];
+        return keyA.localeCompare(keyB);
+      });
+
+      // 다시 &로 연결하여 완벽한 원본 검증 문자열 생성 (예: user_name=%EA%B9...)
+      const message = rawParams.join('&');
 
       // HMAC 생성 및 비교
       const calculatedHmac = crypto
@@ -58,23 +54,21 @@ module.exports = async (req, res) => {
         .update(message)
         .digest('base64');
 
-      if (receivedHmac !== calculatedHmac) {
+      if (hmac !== calculatedHmac) {
         console.error('HMAC 검증 실패!');
-        console.error('- 검증 문자열:', message);
+        console.error('- 원본 검증 문자열:', message);
         console.error('- 내 계산값:', calculatedHmac);
-        console.error('- 카페24 값:', receivedHmac);
+        console.error('- 카페24 값:', hmac);
         return res.status(401).send('보안 검증(HMAC)에 실패했습니다.');
       }
 
-      // 3. 시간 유효성 체크 (timestamp가 있는 경우에만 검증)
-      if (queryParams.timestamp) {
-        // 카페24에서 넘어오는 timestamp는 초 단위이거나 13자리 밀리초 단위일 수 있음
-        const timestampNum = Number(queryParams.timestamp);
-        // 만약 10자리(초 단위)라면 밀리초로 변환
-        const requestTime = timestampNum < 10000000000 ? timestampNum * 1000 : timestampNum; 
+      // 3. 시간 유효성 체크
+      if (req.query.timestamp) {
+        const timestampNum = Number(req.query.timestamp);
+        const requestTime = timestampNum < 10000000000 ? timestampNum * 1000 : timestampNum;
         const currentTime = Date.now();
-        
-        if (Math.abs(currentTime - requestTime) > 5 * 60 * 1000) { // 5분 초과 시
+
+        if (Math.abs(currentTime - requestTime) > 5 * 60 * 1000) {
           return res.status(401).send('요청 시간이 만료되었습니다. 다시 시도해주세요.');
         }
       }
