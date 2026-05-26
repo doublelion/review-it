@@ -1,6 +1,12 @@
 // api/billing.js (카페24 샘플 데이터 및 예외 처리 완벽 방어 버전)
 import { createClient } from '@supabase/supabase-js';
 
+// 기존 코드 위에 이 부분을 추가하세요
+  console.log('--- 🔍 웹훅 디버깅 시작 ---');
+  console.log('헤더 정보:', JSON.stringify(req.headers, null, 2));
+  console.log('바디 정보 (raw):', JSON.stringify(req.body, null, 2));
+  console.log('--- 🔍 웹훅 디버깅 끝 ---');
+
 // SUPABASE_KEY도 인식하도록 수정
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
