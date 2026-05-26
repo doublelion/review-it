@@ -292,21 +292,21 @@
       try {
         const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
 
-        const mallRes = await fetch(`${SB_URL}/active_malls?on_conflict=mall_id`, {
-          method: 'POST',
-          headers: {
-            'apikey': SB_KEY,
-            'Authorization': `Bearer ${SB_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
-          },
-          body: JSON.stringify({ mall_id: MALL_ID, status: 'active' })
-        });
+        // const mallRes = await fetch(`${SB_URL}/active_malls?on_conflict=mall_id`, {
+        //   method: 'POST',
+        //   headers: {
+        //     'apikey': SB_KEY,
+        //     'Authorization': `Bearer ${SB_KEY}`,
+        //     'Content-Type': 'application/json',
+        //     'Prefer': 'resolution=merge-duplicates'
+        //   },
+        //   body: JSON.stringify({ mall_id: MALL_ID, status: 'active' })
+        // });
 
-        if (!mallRes.ok) {
-          const errData = await mallRes.json();
-          throw new Error(`상점 마스터 갱신 실패: ${errData.message}`);
-        }
+        // if (!mallRes.ok) {
+        //   const errData = await mallRes.json();
+        //   throw new Error(`상점 마스터 갱신 실패: ${errData.message}`);
+        // }
 
         const payload = {
           mall_id: MALL_ID,
@@ -456,11 +456,37 @@
       }
       return true;
     }
+    // ✅ 1. 실시간 상태 검증 함수 추가 (admin.html 스크립트 영역)
+    async function checkMallStatus() {
+      try {
+        const res = await fetch(`${SB_URL}/active_malls?select=status&mall_id=eq.${MALL_ID}`, {
+          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+        });
+        const data = await res.json();
 
-    window.onload = () => {
+        // DB에 데이터가 없거나, 상태가 active가 아니면 쫓아냅니다.
+        if (!data || data.length === 0 || data[0].status !== 'active') {
+          alert("서비스 이용 기간이 만료되었거나 앱이 삭제된 상태입니다.");
+          window.location.href = 'https://store.cafe24.com/'; // 카페24 스토어 등으로 강제 이동
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.error("상태 검증 실패:", err);
+        return false;
+      }
+    }
+
+    window.onload = async () => {
+      // 기존 토큰 체크를 먼저 하고
       if (checkAuthentication()) {
-        loadSettings();
-        loadAdminData();
+        // DB의 실시간 상태를 한 번 더 체크 (이중 방어)
+        const isActive = await checkMallStatus();
+
+        if (isActive) {
+          loadSettings();
+          loadAdminData();
+        }
       }
     };
   </script>
