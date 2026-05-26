@@ -1,4 +1,5 @@
-const fetch = require('node-fetch'); // Vercel Node 18+에서는 생략 가능하지만 명시적으로 두는 것이 좋습니다.
+// 💡 [수정 완료] node-fetch 관련 require 코드를 완전히 제거했습니다. 
+// Vercel 자체 내장 fetch가 자동으로 작동하므로 에러가 발생하지 않습니다.
 
 const CAFE24_CLIENT_ID = process.env.CAFE24_CLIENT_ID;
 const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET;
