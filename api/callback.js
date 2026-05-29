@@ -75,31 +75,46 @@ module.exports = async (req, res) => {
     console.log(`[설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
 
     // =================================================================
-    // 💡 [완성] 스크립트 자동 주입 (Cafe24 공식 Scripttags API 스펙 적용)
+    // 💡 [최종 개선] 완전히 보완된 스크립트 자동 주입 (기본값 보장 및 상세 로그)
     // =================================================================
     try {
-      // 1. 해당 상점의 모든 쇼핑몰 목록 조회
-      const shopListRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/shops`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'X-Cafe24-Api-Version': '2024-06-25'
+      let shopIds = [1]; // ◄ [핵심] 기본 쇼핑몰 번호(1)를 기본값으로 먼저 세팅합니다.
+
+      try {
+        // 1. 해당 상점의 모든 쇼핑몰 목록 조회 시도
+        const shopListRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/shops`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'X-Cafe24-Api-Version': '2024-06-25'
+          }
+        });
+
+        if (shopListRes.ok) {
+          const shopListData = await shopListRes.json();
+          const fetchedShops = shopListData?.shops || [];
+          if (fetchedShops.length > 0) {
+            shopIds = fetchedShops.map(s => s.shop_no);
+            console.log(`[상점 조회 성공] 검색된 shop_no 목록: ${shopIds}`);
+          }
+        } else {
+          console.warn(`[상점 조회 실패] 상태 코드: ${shopListRes.status}. 권한(Scope) 문제일 수 있어 기본값(1번 몰)으로 강제 진행합니다.`);
         }
-      });
-      
-      const shopListData = await shopListRes.json();
-      const shops = shopListData?.shops || []; 
-      const shopIds = shops.map(s => s.shop_no);
+      } catch (shopErr) {
+        console.error('[상점 조회 중 예외 발생] 기본값(1번 몰)으로 안전하게 진행합니다:', shopErr.message);
+      }
 
       const scriptUrls = [
         'https://review-it-tau.vercel.app/review-it.js',
         'https://review-it-tau.vercel.app/review-widget.js'
       ];
 
-      // 2. 정확한 Scripttags API 규격으로 전송
+      // 2. 결정된 shopIds(실패해도 최소 1번 몰은 무조건 실행)로 주입 시작
       for (const shop_no of shopIds) {
         for (const src of scriptUrls) {
-          const scriptRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/scripttags`, { // 💡 수정: scripts -> scripttags
+          console.log(`[스크립트 주입 시도] 상점 번호: ${shop_no}, 파일: ${src}`);
+
+          const scriptRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/scripttags`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${accessToken}`,
@@ -109,25 +124,24 @@ module.exports = async (req, res) => {
             body: JSON.stringify({
               shop_no: shop_no,
               request: {
-                client_id: CAFE24_CLIENT_ID, // 💡 수정: 카페24 필수 요구사항 추가
+                client_id: CAFE24_CLIENT_ID,
                 src: src,
-                display_location: ["ALL"]    // 💡 수정: 배열(Array) 형태로 변경
+                display_location: ["ALL"]
               }
             })
           });
 
-          // 주입 실패 시 원인 파악을 위한 에러 로그
           if (!scriptRes.ok) {
-             const errorDetail = await scriptRes.text();
-             console.error(`[스크립트 주입 실패 - 상점 ${shop_no}]`, errorDetail);
+            const errorDetail = await scriptRes.text();
+            console.error(`❌ [스크립트 주입 실패 - 상점 ${shop_no}] 상세 사유:`, errorDetail);
           } else {
-             console.log(`[스크립트 주입 성공 - 상점 ${shop_no}] ${src}`);
+            console.log(`✅ [스크립트 주입 성공 - 상점 ${shop_no}] ${src} 등록 완료!`);
           }
         }
       }
-      
+
     } catch (scriptErr) {
-      console.error('🔥 스크립트 자동 주입 중 에러 (비치명적):', scriptErr);
+      console.error('🔥 스크립트 자동 주입 프로세스 치명적 에러:', scriptErr);
     }
 
     // =================================================================
