@@ -9,7 +9,7 @@ const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 module.exports = async (req, res) => {
   try {
     const { code, state } = req.query;
-    const mall_id = state; 
+    const mall_id = state;
 
     if (!code || !mall_id) {
       console.error('콜백 파라미터 누락:', req.query);
@@ -44,7 +44,7 @@ module.exports = async (req, res) => {
     // =================================================================
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token;
-    const expiresAt = tokenData.expires_at; 
+    const expiresAt = tokenData.expires_at;
     const refreshExpiresAt = tokenData.refresh_token_expires_at;
 
     const supabaseResponse = await fetch(`${SUPABASE_URL}/rest/v1/active_malls?on_conflict=mall_id`, {
@@ -73,6 +73,43 @@ module.exports = async (req, res) => {
     }
 
     console.log(`[설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
+
+    // =================================================================
+    // 💡 [신규] 스크립트 자동 주입 (Script Tag API 호출)
+    // =================================================================
+    try {
+      const scriptUrls = [
+        'https://review-it-tau.vercel.app/review-it.js',
+        'https://review-it-tau.vercel.app/review-widget.js'
+      ];
+
+      for (const src of scriptUrls) {
+        const scriptRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/scripts`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'X-Cafe24-Api-Version': '2024-06-25'
+          },
+          body: JSON.stringify({
+            shop_no: 1, // 대표 쇼핑몰
+            request: {
+              src: src,
+              display_location: 'ALL', // 모든 페이지에 자동 삽입
+              skin_no: 1 // 기본 스킨
+            }
+          })
+        });
+
+        if (!scriptRes.ok) {
+          console.error(`[스크립트 주입 실패] ${src}:`, await scriptRes.text());
+        } else {
+          console.log(`[스크립트 주입 성공] ${src}`);
+        }
+      }
+    } catch (scriptErr) {
+      console.error('🔥 스크립트 자동 주입 중 에러:', scriptErr);
+    }
 
     // =================================================================
     // 💡 [핵심 수정] admin.html이 요구하는 보안 입장권(auth_sig)을 생성합니다.
