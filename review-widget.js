@@ -163,9 +163,15 @@
         if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
         apiUrl += `&order=created_at.desc`;
 
-        const res = await fetch(apiUrl, {
-          headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
-        });
+        if (!res.ok) {
+          if (res.status === 403 || res.status === 401) {
+            console.warn("[REVIEW-IT] 이용 기간 만료 또는 앱 삭제됨. 위젯 영역을 숨깁니다.");
+            const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+            if (container) container.style.display = 'none'; 
+            return false; // 데이터 렌더링 중지
+          }
+          throw new Error(`API 오류: ${res.status}`);
+        }
         const list = await res.json();
 
         // 💡 데이터가 없으면 false 반환 (RLS에 의해 차단된 inactive 상점 포함)

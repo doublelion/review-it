@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   try {
     // 1. 유료 회원 여부 및 상점 상태 체크 (SaaS 수익 보호의 핵심)
     const { data: mall, error: mallError } = await supabase
-      .from('stores')
+      .from('active_malls')
       .select('status')
       .eq('mall_id', mall_id)
       .single();
