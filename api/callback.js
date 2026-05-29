@@ -75,38 +75,48 @@ module.exports = async (req, res) => {
     console.log(`[설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
 
     // =================================================================
-    // 💡 [신규] 스크립트 자동 주입 (Script Tag API 호출)
+    // 💡 [수정] 스크립트 자동 주입 (전체 상점 조회 후 일괄 적용)
     // =================================================================
     try {
+      // 1. 해당 상점의 모든 쇼핑몰 목록을 조회
+      const shopListRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/shops`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Cafe24-Api-Version': '2024-06-25'
+        }
+      });
+
+      const shopListData = await shopListRes.json();
+      const shopIds = shopListData.shops.map(s => s.shop_no);
+
       const scriptUrls = [
         'https://review-it-tau.vercel.app/review-it.js',
         'https://review-it-tau.vercel.app/review-widget.js'
       ];
 
-      for (const src of scriptUrls) {
-        const scriptRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/scripts`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'X-Cafe24-Api-Version': '2024-06-25'
-          },
-          body: JSON.stringify({
-            shop_no: 1, // 대표 쇼핑몰
-            request: {
-              src: src,
-              display_location: 'ALL', // 모든 페이지에 자동 삽입
-              skin_no: 1 // 기본 스킨
-            }
-          })
-        });
-
-        if (!scriptRes.ok) {
-          console.error(`[스크립트 주입 실패] ${src}:`, await scriptRes.text());
-        } else {
-          console.log(`[스크립트 주입 성공] ${src}`);
+      // 2. 존재하는 모든 쇼핑몰(shop_no)에 대해 스크립트 등록
+      for (const shop_no of shopIds) {
+        for (const src of scriptUrls) {
+          await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/scripts`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              'X-Cafe24-Api-Version': '2024-06-25'
+            },
+            body: JSON.stringify({
+              shop_no: shop_no, // 조회된 실제 shop_no 사용
+              request: {
+                src: src,
+                display_location: 'ALL',
+                skin_no: 1 // 대부분 1번 스킨을 사용함
+              }
+            })
+          });
         }
       }
+      console.log(`[스크립트 주입 완료] 적용된 상점 번호: ${shopIds.join(', ')}`);
     } catch (scriptErr) {
       console.error('🔥 스크립트 자동 주입 중 에러:', scriptErr);
     }
