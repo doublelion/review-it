@@ -67,7 +67,7 @@ module.exports = async (req, res) => {
         }
       }
 
-      // 🚨 [수정된 핵심 로직] 3. DB에서 토큰뿐만 아니라 "status" 상태도 함께 가져와서 검사합니다!
+      // 3. DB에서 토큰뿐만 아니라 "status" 상태도 함께 가져와서 검사합니다!
       const dbCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/active_malls?select=access_token,status&mall_id=eq.${mall_id}`, {
         method: 'GET',
         headers: {
@@ -79,15 +79,16 @@ module.exports = async (req, res) => {
       const dbMalls = await dbCheckRes.json();
       const mallData = dbMalls && dbMalls.length > 0 ? dbMalls[0] : null;
 
-      // [방어 1] 앱 정보가 아예 없거나 토큰이 없는 경우 -> 재설치 유도
+      // [방어 1] 앱 정보가 아예 없거나 토큰이 없는 경우 -> 신규 설치 또는 최초 동의 화면으로 리다이렉트
       if (!mallData || !mallData.access_token) {
-        console.log(`[접근 차단] ${mall_id} - 토큰이 없으므로 재설치를 요구합니다.`);
+        console.log(`[접근 승인] ${mall_id} - 토큰이 없으므로 권한 요청 화면으로 이동시킵니다.`);
         return redirectToAuth();
       }
 
-      // [방어 2] 결제 만료 또는 앱 삭제로 상태가 inactive인 경우 -> 알럿창 띄우고 뒤로 튕겨냄!
-      if (mallData.status !== 'active') {
-        console.log(`[접근 차단] ${mall_id} - 만료/삭제된 상점(inactive)입니다. 쫓아냅니다.`);
+      // 🚨 [버그 수정 완료] 만료/삭제된 상점(inactive)이지만, "재설치 프로세스(code가 존재)" 중이 아니라 
+      // 단순히 만료된 상태에서 관리자단 진입을 시도할 때만 튕겨냅니다.
+      if (mallData.status !== 'active' && !code) {
+        console.log(`[접근 차단] ${mall_id} - 만료/삭제된 상점(inactive)의 관리자 메뉴 진입 시도. 쫓아냅니다.`);
         return res.status(403).send(`
           <script>
             alert("리뷰잇 이용 기간이 만료되었거나 앱이 삭제된 상태입니다.\\n카페24 앱스토어에서 결제 상태를 다시 확인해주세요.");
@@ -95,6 +96,8 @@ module.exports = async (req, res) => {
           </script>
         `);
       }
+
+      // 만약 inactive 상태였지만 재설치 프로세스를 밟는 중(code가 있음)이라면 아래로 통과되어 재인증을 진행하게 됩니다.
 
       // 4. 정상 유저(active)라면 접속 기록(updated_at)만 갱신
       await fetch(`${SUPABASE_URL}/rest/v1/active_malls?on_conflict=mall_id`, {
