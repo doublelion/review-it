@@ -79,16 +79,15 @@ module.exports = async (req, res) => {
       const dbMalls = await dbCheckRes.json();
       const mallData = dbMalls && dbMalls.length > 0 ? dbMalls[0] : null;
 
-      // [방어 1] 앱 정보가 아예 없거나 토큰이 없는 경우 -> 신규 설치 또는 최초 동의 화면으로 리다이렉트
+      // [방어 1] 앱 정보가 아예 없거나 토큰이 비어있는 경우 (신규 설치 or 앱 삭제 후 재설치)
       if (!mallData || !mallData.access_token) {
-        console.log(`[접근 승인] ${mall_id} - 토큰이 없으므로 권한 요청 화면으로 이동시킵니다.`);
+        console.log(`[설치 진입] ${mall_id} - 토큰이 없으므로 권한 요청 화면으로 이동합니다.`);
         return redirectToAuth();
       }
 
-      // 🚨 [버그 수정 완료] 만료/삭제된 상점(inactive)이지만, "재설치 프로세스(code가 존재)" 중이 아니라 
-      // 단순히 만료된 상태에서 관리자단 진입을 시도할 때만 튕겨냅니다.
-      if (mallData.status !== 'active' && !code) {
-        console.log(`[접근 차단] ${mall_id} - 만료/삭제된 상점(inactive)의 관리자 메뉴 진입 시도. 쫓아냅니다.`);
+      // [방어 2] 토큰은 있지만 상태가 inactive인 경우 (단순 이용 기간 만료)
+      if (mallData.status !== 'active') {
+        console.log(`[접근 차단] ${mall_id} - 기간이 만료된 상점의 메뉴 진입 시도.`);
         return res.status(403).send(`
           <script>
             alert("리뷰잇 이용 기간이 만료되었거나 앱이 삭제된 상태입니다.\\n카페24 앱스토어에서 결제 상태를 다시 확인해주세요.");
