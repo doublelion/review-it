@@ -87,13 +87,8 @@ module.exports = async (req, res) => {
 
       // [방어 2] 토큰은 있지만 상태가 inactive인 경우 (단순 이용 기간 만료)
       if (mallData.status !== 'active') {
-        console.log(`[접근 차단] ${mall_id} - 기간이 만료된 상점의 메뉴 진입 시도.`);
-        return res.status(403).send(`
-          <script>
-            alert("리뷰잇 이용 기간이 만료되었거나 앱이 삭제된 상태입니다.\\n카페24 앱스토어에서 결제 상태를 다시 확인해주세요.");
-            window.history.back();
-          </script>
-        `);
+        console.log(`[재인증 유도] ${mall_id} - 만료/삭제된 상점, 재권한 승인을 위해 Auth 화면으로 이동합니다.`);
+        return redirectToAuth(); // ◄── 여기가 핵심입니다! 알럿 없이 바로 권한 동의 화면으로 보냅니다.
       }
 
       // 만약 inactive 상태였지만 재설치 프로세스를 밟는 중(code가 있음)이라면 아래로 통과되어 재인증을 진행하게 됩니다.
