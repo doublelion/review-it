@@ -12,11 +12,13 @@ module.exports = async (req, res) => {
     const mall_id = state;
 
     if (!code || !mall_id) {
-      console.error('콜백 파라미터 누락:', req.query);
+      console.error('❌ 콜백 파라미터 누락:', req.query);
       return res.status(400).send('인증 코드 또는 쇼핑몰 ID(state)가 누락되었습니다.');
     }
 
+    // =================================================================
     // 1. 카페24에 Access Token 발급 요청
+    // =================================================================
     const credentials = Buffer.from(`${CAFE24_CLIENT_ID}:${CAFE24_CLIENT_SECRET}`).toString('base64');
 
     const tokenResponse = await fetch(`https://${mall_id}.cafe24api.com/api/v2/oauth/token`, {
@@ -35,12 +37,12 @@ module.exports = async (req, res) => {
     const tokenData = await tokenResponse.json();
 
     if (tokenData.error) {
-      console.error('토큰 발급 에러:', tokenData);
+      console.error('❌ 토큰 발급 에러:', tokenData);
       return res.status(400).send('카페24 토큰 발급에 실패했습니다.');
     }
 
     // =================================================================
-    // 2. DB에 토큰 및 상점 상태(active) 저장
+    // 2. DB (Supabase)에 토큰 및 상점 상태(active) 저장
     // =================================================================
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token;
@@ -68,20 +70,20 @@ module.exports = async (req, res) => {
 
     if (!supabaseResponse.ok) {
       const dbError = await supabaseResponse.text();
-      console.error('Supabase 저장 에러:', dbError);
+      console.error('❌ Supabase 저장 에러:', dbError);
       return res.status(500).send('DB에 토큰 정보를 저장하는 중 에러가 발생했습니다.');
     }
 
-    console.log(`[설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
+    console.log(`🎉 [설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
 
     // =================================================================
-    // 💡 [최종 개선] 완전히 보완된 스크립트 자동 주입 (기본값 보장 및 상세 로그)
+    // 3. 스크립트 자동 주입 (기본값 보장 및 상세 로그 적용)
     // =================================================================
     try {
-      let shopIds = [1]; // ◄ [핵심] 기본 쇼핑몰 번호(1)를 기본값으로 먼저 세팅합니다.
+      let shopIds = [1]; // ◄ [핵심] 멀티쇼핑몰 권한 오류를 대비해 기본 쇼핑몰 번호(1)를 기본값으로 세팅
 
       try {
-        // 1. 해당 상점의 모든 쇼핑몰 목록 조회 시도
+        // 해당 상점의 모든 멀티쇼핑몰 목록 조회 시도
         const shopListRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/shops`, {
           method: 'GET',
           headers: {
@@ -95,24 +97,25 @@ module.exports = async (req, res) => {
           const fetchedShops = shopListData?.shops || [];
           if (fetchedShops.length > 0) {
             shopIds = fetchedShops.map(s => s.shop_no);
-            console.log(`[상점 조회 성공] 검색된 shop_no 목록: ${shopIds}`);
+            console.log(`🔍 [상점 조회 성공] 검색된 멀티쇼핑몰 목록: ${shopIds}`);
           }
         } else {
-          console.warn(`[상점 조회 실패] 상태 코드: ${shopListRes.status}. 권한(Scope) 문제일 수 있어 기본값(1번 몰)으로 강제 진행합니다.`);
+          console.warn(`⚠️ [상점 조회 실패] 상태 코드: ${shopListRes.status}. 기본값(1번 몰)으로 강제 진행합니다.`);
         }
       } catch (shopErr) {
-        console.error('[상점 조회 중 예외 발생] 기본값(1번 몰)으로 안전하게 진행합니다:', shopErr.message);
+        console.error('⚠️ [상점 조회 중 예외 발생] 기본값(1번 몰)으로 안전하게 진행합니다:', shopErr.message);
       }
 
+      // 주입할 스크립트 파일 목록
       const scriptUrls = [
         'https://review-it-tau.vercel.app/review-it.js',
         'https://review-it-tau.vercel.app/review-widget.js'
       ];
 
-      // 2. 결정된 shopIds(실패해도 최소 1번 몰은 무조건 실행)로 주입 시작
+      // 결정된 shopIds로 스크립트 주입 시작 (최소 1번 몰은 무조건 보장)
       for (const shop_no of shopIds) {
         for (const src of scriptUrls) {
-          console.log(`[스크립트 주입 시도] 상점 번호: ${shop_no}, 파일: ${src}`);
+          console.log(`▶️ [스크립트 주입 시도] 상점 번호: ${shop_no}, 파일: ${src}`);
 
           const scriptRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/scripttags`, {
             method: 'POST',
@@ -145,15 +148,16 @@ module.exports = async (req, res) => {
     }
 
     // =================================================================
-    // 💡 [핵심 수정] admin.html이 요구하는 보안 입장권(auth_sig)을 생성합니다.
+    // 4. 보안 입장권 생성 및 관리자 페이지 리다이렉트
     // =================================================================
+    // admin.html이 요구하는 보안 입장권(auth_sig)을 HMAC SHA256으로 안전하게 생성합니다.
     const authSignature = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
 
-    // 입장권을 주소에 포함하여 관리자 페이지로 안전하게 이동시킵니다.
+    // 입장권을 쿼리스트링에 포함하여 프론트엔드 관리자 페이지로 안전하게 이동시킵니다.
     return res.redirect(`/admin.html?mall_id=${mall_id}&auth_sig=${authSignature}`);
 
   } catch (error) {
-    console.error('🔥 콜백 처리 중 에러:', error);
-    return res.status(500).send('서버 내부 에러가 발생했습니다.');
+    console.error('🔥 콜백 처리 중 서버 에러 발생:', error);
+    return res.status(500).send('서버 내부 에러가 발생했습니다. 잠시 후 다시 시도해주세요.');
   }
 };
