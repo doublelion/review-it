@@ -75,7 +75,7 @@ module.exports = async (req, res) => {
     console.log(`[설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
 
     // =================================================================
-    // 💡 [수정] 스크립트 자동 주입 (전체 상점 조회 후 일괄 적용)
+    // 💡 [수정] 스크립트 자동 주입 (에러 방지용 안전 코드)
     // =================================================================
     try {
       // 1. 해당 상점의 모든 쇼핑몰 목록을 조회
@@ -86,16 +86,26 @@ module.exports = async (req, res) => {
           'X-Cafe24-Api-Version': '2024-06-25'
         }
       });
-
+      
       const shopListData = await shopListRes.json();
-      const shopIds = shopListData.shops.map(s => s.shop_no);
+      
+      // 🚨 [로그 확인] API가 어떤 응답을 주는지 찍어봅니다. (심사 제출 전엔 지우셔도 됩니다)
+      console.log('Shop List API Response:', JSON.stringify(shopListData));
+
+      // 2. 안전하게 데이터 추출 (shops가 없으면 빈 배열 처리)
+      const shops = shopListData?.shops || []; 
+      const shopIds = shops.map(s => s.shop_no);
+
+      if (shopIds.length === 0) {
+        console.warn(`[주의] 조회된 쇼핑몰이 없거나 구조가 다릅니다.`);
+      }
 
       const scriptUrls = [
         'https://review-it-tau.vercel.app/review-it.js',
         'https://review-it-tau.vercel.app/review-widget.js'
       ];
 
-      // 2. 존재하는 모든 쇼핑몰(shop_no)에 대해 스크립트 등록
+      // 3. 존재하는 모든 쇼핑몰(shop_no)에 대해 스크립트 등록
       for (const shop_no of shopIds) {
         for (const src of scriptUrls) {
           await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/scripts`, {
@@ -106,19 +116,21 @@ module.exports = async (req, res) => {
               'X-Cafe24-Api-Version': '2024-06-25'
             },
             body: JSON.stringify({
-              shop_no: shop_no, // 조회된 실제 shop_no 사용
+              shop_no: shop_no,
               request: {
                 src: src,
                 display_location: 'ALL',
-                skin_no: 1 // 대부분 1번 스킨을 사용함
+                skin_no: 1 
               }
             })
           });
         }
       }
       console.log(`[스크립트 주입 완료] 적용된 상점 번호: ${shopIds.join(', ')}`);
+      
     } catch (scriptErr) {
-      console.error('🔥 스크립트 자동 주입 중 에러:', scriptErr);
+      // 이제는 여기서 에러가 나도 전체 프로세스가 멈추지 않습니다.
+      console.error('🔥 스크립트 자동 주입 중 에러 (비치명적):', scriptErr);
     }
 
     // =================================================================
