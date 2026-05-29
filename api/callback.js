@@ -1,10 +1,13 @@
-const crypto = require('crypto'); // 💡 입장권(HMAC) 생성을 위해 암호화 모듈을 추가합니다.
+const crypto = require('crypto');
 
 const CAFE24_CLIENT_ID = process.env.CAFE24_CLIENT_ID;
 const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
+
+// 💡 카페24 API 버전을 상수로 관리하여 유지보수를 쉽게 합니다.
+const CAFE24_API_VERSION = '2025-12-01';
 
 module.exports = async (req, res) => {
   try {
@@ -77,10 +80,10 @@ module.exports = async (req, res) => {
     console.log(`🎉 [설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
 
     // =================================================================
-    // 3. 스크립트 자동 주입 (기본값 보장 및 상세 로그 적용)
+    // 3. 스크립트 자동 주입 (API 버전 2025-12-01 반영)
     // =================================================================
     try {
-      let shopIds = [1]; // ◄ [핵심] 멀티쇼핑몰 권한 오류를 대비해 기본 쇼핑몰 번호(1)를 기본값으로 세팅
+      let shopIds = [1]; // 멀티쇼핑몰 권한 오류 대비 기본값 세팅
 
       try {
         // 해당 상점의 모든 멀티쇼핑몰 목록 조회 시도
@@ -88,7 +91,7 @@ module.exports = async (req, res) => {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'X-Cafe24-Api-Version': '2024-06-25'
+            'X-Cafe24-Api-Version': CAFE24_API_VERSION // 💡 최신 버전 반영
           }
         });
 
@@ -100,7 +103,8 @@ module.exports = async (req, res) => {
             console.log(`🔍 [상점 조회 성공] 검색된 멀티쇼핑몰 목록: ${shopIds}`);
           }
         } else {
-          console.warn(`⚠️ [상점 조회 실패] 상태 코드: ${shopListRes.status}. 기본값(1번 몰)으로 강제 진행합니다.`);
+          const shopErrorDetail = await shopListRes.text();
+          console.warn(`⚠️ [상점 조회 실패] 상태 코드: ${shopListRes.status}, 사유: ${shopErrorDetail}. 기본값(1번 몰)으로 진행합니다.`);
         }
       } catch (shopErr) {
         console.error('⚠️ [상점 조회 중 예외 발생] 기본값(1번 몰)으로 안전하게 진행합니다:', shopErr.message);
@@ -112,7 +116,7 @@ module.exports = async (req, res) => {
         'https://review-it-tau.vercel.app/review-widget.js'
       ];
 
-      // 결정된 shopIds로 스크립트 주입 시작 (최소 1번 몰은 무조건 보장)
+      // 결정된 shopIds로 스크립트 주입 시작
       for (const shop_no of shopIds) {
         for (const src of scriptUrls) {
           console.log(`▶️ [스크립트 주입 시도] 상점 번호: ${shop_no}, 파일: ${src}`);
@@ -122,7 +126,7 @@ module.exports = async (req, res) => {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json',
-              'X-Cafe24-Api-Version': '2024-06-25'
+              'X-Cafe24-Api-Version': CAFE24_API_VERSION // 💡 최신 버전 반영
             },
             body: JSON.stringify({
               shop_no: shop_no,
@@ -150,10 +154,8 @@ module.exports = async (req, res) => {
     // =================================================================
     // 4. 보안 입장권 생성 및 관리자 페이지 리다이렉트
     // =================================================================
-    // admin.html이 요구하는 보안 입장권(auth_sig)을 HMAC SHA256으로 안전하게 생성합니다.
     const authSignature = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
 
-    // 입장권을 쿼리스트링에 포함하여 프론트엔드 관리자 페이지로 안전하게 이동시킵니다.
     return res.redirect(`/admin.html?mall_id=${mall_id}&auth_sig=${authSignature}`);
 
   } catch (error) {
