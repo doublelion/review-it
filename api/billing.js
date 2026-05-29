@@ -1,100 +1,83 @@
 // api/billing.js
 import { createClient } from '@supabase/supabase-js';
 
-// SUPABASE_KEY도 인식하도록 수정
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
-  // 💡 [수정됨] req 객체가 존재하는 함수 "안쪽"으로 디버깅 코드를 이동했습니다.
   console.log('--- 🔍 웹훅 디버깅 시작 ---');
-  console.log('헤더 정보:', JSON.stringify(req.headers, null, 2));
   console.log('바디 정보 (raw):', JSON.stringify(req.body, null, 2));
-  console.log('--- 🔍 웹훅 디버깅 끝 ---');
+  console.log('쿼리 정보 (URL param):', JSON.stringify(req.query, null, 2));
 
-  // 1. CORS 및 가벼운 OPTIONS 요청 처리
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'POST 요청만 허용됩니다.' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST 요청만 허용됩니다.' });
 
   try {
-    // 1. Vercel/Next.js 환경에 맞춘 강력한 Body 포장지 뜯기
     let body = req.body || {};
+    if (typeof body === 'string') try { body = JSON.parse(body); } catch (e) { }
+    else if (Buffer.isBuffer(body)) try { body = JSON.parse(body.toString('utf8')); } catch (e) { }
 
-    // body가 문자열(String)로 들어왔다면 JSON으로 강제 변환
-    if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch (e) { console.error('JSON 파싱 에러:', e); }
-    }
-    // body가 버퍼(Buffer) 형태라면 문자열로 바꾼 뒤 JSON 변환
-    else if (Buffer.isBuffer(body)) {
-      try { body = JSON.parse(body.toString('utf8')); } catch (e) { console.error('Buffer 파싱 에러:', e); }
-    }
-
-    // 2. 카페24가 정확히 어떤 구조로 데이터를 주는지 전체 확인 (디버깅용)
-    console.log('📦 [웹훅 원본 전체 데이터]:', JSON.stringify(body, null, 2));
-
-    // 3. 카페24 웹훅 특성 반영 (데이터가 resource { } 안에 숨어있을 수 있음)
-    const event_type = body.event_type;
+    // 💡 [수정] 바디에 없으면 우리가 URL에 달아둔 query에서 강제로 가져옵니다!
+    const event_type = body.event_type || req.query.event_type;
     const mall_id = body.mall_id || (body.resource && body.resource.mall_id);
-    const plan_type = body.plan_type || 'basic';
-    const expire_date = body.expire_date || null;
+    const expire_date = body.expire_date || (body.resource && body.resource.expire_date);
 
     console.log(`[파싱 완료] event_type: ${event_type}, mall_id: ${mall_id}`);
 
-    // 핵심 방어
     if (!mall_id || !event_type) {
-      console.warn('⚠️ [경고] 필수 파라미터가 누락되었습니다. 원본 데이터를 확인하세요.');
+      console.warn('⚠️ [경고] 필수 파라미터가 누락되었습니다.');
       return res.status(200).json({ success: true, message: '파라미터 누락 스킵' });
     }
 
     let nextStatus = 'inactive';
+    let isDeleted = false;
 
-    // 카페24 이벤트 정밀 매칭
     switch (event_type) {
-      case 'app.paid':       // 결제됨
-      case 'app.extended':   // 연장됨
+      case 'app.paid':
+      case 'app.extended':
         nextStatus = 'active';
         break;
-
-      case 'app.deleted':    // 삭제됨
-      case 'app.expired':    // 만료됨
-      case 'app.refund.requested': // 환불요청
-      case 'app.refund.completed': // 환불완료
+      case 'app.deleted':
+        nextStatus = 'inactive';
+        isDeleted = true; // 💡 삭제됨 감지
+        break;
+      case 'app.expired':
+      case 'app.refund':
         nextStatus = 'inactive';
         break;
-
       default:
         nextStatus = 'inactive';
     }
 
-    // Supabase DB 작업 수행
+    let updatePayload = {
+      status: nextStatus,
+      updated_at: new Date().toISOString()
+    };
+
+    if (expire_date) updatePayload.expire_date = expire_date;
+
+    // 💡 [핵심] 앱 삭제 시, 토큰을 완전히 지워버려 재설치(권한동의)가 열리도록 합니다!
+    if (isDeleted) {
+      updatePayload.access_token = null;
+      console.log(`[토큰 초기화] ${mall_id} 상점의 토큰을 파기하여 재설치를 허용합니다.`);
+    }
+
+    // upsert 대신 update를 사용하여 다른 필수 정보(refresh token 등)가 날아가는 것을 방지
     const { error } = await supabase
       .from('active_malls')
-      .upsert({
-        mall_id: mall_id.trim(), // 공백 방지
-        status: nextStatus,
-        plan_type: plan_type || 'basic',
-        expire_date: expire_date || null,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'mall_id' });
+      .update(updatePayload)
+      .eq('mall_id', mall_id.trim());
 
-    if (error) {
-      console.error('❌ Supabase DB 갱신 실패:', error.message);
-      throw error;
-    }
+    if (error) throw error;
 
     console.log(`✅ [웹훅 처리 완료] 상점: ${mall_id} -> 상태: ${nextStatus}`);
     return res.status(200).json({ success: true, status_updated_to: nextStatus });
 
   } catch (error) {
-    console.error('🔥 [최상위 에러 핸들러] 웹훅 실패:', error.message);
+    console.error('🔥 웹훅 실패:', error.message);
     return res.status(500).json({ error: '내부 서버 에러', details: error.message });
   }
 }
