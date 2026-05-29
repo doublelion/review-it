@@ -163,19 +163,31 @@
         if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
         apiUrl += `&order=created_at.desc`;
 
+        // 1. API 호출 (여기서 res가 최초로 정의됩니다)
+        const res = await fetch(apiUrl, {
+          headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
+        });
+
+        // 2. 상태 코드 검사 (403 에러 시 즉시 은폐)
         if (!res.ok) {
           if (res.status === 403 || res.status === 401) {
             console.warn("[REVIEW-IT] 이용 기간 만료 또는 앱 삭제됨. 위젯 영역을 숨깁니다.");
             const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
             if (container) container.style.display = 'none'; 
-            return false; // 데이터 렌더링 중지
+            return false;
           }
           throw new Error(`API 오류: ${res.status}`);
         }
+
         const list = await res.json();
 
-        // 💡 데이터가 없으면 false 반환 (RLS에 의해 차단된 inactive 상점 포함)
-        if (!list || list.length === 0) return false;
+        // 💡 [추가 방어] RLS 정책에 의해 빈 배열([])이 반환될 경우의 은폐 로직
+        if (!list || list.length === 0) {
+          console.warn("[REVIEW-IT] 표시할 리뷰가 없거나 RLS 정책에 의해 차단되었습니다.");
+          const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+          if (container) container.style.display = 'none';
+          return false;
+        }
 
         this.data = {};
         this.listOrder = [];
@@ -187,13 +199,11 @@
           const separateData = await this._fetchAndSeparateContent(r.article_no);
 
           if (separateData) {
-            // [핵심 보정] 이미지가 없더라도 텍스트 파싱 결과가 있다면 무조건 반영
             r.clean_text_body = separateData.text || r.content;
             r.all_images = (separateData.images && separateData.images.length > 0)
               ? separateData.images
               : (r.image_url ? [r.image_url] : [CONFIG.DEFAULT_IMG]);
 
-            // [긴급 패치] 파싱된 별점이 존재하면 DB 값을 실시간으로 덮어씀
             if (separateData.star !== null && !isNaN(separateData.star)) {
               r.stars = separateData.star;
             }
@@ -209,7 +219,7 @@
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
 
-        return true; // 💡 데이터 세팅 성공 시 true 반환
+        return true; 
 
       } catch (e) {
         console.error("[REVIEW-IT] 데이터 처리 에러:", e);
