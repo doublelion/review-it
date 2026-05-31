@@ -95,36 +95,34 @@
       </div>
     </div>
 
-    <!-- ✅ 심사위원 및 사용자 대상: 가이드 패널 추가 영역 -->
+    <!-- ✅ 사용자 대상: 설치 완료 및 서비스 자동 연동 가이드 -->
     <div class="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
-      <!-- 장식용 배경 (선택사항, 깔끔함을 위해 은은하게) -->
+      <!-- 장식용 배경 -->
       <div class="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl -mr-10 -mt-10 opacity-50"></div>
 
       <div class="relative z-10">
         <h2 class="text-[15px] font-bold text-blue-900 flex items-center gap-2 mb-3">
-          <span class="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs">ℹ</span>
-          [필독] REVIEW-IT 설치 완료 및 위젯 연동 가이드
+          <span class="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs">✔</span>
+          [완료] REVIEW-IT 설치가 성공적으로 완료되었습니다!
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
           <div class="bg-white/60 p-4 rounded-lg">
             <h3 class="font-bold mb-1 text-gray-800">1. 스크립트 자동 주입 완료</h3>
             <p class="text-xs text-gray-600 leading-relaxed">
-              앱 설치와 동시에 원활한 위젯 구동을 위한 필수 스크립트(<code>review-it.js</code>, <code>review-widget.js</code>)가 쇼핑몰
-              <code>layout.html</code> 하단에 <strong>자동으로 적용</strong>되었습니다. 별도의 스크립트 삽입 작업은 필요하지 않습니다.
+              별도의 스크립트 삽입이나 코딩 작업이 필요 없습니다.
+              <strong>REVIEW-IT이 자동으로 쇼핑몰과 연동</strong>되어, 지금 즉시 리뷰 수집 및 위젯 기능을 사용하실 수 있습니다.
             </p>
           </div>
           <div class="bg-white/60 p-4 rounded-lg">
-            <h3 class="font-bold mb-1 text-gray-800">2. 리뷰 위젯 노출 위치 설정 (수동 배치)</h3>
+            <h3 class="font-bold mb-1 text-gray-800">2. 즉시 작동 시작</h3>
             <p class="text-xs text-gray-600 leading-relaxed">
-              리뷰 위젯을 띄우고 싶은 영역(예: <code>index.html</code> 또는 상품상세 하단)에 아래 태그를 복사하여 붙여넣으세요. 해당 위치에 맞춰 반응형으로 즉시 노출됩니다.<br>
-              <code
-                class="block mt-2 bg-gray-800 text-gray-100 p-2 rounded text-[11px] select-all">&lt;!-- 리뷰잇 앱 --&gt;<br>&lt;div id="review-it-widget"&gt;&lt;/div&gt;</code>
+              이제 상점 프론트엔드에 자동으로 리뷰 위젯이 로드됩니다.<br>
+              설정 페이지에서 위젯 디자인 및 상세 옵션을 변경하면, <strong>실시간으로 상점에 즉시 반영</strong>됩니다.
             </p>
           </div>
         </div>
         <p class="mt-3 text-[11px] text-blue-600 font-medium">
-          * 본 시스템은 Cafe24 최신 API 규격(X-Cafe24-Api-Version: 2025-12-01 및 2023-03-01)을 완벽하게 지원하며, 몰 속도 저하 없는 비동기 환경으로
-          구동됩니다.
+          * 본 시스템은 Cafe24 최신 API 규격을 완벽하게 지원하며, 몰 속도 저하를 최소화하는 비동기 방식으로 구동됩니다.
         </p>
       </div>
     </div>
