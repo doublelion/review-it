@@ -6,8 +6,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
-// 💡 카페24 API 버전을 상수로 관리하여 유지보수를 쉽게 합니다.
-const CAFE24_API_VERSION = '2025-12-01';
+const CAFE24_API_VERSION = '2026-03-01';
 
 module.exports = async (req, res) => {
   try {
