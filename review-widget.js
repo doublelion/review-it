@@ -63,8 +63,56 @@
       grid_rows_mobile: 2
     },
 
+    // ReviewApp 객체 내부에 추가할 함수
+    autoCreateContainer() {
+      // 1. 이미 수동으로 넣은 컨테이너가 있는지 확인
+      let container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+      if (container) return; // 이미 있으면 종료
+
+      // 2. 없으면 새로 생성
+      container = document.createElement('div');
+      container.id = 'review-it-widget';
+      container.style.marginTop = '80px'; // 위젯 상단 여백 확보
+      container.style.marginBottom = '80px';
+
+      // 3. 현재 페이지에 따른 삽입 위치 결정 (카페24 스킨 표준 구조 타겟팅)
+      if (CONFIG.PRODUCT_NO) {
+        // [상품 상세 페이지] 상품 상세설명 하단 또는 리뷰 게시판 영역 근처
+        const detailArea = document.querySelector('.xans-product-additional') ||
+          document.querySelector('#prdDetail') ||
+          document.querySelector('#detailArea');
+
+        if (detailArea) {
+          detailArea.appendChild(container);
+          console.log("[REVIEW-IT] 상세 페이지에 위젯 자동 배치 완료");
+          return;
+        }
+      }
+
+      // [메인 페이지 또는 기타 페이지] 메인 컨텐츠 영역 하단 또는 푸터 바로 위
+      const mainContent = document.querySelector('#contents') ||
+        document.querySelector('.xans-product-listmain') ||
+        document.querySelector('#wrap');
+
+      const footer = document.querySelector('#footer');
+
+      if (mainContent) {
+        mainContent.appendChild(container);
+        console.log("[REVIEW-IT] 메인 컨텐츠 영역 하단에 위젯 자동 배치 완료");
+      } else if (footer) {
+        // 메인 영역을 못 찾았다면 안전하게 푸터(하단) 바로 위에 삽입
+        document.body.insertBefore(container, footer);
+        console.log("[REVIEW-IT] 푸터 상단에 위젯 자동 배치 완료");
+      } else {
+        // 최후의 수단
+        document.body.appendChild(container);
+      }
+    },
+
     async init() {
       this.injectCSS();
+      this.autoCreateContainer();
+      
       await this.loadWidgetSettings();
       const hasReviews = await this.loadReviews(); // 반환값 확인
 
@@ -173,7 +221,7 @@
           if (res.status === 403 || res.status === 401) {
             console.warn("[REVIEW-IT] 이용 기간 만료 또는 앱 삭제됨. 위젯 영역을 숨깁니다.");
             const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
-            if (container) container.style.display = 'none'; 
+            if (container) container.style.display = 'none';
             return false;
           }
           throw new Error(`API 오류: ${res.status}`);
@@ -219,7 +267,7 @@
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
 
-        return true; 
+        return true;
 
       } catch (e) {
         console.error("[REVIEW-IT] 데이터 처리 에러:", e);
