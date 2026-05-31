@@ -81,9 +81,17 @@
     <div
       class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 border-b border-gray-200 pb-6">
       <div>
-        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Review-It 관리자</h1>
+        <!-- [로직 2 추가] 연동 상태 확인 뱃지 -->
+        <div class="flex items-center gap-3 mb-2">
+          <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Review-It 관리자</h1>
+          <span id="integration-badge"
+            class="hidden items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+            스크립트 자동 연동 됨
+          </span>
+        </div>
         <p class="text-gray-500 mt-1">
-          <span id="display-mall-name" class="font-bold text-gray-700">SHOP</span> 몰의 리뷰
+          <span id="display-mall-name" class="font-bold text-gray-700 uppercase">SHOP</span> 몰의 리뷰
           <span id="total-count" class="font-bold text-blue-600">0</span>개가 수집되었습니다.
         </p>
       </div>
@@ -95,9 +103,8 @@
       </div>
     </div>
 
-    <!-- ✅ 사용자 대상: 설치 완료 및 서비스 자동 연동 가이드 -->
+    <!-- 사용자 대상: 설치 완료 및 서비스 자동 연동 가이드 -->
     <div class="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
-      <!-- 장식용 배경 -->
       <div class="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl -mr-10 -mt-10 opacity-50"></div>
 
       <div class="relative z-10">
@@ -122,18 +129,17 @@
           </div>
         </div>
         <p class="mt-3 text-[11px] text-blue-600 font-medium">
-          * 본 시스템은 Cafe24 최신 API 규격을 완벽하게 지원하며, 몰 속도 저하를 최소화하는 비동기 방식으로 구동됩니다.
+          * 본 시스템은 Cafe24 최신 API 규격(2025-12-01)을 완벽하게 지원하며, 몰 속도 저하를 최소화하는 비동기 방식으로 구동됩니다.
         </p>
       </div>
     </div>
     <!-- // 가이드 패널 끝 -->
 
     <!-- 기존 위젯 환경 설정 영역 -->
-    <div class="mb-10 space-y-4">
+    <div class="mb-6 space-y-4">
       <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">위젯 환경 설정</h2>
 
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <!-- 기존 코드 동일 유지 -->
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">그리드 상세 설정</span>
           <div class="flex gap-2 w-full">
@@ -159,7 +165,8 @@
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">위젯 노출 타입</span>
           <div class="rit-switch-group w-full flex justify-between">
-            <button onclick="updateWidgetType('grid')" id="btn-grid" class="rit-btn-toggle flex-1">나열형(Grid)</button>
+            <button onclick="updateWidgetType('grid')" id="btn-grid"
+              class="rit-btn-toggle flex-1 active">나열형(Grid)</button>
             <button onclick="updateWidgetType('swiper')" id="btn-swiper"
               class="rit-btn-toggle flex-1">슬라이드(Swiper)</button>
           </div>
@@ -197,7 +204,36 @@
       </div>
     </div>
 
-    <!-- 이하 기존 테이블 및 스크립트 코드 동일 -->
+    <!-- [로직 1 추가] 실시간 위젯 미리보기 영역 -->
+    <div
+      class="mb-10 bg-[#111111] rounded-2xl p-6 shadow-xl border border-gray-800 text-white overflow-hidden relative">
+      <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+      <div class="flex justify-between items-center mb-6 border-b border-gray-800 pb-4">
+        <h3 class="text-sm font-bold text-gray-300 flex items-center gap-2">
+          <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span> 실시간 위젯 디자인 미리보기
+        </h3>
+        <span class="text-[10px] text-gray-500 bg-gray-800 px-2 py-1 rounded font-mono">LIVE PREVIEW</span>
+      </div>
+
+      <!-- 미리보기 캔버스 -->
+      <div
+        class="bg-black/60 border border-gray-800 rounded-xl p-10 max-w-5xl mx-auto flex flex-col items-center text-center">
+        <span id="preview-tagline" class="text-[11px] font-bold text-blue-500 tracking-widest uppercase mb-2">Verified
+          Authenticity</span>
+        <h2 id="preview-title" class="text-3xl font-extrabold tracking-tight mb-4 text-white">People Choice</h2>
+        <p id="preview-description" class="text-sm text-gray-400 max-w-2xl leading-relaxed">
+          당신의 선택에 확신을 더하는 기록 텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.
+        </p>
+
+        <!-- 레이아웃 목업 -->
+        <div id="preview-layout-visual"
+          class="mt-10 w-full flex justify-center items-center gap-4 opacity-70 transition-all duration-300">
+          <!-- JS로 자동 생성됨 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 리뷰 리스트 -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <table class="w-full text-left border-collapse">
         <thead>
@@ -212,6 +248,7 @@
       </table>
     </div>
 
+    <!-- 페이지네이션 -->
     <div class="flex justify-center items-center mt-8 gap-4 mb-10">
       <button onclick="changePage(-1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50"
         id="prev-btn">이전</button>
@@ -222,17 +259,67 @@
   </div>
 
   <script>
-    // JS 코드는 기존과 100% 동일하게 유지합니다.
     const SB_URL = 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1';
     const SB_KEY = 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt';
 
     const params = new URLSearchParams(window.location.search);
     const MALL_ID = params.get('mall_id') || window.location.hostname.split('.')[0];
-    document.getElementById('display-mall-name').innerText = MALL_ID.toUpperCase();
+    document.getElementById('display-mall-name').innerText = MALL_ID;
 
     let currentPage = 0;
     const itemsPerPage = 15;
     let currentSearchKeyword = '';
+    let currentWidgetType = 'grid'; // 현재 선택된 위젯 타입 상태
+
+    // [로직 1] 실시간 타이핑 이벤트 바인딩 함수
+    function bindPreviewEvents() {
+      const elTagline = document.getElementById('input-tagline');
+      const elTitle = document.getElementById('input-title');
+      const elDesc = document.getElementById('input-description');
+
+      const prevTagline = document.getElementById('preview-tagline');
+      const prevTitle = document.getElementById('preview-title');
+      const prevDesc = document.getElementById('preview-description');
+
+      elTagline.addEventListener('input', (e) => {
+        prevTagline.innerText = e.target.value.trim() === '' ? 'TAGLINE' : e.target.value;
+      });
+      elTitle.addEventListener('input', (e) => {
+        prevTitle.innerText = e.target.value.trim() === '' ? 'MAIN TITLE' : e.target.value;
+      });
+      elDesc.addEventListener('input', (e) => {
+        prevDesc.innerText = e.target.value.trim() === '' ? 'Description' : e.target.value;
+      });
+    }
+
+    // [로직 1] 텍스트 미리보기 업데이트 함수 (DB 로드 시)
+    function syncPreviewText() {
+      document.getElementById('preview-tagline').innerText = document.getElementById('input-tagline').value || 'TAGLINE';
+      document.getElementById('preview-title').innerText = document.getElementById('input-title').value || 'MAIN TITLE';
+      document.getElementById('preview-description').innerText = document.getElementById('input-description').value || 'Description';
+    }
+
+    // [로직 1] 그리드/스와이퍼 레이아웃 목업 렌더링 함수
+    function renderPreviewLayoutVisual(type) {
+      const container = document.getElementById('preview-layout-visual');
+      if (type === 'grid') {
+        container.innerHTML = `
+          <div class="w-20 h-24 bg-gray-800 rounded-lg border border-gray-700 shadow-inner"></div>
+          <div class="w-20 h-24 bg-gray-800 rounded-lg border border-gray-700 shadow-inner"></div>
+          <div class="w-20 h-24 bg-gray-800 rounded-lg border border-gray-700 shadow-inner"></div>
+          <div class="w-20 h-24 bg-gray-800 rounded-lg border border-gray-700 shadow-inner"></div>
+          <div class="w-20 h-24 bg-gray-800 rounded-lg border border-gray-700 shadow-inner"></div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="w-10 h-24 flex items-center justify-center text-gray-500 font-bold text-xl cursor-pointer hover:text-white transition">◀</div>
+          <div class="w-64 h-24 bg-gray-800 rounded-lg border border-gray-600 shadow-2xl relative overflow-hidden flex items-center justify-center">
+            <span class="text-xs text-gray-500 font-bold">Swiper Area</span>
+          </div>
+          <div class="w-10 h-24 flex items-center justify-center text-gray-500 font-bold text-xl cursor-pointer hover:text-white transition">▶</div>
+        `;
+      }
+    }
 
     function getCleanThumbnail(rawUrls) {
       if (!rawUrls) return null;
@@ -274,13 +361,16 @@
           if (s.grid_rows_mobile) document.getElementById('select-grid-mo').value = s.grid_rows_mobile;
           if (s.display_limit) document.getElementById('input-limit').value = s.display_limit;
 
-          refreshSettingUI(s.display_type || 'grid');
+          currentWidgetType = s.display_type || 'grid';
         } else {
           document.getElementById('input-tagline').value = 'Verified Authenticity';
           document.getElementById('input-title').value = 'People Choice';
           document.getElementById('input-description').value = '당신의 선택에 확신을 더하는 기록 텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.';
-          refreshSettingUI('grid');
+          currentWidgetType = 'grid';
         }
+
+        refreshSettingUI(currentWidgetType);
+        syncPreviewText(); // DB 로드 후 미리보기 텍스트 즉시 동기화
       } catch (err) {
         console.error("설정 로드 실패:", err);
       }
@@ -288,27 +378,11 @@
 
     async function saveHeaderSettings(targetType = null) {
       try {
-        const currentType = targetType || document.querySelector('.rit-btn-toggle.active')?.id.replace('btn-', '') || 'grid';
-
-        // const mallRes = await fetch(`${SB_URL}/active_malls?on_conflict=mall_id`, {
-        //   method: 'POST',
-        //   headers: {
-        //     'apikey': SB_KEY,
-        //     'Authorization': `Bearer ${SB_KEY}`,
-        //     'Content-Type': 'application/json',
-        //     'Prefer': 'resolution=merge-duplicates'
-        //   },
-        //   body: JSON.stringify({ mall_id: MALL_ID, status: 'active' })
-        // });
-
-        // if (!mallRes.ok) {
-        //   const errData = await mallRes.json();
-        //   throw new Error(`상점 마스터 갱신 실패: ${errData.message}`);
-        // }
+        const typeToSave = targetType || currentWidgetType;
 
         const payload = {
           mall_id: MALL_ID,
-          display_type: currentType,
+          display_type: typeToSave,
           title: document.getElementById('input-title').value,
           description: document.getElementById('input-description').value,
           tagline: document.getElementById('input-tagline').value,
@@ -340,6 +414,7 @@
     }
 
     async function updateWidgetType(type) {
+      currentWidgetType = type;
       refreshSettingUI(type);
       await saveHeaderSettings(type);
     }
@@ -375,8 +450,7 @@
         const rawContent = rv.content ? rv.content.replace(/<[^>]*>?/gm, '') : '';
         const displayContent = rawContent.trim() ? rawContent : '본문 내용이 없는 리뷰입니다.';
 
-        // [핵심 패치 1] 별점 데이터 방어 및 시각화 로직 추가
-        const starCount = rv.stars ?? 5; // || 대신 ?? 를 사용하여 0점 오류 방어
+        const starCount = rv.stars ?? 5;
         const activeStars = '★'.repeat(starCount);
         const inactiveStars = '☆'.repeat(5 - starCount);
 
@@ -390,12 +464,10 @@
               </div>
               <div class="flex-1">
                 <div class="text-sm font-bold text-gray-900 mb-1">${rv.subject || '제목없음'}</div>
-                <!-- 로직 연결 전까지 본문(displayContent)은 심사용으로 숨김 처리 -->
               </div>
             </div>
           </td>
           <td class="p-5 text-center">
-            <!-- [핵심 패치 2] 직관적인 별점 렌더링 UI 적용 -->
             <div class="inline-flex items-center px-3 py-1.5 bg-amber-50 rounded-md shadow-sm border border-amber-100">
               <span class="text-amber-500 text-sm tracking-widest">${activeStars}<span class="text-amber-200">${inactiveStars}</span></span>
               <span class="ml-2 text-amber-800 font-bold text-sm">${starCount}.0</span>
@@ -426,6 +498,9 @@
       document.querySelectorAll('.rit-btn-toggle').forEach(btn => btn.classList.remove('active'));
       const target = document.getElementById(`btn-${type}`);
       if (target) target.classList.add('active');
+
+      // 레이아웃 시각적 미리보기 연동
+      renderPreviewLayoutVisual(type);
     }
 
     async function toggleVisibility(id, currentStatus) {
@@ -454,7 +529,7 @@
       }
       return true;
     }
-    // ✅ 1. 실시간 상태 검증 함수 추가 (admin.html 스크립트 영역)
+
     async function checkMallStatus() {
       try {
         const res = await fetch(`${SB_URL}/active_malls?select=status&mall_id=eq.${MALL_ID}`, {
@@ -462,12 +537,17 @@
         });
         const data = await res.json();
 
-        // DB에 데이터가 없거나, 상태가 active가 아니면 쫓아냅니다.
         if (!data || data.length === 0 || data[0].status !== 'active') {
           alert("서비스 이용 기간이 만료되었거나 앱이 삭제된 상태입니다.");
-          window.location.href = 'https://store.cafe24.com/'; // 카페24 스토어 등으로 강제 이동
+          window.location.href = 'https://store.cafe24.com/';
           return false;
         }
+
+        // [로직 2 연동] 상태가 정상(active)이면 연동 뱃지를 표시합니다.
+        const badge = document.getElementById('integration-badge');
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+
         return true;
       } catch (err) {
         console.error("상태 검증 실패:", err);
@@ -476,9 +556,10 @@
     }
 
     window.onload = async () => {
-      // 기존 토큰 체크를 먼저 하고
+      // 텍스트 입력창 이벤트 바인딩
+      bindPreviewEvents();
+
       if (checkAuthentication()) {
-        // DB의 실시간 상태를 한 번 더 체크 (이중 방어)
         const isActive = await checkMallStatus();
 
         if (isActive) {
