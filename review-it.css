@@ -7,7 +7,12 @@
 }
 
 #ritModal {
-  font-family: 'pretendard' !important;
+  font-family:
+    "Pretendard",
+    "Noto Sans KR",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    sans-serif;
 }
 
 .rit-modal-window {
