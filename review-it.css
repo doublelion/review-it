@@ -538,7 +538,12 @@
   max-width: 1260px !important;
   margin: 0 auto !important;
   box-sizing: border-box;
-  font-family: 'Pretendard'
+  font-family:
+    "Pretendard",
+    "Noto Sans KR",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    sans-serif;
 }
 
 .rit-main-title {
@@ -575,6 +580,7 @@
   .rit-nav-btn {
     display: none;
   }
+
   .rit-desc {
     padding-left: 16px;
     padding-right: 16px;
