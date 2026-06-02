@@ -69,15 +69,27 @@
       let container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (container) return; // 이미 있으면 종료
 
-      // 2. 없으면 새로 생성
+      // [긴급 패치] 페이지 엄격 필터링 (URL 기준)
+      const pathname = window.location.pathname;
+      // 카페24 메인 페이지는 보통 '/' 또는 '/index.html' 로 끝납니다.
+      const isMainPage = pathname === '/' || pathname === '/index.html'; 
+      const isProductPage = !!CONFIG.PRODUCT_NO;
+
+      // 메인 페이지도 아니고 상품 상세 페이지도 아니면 위젯을 아예 생성하지 않고 종료 (로그인, 장바구니 등 차단)
+      if (!isMainPage && !isProductPage) {
+        console.log("[REVIEW-IT] 메인 또는 상품 상세 페이지가 아니므로 위젯 노출을 차단합니다.");
+        return; 
+      }
+
+      // 2. 조건에 부합할 경우에만 새로 생성
       container = document.createElement('div');
       container.id = 'review-it-widget';
       container.style.marginTop = '80px'; // 위젯 상단 여백 확보
       container.style.marginBottom = '80px';
 
-      // 3. 현재 페이지에 따른 삽입 위치 결정 (카페24 스킨 표준 구조 타겟팅)
-      if (CONFIG.PRODUCT_NO) {
-        // [상품 상세 페이지] 상품 상세설명 하단 또는 리뷰 게시판 영역 근처
+      // 3. 현재 페이지에 따른 삽입 위치 결정
+      if (isProductPage) {
+        // [상품 상세 페이지] 
         const detailArea = document.querySelector('.xans-product-additional') ||
           document.querySelector('#prdDetail') ||
           document.querySelector('#detailArea');
@@ -89,23 +101,25 @@
         }
       }
 
-      // [메인 페이지 또는 기타 페이지] 메인 컨텐츠 영역 하단 또는 푸터 바로 위
-      const mainContent = document.querySelector('#contents') ||
-        document.querySelector('.xans-product-listmain') ||
-        document.querySelector('#wrap');
+      if (isMainPage) {
+        // [메인 페이지] 메인 컨텐츠 영역 하단 또는 푸터 바로 위
+        const mainContent = document.querySelector('#contents') ||
+          document.querySelector('.xans-product-listmain') ||
+          document.querySelector('#wrap');
 
-      const footer = document.querySelector('#footer');
+        const footer = document.querySelector('#footer');
 
-      if (mainContent) {
-        mainContent.appendChild(container);
-        console.log("[REVIEW-IT] 메인 컨텐츠 영역 하단에 위젯 자동 배치 완료");
-      } else if (footer) {
-        // 메인 영역을 못 찾았다면 안전하게 푸터(하단) 바로 위에 삽입
-        document.body.insertBefore(container, footer);
-        console.log("[REVIEW-IT] 푸터 상단에 위젯 자동 배치 완료");
-      } else {
-        // 최후의 수단
-        document.body.appendChild(container);
+        if (mainContent) {
+          mainContent.appendChild(container);
+          console.log("[REVIEW-IT] 메인 컨텐츠 영역 하단에 위젯 자동 배치 완료");
+        } else if (footer) {
+          // 메인 영역을 못 찾았다면 안전하게 푸터(하단) 바로 위에 삽입
+          document.body.insertBefore(container, footer);
+          console.log("[REVIEW-IT] 푸터 상단에 메인 위젯 자동 배치 완료");
+        } else {
+          // 최후의 수단
+          document.body.appendChild(container);
+        }
       }
     },
 
