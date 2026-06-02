@@ -270,6 +270,16 @@
   /* white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis; */
+
+  line-height: 1.5;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+
+  word-break: keep-all;
+  height: 3em; /* line-height 1.5 × 2줄 */
 }
 
 .rit-card-meta {
