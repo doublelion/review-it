@@ -72,13 +72,13 @@
       // [긴급 패치] 페이지 엄격 필터링 (URL 기준)
       const pathname = window.location.pathname;
       // 카페24 메인 페이지는 보통 '/' 또는 '/index.html' 로 끝납니다.
-      const isMainPage = pathname === '/' || pathname === '/index.html'; 
+      const isMainPage = pathname === '/' || pathname === '/index.html';
       const isProductPage = !!CONFIG.PRODUCT_NO;
 
       // 메인 페이지도 아니고 상품 상세 페이지도 아니면 위젯을 아예 생성하지 않고 종료 (로그인, 장바구니 등 차단)
       if (!isMainPage && !isProductPage) {
         console.log("[REVIEW-IT] 메인 또는 상품 상세 페이지가 아니므로 위젯 노출을 차단합니다.");
-        return; 
+        return;
       }
 
       // 2. 조건에 부합할 경우에만 새로 생성
@@ -126,7 +126,7 @@
     async init() {
       this.injectCSS();
       this.autoCreateContainer();
-      
+
       await this.loadWidgetSettings();
       const hasReviews = await this.loadReviews(); // 반환값 확인
 
@@ -221,9 +221,12 @@
     // 1. 위젯 소스코드 : 완전 무결한 이미지 필터링 & 본문 이미지 강제 구출 로직 적용
     async loadReviews() {
       try {
+        // [수정 후: 완벽한 DB 부하 방지]
+        const limit = this.settings.display_limit || 15; // 관리자 설정값 또는 기본값 15
+
         let apiUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
         if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
-        apiUrl += `&order=created_at.desc`;
+        apiUrl += `&order=created_at.desc&limit=${limit}`; // API 요청 시점에 딱 필요한 개수만 요청
 
         // 1. API 호출 (여기서 res가 최초로 정의됩니다)
         const res = await fetch(apiUrl, {
