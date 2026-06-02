@@ -94,7 +94,7 @@
         subject: link.innerText.trim() || "포토 리뷰입니다.",
         content: "본문을 불러오는 중입니다...",
         writer: cleanWriter || "고객",
-        stars: extractedStar, // 하드코딩 5에서 동적 추출 값으로 변경
+        stars: extractedStar,
         image_urls: thumbUrl ? [thumbUrl] : [],
         is_visible: true
       });
@@ -105,8 +105,17 @@
       return;
     }
 
-    // 배열 크기 제한 (한 번에 최대 20개까지만 수집하여 부하 방지)
-    const limitedPayload = payload.slice(0, 20);
+    // 💡 [에러 해결 핵심 로직] article_no 기준으로 중복 데이터 완벽 제거
+    const uniqueMap = new Map();
+    payload.forEach(item => {
+      if (!uniqueMap.has(item.article_no)) {
+        uniqueMap.set(item.article_no, item);
+      }
+    });
+    const uniquePayload = Array.from(uniqueMap.values());
+
+    // 배열 크기 제한 (중복 제거된 배열에서 최대 20개까지만 수집)
+    const limitedPayload = uniquePayload.slice(0, 20);
 
     if (limitedPayload.length === 0) return;
 
@@ -123,7 +132,9 @@
       });
 
       if (res.ok) {
-        console.log(`✅ [REVIEW-IT] ${CONFIG.mallId} 동기화 완료 (${payload.length}건)`);
+        console.log(`✅ [REVIEW-IT] ${CONFIG.mallId} 동기화 완료 (${limitedPayload.length}건)`);
+        // 성공 시에만 쿨타임 저장
+        localStorage.setItem('rit_last_sync', new Date().getTime().toString());
       } else {
         console.error("❌ 데이터 전송 실패:", await res.text());
       }
