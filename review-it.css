@@ -280,7 +280,8 @@
   overflow: hidden;
 
   word-break: keep-all;
-  height: 3em; /* line-height 1.5 × 2줄 */
+  height: 3em;
+  /* line-height 1.5 × 2줄 */
 }
 
 .rit-card-meta {
@@ -1084,3 +1085,56 @@
 }
 
 /* 만약 이미지가 무조건 꽉 차길 원하신다면 object-fit: cover를 사용하세요 */
+
+
+/* =========================================
+   REVIEW-IT 로딩 스켈레톤 (Skeleton UI)
+========================================= */
+
+/* 스켈레톤 카드 뼈대 */
+.rit-skeleton-card {
+  aspect-ratio: 3/4;
+  border-radius: 12px;
+  background-color: #f2f2f2;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* 스켈레톤 텍스트 영역 뼈대 */
+.rit-skeleton-text {
+  background-color: #f2f2f2;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 쉬머(Shimmer) 애니메이션 효과 - 빛이 훑고 지나가는 느낌 */
+.rit-skeleton-card::after,
+.rit-skeleton-text::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.6) 50%,
+      rgba(255, 255, 255, 0) 100%);
+  transform: translateX(-100%);
+  animation: rit-shimmer 1.5s infinite;
+}
+
+@keyframes rit-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 스켈레톤 노출 시 모바일 환경에서는 2개만 보이게끔 숨김 처리 */
+@media (max-width: 1023px) {
+  .rit-main-grid-layout .rit-skeleton-card:nth-child(n+3) {
+    display: none !important;
+  }
+}

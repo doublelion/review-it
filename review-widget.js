@@ -63,6 +63,25 @@
       grid_rows_mobile: 2
     },
 
+    // 기존 ReviewApp 객체 내부에 추가할 함수
+    renderSkeleton(container) {
+      // 톤앤매너에 맞춘 깔끔한 뼈대 UI 생성 (PC 5개, 모바일 2개 기준)
+      const skeletonCards = Array(5).fill(0).map(() => `
+        <div class="rit-skeleton-card"></div>
+      `).join('');
+
+      container.innerHTML = `
+        <div class="rit-header-area" style="text-align:center; margin-bottom:30px; opacity:0.6;">
+          <div class="rit-skeleton-text" style="width:120px; height:14px; margin:0 auto 10px;"></div>
+          <div class="rit-skeleton-text" style="width:250px; height:32px; margin:0 auto;"></div>
+          <div class="rit-line" style="width:30px; height:1px; background:#eaeaea; margin:15px auto;"></div>
+          <div class="rit-skeleton-text" style="width:350px; height:40px; margin:0 auto; max-width:80%;"></div>
+        </div>
+        <div class="rit-main-grid-layout" style="overflow: hidden;">
+          ${skeletonCards}
+        </div>
+      `;
+    },
     // ReviewApp 객체 내부에 추가할 함수
     autoCreateContainer() {
       // 1. 이미 수동으로 넣은 컨테이너가 있는지 확인
@@ -120,6 +139,10 @@
           // 최후의 수단
           document.body.appendChild(container);
         }
+      }
+      // 💡 [핵심 추가] 컨테이너가 DOM에 붙자마자 로딩(스켈레톤) 화면을 즉시 렌더링
+      if (document.getElementById('review-it-widget')) {
+        this.renderSkeleton(container);
       }
     },
 
