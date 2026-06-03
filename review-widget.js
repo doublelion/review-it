@@ -72,13 +72,13 @@
       // [긴급 패치] 페이지 엄격 필터링 (URL 기준)
       const pathname = window.location.pathname;
       // 카페24 메인 페이지는 보통 '/' 또는 '/index.html' 로 끝납니다.
-      const isMainPage = pathname === '/' || pathname === '/index.html'; 
+      const isMainPage = pathname === '/' || pathname === '/index.html';
       const isProductPage = !!CONFIG.PRODUCT_NO;
 
       // 메인 페이지도 아니고 상품 상세 페이지도 아니면 위젯을 아예 생성하지 않고 종료 (로그인, 장바구니 등 차단)
       if (!isMainPage && !isProductPage) {
         console.log("[REVIEW-IT] 메인 또는 상품 상세 페이지가 아니므로 위젯 노출을 차단합니다.");
-        return; 
+        return;
       }
 
       // 2. 조건에 부합할 경우에만 새로 생성
@@ -126,7 +126,7 @@
     async init() {
       this.injectCSS();
       this.autoCreateContainer();
-      
+
       await this.loadWidgetSettings();
       const hasReviews = await this.loadReviews(); // 반환값 확인
 
@@ -356,31 +356,35 @@
 
       container.innerHTML = mainHtml;
 
-      // 카페24 구버전 Swiper 호환성 해결 로직 (v9.4 계승)
+      // 카페24 구버전 Swiper 호환성 해결 로직 - REVIEW-IT 개선 버전
       if (!isGrid && window.Swiper) {
         const getSwiperConfig = () => {
           const isPc = window.innerWidth >= 1024;
           return {
             slidesPerView: isPc ? pcCols : moCols,
             spaceBetween: isPc ? 20 : 12,
-            loop: true, // 무한 루프를 위해 필수
-            speed: 5000, // 전환 속도를 매우 길게 설정하여 아주 천천히 흐르게 함
+            loop: true,
+            speed: 5000, // 전환 속도 (밀리초)
 
-            // --- 가장 자연스러운 흐름을 위한 설정 ---
+            // --- [핵심 개선] 부드러운 드래그를 위한 Free Mode ---
+            freeMode: true,
+            freeModeMomentum: false, // 드래그 후 튕기는 관성 효과를 없애 흐름을 자연스럽게 유지
+
+            // --- [핵심 개선] 끊김 없는 자동 롤링 ---
             autoplay: {
-              delay: 0, // 멈추는 시간 없이 즉시 전환
-              disableOnInteraction: false, // 고객이 터치해도 다시 자동으로 흐름
-              pauseOnMouseEnter: true, // 마우스 올리면 정지(가독성)
-              waitForTransition: false
+              delay: 0,
+              disableOnInteraction: false,
+              pauseOnMouseEnter: true, // 카페24 구버전 Swiper 버전에 따라 이 옵션이 버그를 일으킬 수 있으니 테스트 권장
             },
-            allowTouchMove: true, // 고객이 직접 넘겨볼 수 있음
+
+            allowTouchMove: true,
             grabCursor: true,
-            // ------------------------------------
 
             observer: true,
             observeParents: true,
             roundLengths: true
           };
+
         };
 
         let ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
