@@ -164,16 +164,25 @@
         }
 
         let extractedSubject = null;
-        // 💡 [핵심 버그 수정] 글로벌 영역이 아닌, 진짜 게시글 상세 영역(.xans-board-read 등) 내부에서만 제목을 찾습니다.
-        const readArea = doc.querySelector('.xans-board-read, .boardView, .v2-board-read, #board_read');
+        // 💡 [초정밀 패치] 게시글 영역을 최상단 래퍼로 좁히고, 그 안에서만 title을 찾습니다.
+        const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
+
         if (readArea) {
-          const titleEl = readArea.querySelector('.title, td.subject, .subject, .view_title, .board_view_title');
+          // 관련 상품 영역 배제: 명확하게 헤더 영역의 제목만 찾음
+          const titleEl = readArea.querySelector('.title h3, .title p, .boardView .title, td.subject');
           if (titleEl) {
-            extractedSubject = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
+            let tempTitle = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').replace(/[\r\n]+/g, ' ').trim();
+            // 제목이 비정상적으로 길다면(본문 스크래핑 오작동 방지) 컷팅
+            if (tempTitle.length > 50) {
+              extractedSubject = tempTitle.substring(0, 50) + '...';
+            } else {
+              extractedSubject = tempTitle;
+            }
           }
         }
 
-        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail, .v2-board-read-content');
+        // 본문 영역 타겟팅
+        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail');
         if (!contentArea) return { images: [], text: "", star: extractedStar, subject: extractedSubject };
 
         const extractedImages = [];
@@ -233,9 +242,9 @@
             r.all_images = (separateData.images && separateData.images.length > 0)
               ? separateData.images
               : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.DEFAULT_IMG]);
-            
+
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
-            
+
             if (separateData.subject && separateData.subject.trim().length > 0) {
               r.subject = separateData.subject;
             }
@@ -247,7 +256,7 @@
           if (r.subject === "포토 리뷰입니다." || !r.subject) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = r.clean_text_body;
-            const plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim(); 
+            const plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim();
             if (plainText.length > 0) {
               r.subject = plainText.length > 30 ? plainText.substring(0, 30) + '...' : plainText;
             }
@@ -515,7 +524,7 @@
 
         const comments = Array.from(commentRows).map(el => {
           let writer = (el.querySelector('.name, .writer, strong')?.innerText || "고객").trim();
-          
+
           // 💡 [핵심 버그 수정] 댓글 작성자가 쇼핑몰 관리자인지 확인 후 이름 치환, 아니면 실명 보호 마스킹 적용
           const isAdminBadge = el.querySelector('img[src*="admin"], img[src*="staff"]');
           if (isAdminBadge || CONFIG.ADMIN_KEYWORDS.some(k => writer.includes(k))) {
@@ -560,7 +569,7 @@
         const isOfficial = c.writer === CONFIG.MALL_NAME;
         const fontColor = isOfficial ? '#000' : '#111';
         const bgStyle = isOfficial ? 'background:#f0f4f8; border:1px solid #e2e8f0;' : 'background:#f9f9f9; border:1px solid transparent;';
-        
+
         return `
         <div class="rit-comm-item" style="margin-bottom:10px; ${bgStyle} padding:14px; border-radius:10px; font-size:12px;">
           <div style="font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
