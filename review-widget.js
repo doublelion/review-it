@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.2
- * @Update: DB 스키마 완벽 매핑 (article_id, image_urls, author_name) 및 원문보기 링크 정상화
+ * @Project: Review-It Universal Widget Engine v1.0.3
+ * @Update: 제목 "포토 리뷰입니다." 노출 방지 (실시간 제목 추출 및 본문 미리보기 대체 로직 적용)
  */
 (function (window) {
   const getDynamicConfig = () => {
@@ -145,7 +145,6 @@
       return name.length > 1 ? name.charAt(0) + "*".repeat(name.length - 1) : name;
     },
 
-    // 💡 [수정] boardNo 파라미터 정상 수신 처리
     async _fetchAndSeparateContent(articleNo, boardNo = '4') {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
@@ -154,6 +153,7 @@
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
+        // 별점 추출
         let extractedStar = null;
         const starImg = doc.querySelector('img[src*="icon-star-rating"]');
         if (starImg) {
@@ -161,8 +161,16 @@
           if (match && match[1]) extractedStar = parseInt(match[1], 10);
         }
 
+        // 💡 [집중 수정] 상세 페이지에서 진짜 제목(Subject) 구출하기
+        let extractedSubject = null;
+        const titleEl = doc.querySelector('.xans-board-read .title, td.subject, .boardView .title, .view_title, .board_view_title, .subject');
+        if (titleEl) {
+          // "제목 : " 같은 불필요한 텍스트 걷어내기
+          extractedSubject = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
+        }
+
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail, .v2-board-read-content');
-        if (!contentArea) return { images: [], text: "", star: extractedStar };
+        if (!contentArea) return { images: [], text: "", star: extractedStar, subject: extractedSubject };
 
         const extractedImages = [];
         const imgs = contentArea.querySelectorAll('img');
@@ -177,7 +185,8 @@
           img.remove();
         });
 
-        return { images: extractedImages, text: contentArea.innerHTML.trim(), star: extractedStar };
+        // subject 추가 반환
+        return { images: extractedImages, text: contentArea.innerHTML.trim(), star: extractedStar, subject: extractedSubject };
       } catch (e) {
         return null;
       }
@@ -214,19 +223,34 @@
 
         await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
           const id = String(r.id);
-          // 💡 [수정] DB 스키마에 맞춰 article_no -> article_id 로 변경
           const separateData = await this._fetchAndSeparateContent(r.article_id, r.board_no);
 
           if (separateData) {
             r.clean_text_body = separateData.text || r.content;
-            // 💡 [수정] DB 스키마에 맞춰 image_url -> image_urls 로 변경
             r.all_images = (separateData.images && separateData.images.length > 0)
               ? separateData.images
               : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.DEFAULT_IMG]);
+            
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
+            
+            // 💡 [집중 수정] 상세 페이지에서 구출한 제목으로 덮어쓰기
+            if (separateData.subject && separateData.subject.trim().length > 0) {
+              r.subject = separateData.subject;
+            }
           } else {
             r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
             r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
+          }
+
+          // 💡 [최후의 방어선] 그럼에도 불구하고 제목이 "포토 리뷰입니다." 라면? 
+          // -> 리뷰 본문 텍스트에서 앞 30글자를 떼와서 인스타그램처럼 세련되게 보여줌
+          if (r.subject === "포토 리뷰입니다." || !r.subject) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = r.clean_text_body;
+            const plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim(); // HTML 태그 다 떼고 순수 텍스트만 추출
+            if (plainText.length > 0) {
+              r.subject = plainText.length > 30 ? plainText.substring(0, 30) + '...' : plainText;
+            }
           }
 
           this.data[id] = r;
@@ -382,7 +406,6 @@
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
-      // 💡 [수정] 작성자 정보를 author_name 으로 매핑
       return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
         <img src="${thumb}" class="rit-card-img" loading="lazy">
         <div class="rit-card-info">
@@ -414,7 +437,6 @@
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
 
       if (!d.is_parsed) {
-        // 💡 [수정] 파라미터 매핑 정상화
         const separateData = await this._fetchAndSeparateContent(d.article_id, d.board_no);
         if (separateData) {
           d.clean_text_body = separateData.text || d.content;
@@ -446,7 +468,6 @@
       }
 
       const hits = d.hit_count || d.hit || Math.floor(Math.random() * 50) + 1;
-      // 💡 [수정] 작성자 정보를 author_name 으로 매핑
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
@@ -457,7 +478,6 @@
       document.getElementById('ritSubject').innerText = d.subject;
       contentSide.innerHTML = d.clean_text_body || "본문이 없습니다.";
 
-      // 💡 [수정] 댓글 파싱 시에도 article_id 전달
       this.loadComments(d.article_id, d.board_no);
     },
 
