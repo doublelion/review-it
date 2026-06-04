@@ -79,18 +79,17 @@ module.exports = async (req, res) => {
     console.log(`🎉 [설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
 
     // =================================================================
-    // 3. 스크립트 자동 주입 (API 버전 2025-12-01 반영)
+    // 3. 스크립트 자동 주입
     // =================================================================
     try {
-      let shopIds = [1]; // 멀티쇼핑몰 권한 오류 대비 기본값 세팅
+      let shopIds = [1]; 
 
       try {
-        // 해당 상점의 모든 멀티쇼핑몰 목록 조회 시도
         const shopListRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/shops`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'X-Cafe24-Api-Version': CAFE24_API_VERSION // 💡 최신 버전 반영
+            'X-Cafe24-Api-Version': CAFE24_API_VERSION
           }
         });
 
@@ -106,26 +105,22 @@ module.exports = async (req, res) => {
           console.warn(`⚠️ [상점 조회 실패] 상태 코드: ${shopListRes.status}, 사유: ${shopErrorDetail}. 기본값(1번 몰)으로 진행합니다.`);
         }
       } catch (shopErr) {
-        console.error('⚠️ [상점 조회 중 예외 발생] 기본값(1번 몰)으로 안전하게 진행합니다:', shopErr.message);
+        console.error('⚠️ [상점 조회 중 예외 발생] 기본값(1번 몰)으로 진행:', shopErr.message);
       }
 
-      // 주입할 스크립트 파일 목록
       const scriptUrls = [
         'https://review-it-tau.vercel.app/review-it.js',
         'https://review-it-tau.vercel.app/review-widget.js'
       ];
 
-      // 결정된 shopIds로 스크립트 주입 시작
       for (const shop_no of shopIds) {
         for (const src of scriptUrls) {
-          console.log(`▶️ [스크립트 주입 시도] 상점 번호: ${shop_no}, 파일: ${src}`);
-
           const scriptRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/scripttags`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json',
-              'X-Cafe24-Api-Version': CAFE24_API_VERSION // 💡 최신 버전 반영
+              'X-Cafe24-Api-Version': CAFE24_API_VERSION
             },
             body: JSON.stringify({
               shop_no: shop_no,
@@ -151,7 +146,66 @@ module.exports = async (req, res) => {
     }
 
     // =================================================================
-    // 4. 보안 입장권 생성 및 관리자 페이지 리다이렉트
+    // 4. 초기 리뷰 데이터 동기화 (상품 구매후기 게시판: 기본 board_no = 4)
+    // =================================================================
+    try {
+      console.log(`🔄 [리뷰 동기화 시작] ${mall_id}의 초기 리뷰 데이터를 가져옵니다.`);
+      const boardNo = 4; // 상품 구매후기 게시판 번호 (몰마다 다를 수 있으나 4번이 표준)
+      
+      const articlesRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/boards/${boardNo}/articles?limit=15`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Cafe24-Api-Version': CAFE24_API_VERSION
+        }
+      });
+
+      if (articlesRes.ok) {
+        const articlesData = await articlesRes.json();
+        const articles = articlesData.articles || [];
+
+        if (articles.length > 0) {
+          // Supabase 'reviews' 테이블에 데이터 매핑 및 저장
+          const reviewsToInsert = articles.map(article => ({
+            mall_id: mall_id,
+            article_id: article.article_no,
+            product_no: article.product_no || null,
+            member_id: article.member_id || 'guest',
+            author_name: article.writer || '익명',
+            subject: article.subject,
+            content: article.content,
+            created_at: article.created_date // 카페24 날짜 포맷 (YYYY-MM-DDTHH:mm:ss 등)
+          }));
+
+          const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(reviewsToInsert)
+          });
+
+          if (!insertRes.ok) {
+            const insertError = await insertRes.text();
+            console.error('❌ 리뷰 Supabase 저장 에러:', insertError);
+          } else {
+            console.log(`✅ [리뷰 동기화 성공] ${reviewsToInsert.length}개의 리뷰 저장 완료!`);
+          }
+        } else {
+          console.log(`ℹ️ [리뷰 동기화] 가져올 기존 리뷰가 없습니다.`);
+        }
+      } else {
+        const articleErrorDetail = await articlesRes.text();
+        console.warn(`⚠️ [리뷰 동기화 실패] 상태 코드: ${articlesRes.status}, 사유: ${articleErrorDetail}`);
+      }
+    } catch (syncErr) {
+      console.error('🔥 초기 리뷰 동기화 프로세스 에러:', syncErr);
+    }
+
+    // =================================================================
+    // 5. 보안 입장권 생성 및 관리자 페이지 리다이렉트
     // =================================================================
     const authSignature = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
 
