@@ -1,12 +1,17 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.4
- * @Update: 제목 글로벌 스코프 스크래핑 버그 픽스 및 댓글 관리자명(쇼핑몰명) 자동 치환 로직 추가
+ * @Project: Review-It Universal Widget Engine v1.0.5
+ * @Update: 독립 도메인(.co.kr) 타겟 몰아이디 파싱 버그 완벽 픽스 및 상세페이지 제목 가공 강화
  */
 (function (window) {
   const getDynamicConfig = () => {
-    const host = window.location.hostname;
-    let mallId = host.split('.').filter(part => !['www', 'm', 'cafe24', 'com'].includes(part))[0];
-    if (!mallId) mallId = 'default_mall';
+    // 💡 [버그 수정 핵심] 수집기와 동일하게 카페24 엔진 내부 변수를 활용하여 독립 도메인 완벽 대응
+    const cafe24MallId = window.SHOP_ID || (typeof EC_SHOP_ID !== 'undefined' ? EC_SHOP_ID : null);
+    
+    let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
+    
+    const finalMallId = cafe24MallId || fallbackMallId || 'default_mall';
+
+    console.log("▶ [REVIEW-IT Widget] 매핑된 상점 Mall ID:", finalMallId);
 
     const getProductNo = () => {
       if (typeof window.iProductNo !== 'undefined' && window.iProductNo) return window.iProductNo;
@@ -30,7 +35,7 @@
     return {
       URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
       KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-      MALL_ID: mallId,
+      MALL_ID: finalMallId, // 정확하게 일치된 몰 아이디 바인딩
       PRODUCT_NO: getProductNo(),
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
@@ -139,16 +144,15 @@
       } catch (e) { console.warn("[REVIEW-IT] 기본 설정을 유지합니다."); }
     },
 
-    // 💡 [핵심 3] 쇼핑몰 ID & 실명 마스킹 로직 부활 (ykinas -> yki***)
     maskName(name) {
       if (!name || name === "고객") return "고객";
       name = name.trim();
+      // 만약 작성자가 몰 아이디 형태(영어+숫자)라면 마스킹을 유연하게 처리
       if (name.length <= 2) return name.charAt(0) + '*';
-      // 앞 2~3글자만 살리고 나머지는 * 처리
       return name.substring(0, 2) + '*'.repeat(Math.max(1, name.length - 2)); 
     },
 
-    // [위젯 수정 2] 상세페이지 제목 파싱 방어 로직
+    // 💡 상세페이지 비동기 스크래핑 시 제목 파싱 필터링 트윅 고도화
     async _fetchAndSeparateContent(articleNo, boardNo = '4') {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
@@ -171,11 +175,11 @@
           const titleEl = readArea.querySelector('.title h3, .title h2, .title p, .boardView .title, td.subject');
           if (titleEl) {
             let tempTitle = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
-            // 💡 [핵심 디버깅] 카페24 특성상 본문이 엔터로 이어져 들어오는 것을 방지 (첫 줄만 가져옴)
-            tempTitle = tempTitle.split('\n')[0].trim(); 
+            // 개행 문자 분할 후 다중 공백 제거 압축
+            tempTitle = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim(); 
             
-            if (tempTitle.length > 50) {
-              extractedSubject = tempTitle.substring(0, 50) + '...';
+            if (tempTitle.length > 25) {
+              extractedSubject = tempTitle.substring(0, 25) + '...';
             } else {
               extractedSubject = tempTitle;
             }
@@ -235,7 +239,7 @@
 
         await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
           const id = String(r.id);
-          const separateData = await this._fetchAndSeparateContent(r.article_id, r.board_no);
+          const separateData = await this._fetchAndSeparateContent(r.article_id || r.article_no, r.board_no);
 
           if (separateData) {
             r.clean_text_body = separateData.text || r.content;
@@ -244,7 +248,6 @@
               : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.DEFAULT_IMG]);
 
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
-
             if (separateData.subject && separateData.subject.trim().length > 0) {
               r.subject = separateData.subject;
             }
@@ -253,12 +256,13 @@
             r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
           }
 
+          // 💡 서브젝트 정제 백업 필터
           if (r.subject === "포토 리뷰입니다." || !r.subject) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = r.clean_text_body;
-            const plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim();
+            let plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim();
             if (plainText.length > 0) {
-              r.subject = plainText.length > 30 ? plainText.substring(0, 30) + '...' : plainText;
+              r.subject = plainText.length > 25 ? plainText.substring(0, 25) + '...' : plainText;
             }
           }
 
@@ -412,7 +416,6 @@
       document.body.appendChild(modalContainer);
     },
 
-    // 💡 카드 렌더링 시 d.author_name 대신 d.writer 호출
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
@@ -421,7 +424,7 @@
         <div class="rit-card-info">
           <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
           <div class="rit-card-meta">
-            <span>${this.maskName(d.writer)}</span> <!-- writer 호출 -->
+            <span>${this.maskName(d.writer)}</span> 
             <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
           </div>
         </div>
@@ -447,7 +450,7 @@
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
 
       if (!d.is_parsed) {
-        const separateData = await this._fetchAndSeparateContent(d.article_id, d.board_no);
+        const separateData = await this._fetchAndSeparateContent(d.article_id || d.article_no, d.board_no);
         if (separateData) {
           d.clean_text_body = separateData.text || d.content;
           d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
@@ -477,12 +480,11 @@
         imgSide.innerHTML = `<div class="rit-no-image"><span>REVIEW-IT</span></div>`;
       }
 
-      const hits = d.hit_count || d.hit || Math.floor(Math.random() * 50) + 1;
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
-            <span class="rit-author">${this.maskName(d.writer)}</span> <!-- writer 호출 -->
-            <span class="rit-date">${d.created_at.split('T')[0]}</span>
+            <span class="rit-author">${this.maskName(d.writer)}</span> 
+            <span class="rit-date">${d.created_at ? d.created_at.split('T')[0] : ''}</span>
             <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
         </div>`;
@@ -527,7 +529,6 @@
         const comments = Array.from(commentRows).map(el => {
           let writer = (el.querySelector('.name, .writer, strong')?.innerText || "고객").trim();
 
-          // 💡 [핵심 버그 수정] 댓글 작성자가 쇼핑몰 관리자인지 확인 후 이름 치환, 아니면 실명 보호 마스킹 적용
           const isAdminBadge = el.querySelector('img[src*="admin"], img[src*="staff"]');
           if (isAdminBadge || CONFIG.ADMIN_KEYWORDS.some(k => writer.includes(k))) {
             writer = CONFIG.MALL_NAME;
@@ -567,7 +568,6 @@
       }
 
       container.innerHTML = headerHtml + comments.map(c => {
-        // 운영자(쇼핑몰명)일 경우 스타일을 살짝 다르게 주어 돋보이게 처리 가능
         const isOfficial = c.writer === CONFIG.MALL_NAME;
         const fontColor = isOfficial ? '#000' : '#111';
         const bgStyle = isOfficial ? 'background:#f0f4f8; border:1px solid #e2e8f0;' : 'background:#f9f9f9; border:1px solid transparent;';

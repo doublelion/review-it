@@ -1,13 +1,13 @@
 /**
  * @Project: Review-It Universal Collector Engine
- * @Version: v1.0.5
- * @Update: 400 Bad Request 픽스 (컬럼명 롤백) & 실명 대신 아이디 추출 적용 & 제목 본문 차단
+ * @Version: v1.0.6
+ * @Update: 독립 도메인 대응 강화, 작성자 몰아이디 매핑, 제목 본문 혼입 방지 정교화
  */
 (function (window) {
   const getDynamicConfig = () => {
     // 1. 카페24 전역 변수에서 mallId를 먼저 찾습니다. (가장 정확함)
     const cafe24MallId = window.SHOP_ID || (typeof EC_SHOP_ID !== 'undefined' ? EC_SHOP_ID : null);
-    
+
     // 2. 전역 변수가 없을 경우에만 기존의 hostname 파싱 로직을 사용 (백업)
     let host = window.location.hostname;
     let fallbackMallId = host.replace('.cafe24.com', '').split('.').pop() === 'com'
@@ -16,12 +16,12 @@
 
     const finalMallId = cafe24MallId || fallbackMallId.replace('m.', '');
 
-    console.log("▶ [REVIEW-IT] 현재 인식된 Mall ID:", finalMallId); // 디버깅용 로그
+    console.log("▶ [REVIEW-IT] 현재 인식된 Mall ID:", finalMallId);
 
     return {
       sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
       sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-      mallId: finalMallId, // 여기서 결정된 ID를 사용
+      mallId: finalMallId,
       targetBoardNo: '4',
       defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg'
     };
@@ -32,7 +32,7 @@
   async function sync() {
     const lastSync = localStorage.getItem('rit_last_sync');
     const now = new Date().getTime();
-    const COOLDOWN_MS = 1000 * 60 * 60;
+    const COOLDOWN_MS = 1000 * 60 * 60; // 1시간 쿨타임
 
     if (lastSync && (now - parseInt(lastSync) < COOLDOWN_MS)) {
       console.log(`⏳ [REVIEW-IT] 동기화 쿨타임 대기 중입니다.`);
@@ -54,33 +54,14 @@
       if (!link) return;
 
       const href = link.getAttribute('href');
-      const tds = el.querySelectorAll('td');
-
       const articleNoMatch = href.match(/article_no=(\d+)/) || href.match(/\/(\d+)\/?$/) || href.match(/\/(\d+)\/($|\?)/);
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      // 💡 [핵심 1] 실명 대신 괄호 안의 '몰 아이디(ID)' 추출 로직
-      let rawWriter = "고객";
-      const writerEl = el.querySelector('.writer, .name, div.mt-3 > span:first-child');
-      
-      if (writerEl) {
-        rawWriter = writerEl.innerText.trim();
-      } else if (tds.length >= 5) {
-        rawWriter = tds[4].innerText.trim();
-      }
+      // 💡 [요청 반영] 작성자명을 화면의 실명/쇼핑몰명 대신 현재 인식된 '몰 아이디(Mall ID)'로 변경
+      let cleanWriter = CONFIG.mallId || "customer";
 
-      let cleanWriter = rawWriter;
-      // 김용관(ykinas) 형태로 올 경우 실명은 버리고 ykinas만 추출
-      if (cleanWriter.includes('(') && cleanWriter.includes(')')) {
-        cleanWriter = cleanWriter.split('(')[1].split(')')[0].trim();
-      } else {
-        cleanWriter = cleanWriter.split('[')[0].trim(); // 기타 특수기호 제거
-      }
-      cleanWriter = cleanWriter.replace(/[*]/g, '').trim();
-      if (!cleanWriter) cleanWriter = "고객";
-
-      // 썸네일 및 별점
+      // 썸네일 및 별점 추출
       let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
       let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
 
@@ -91,24 +72,33 @@
         if (match && match[1]) extractedStar = parseInt(match[1], 10);
       }
 
-      // 💡 [핵심 2] 제목 추출 정교화: 띄어쓰기로 본문이 섞이는 현상을 막기 위한 25자 강력 커트
+      // 💡 [요청 반영] 제목 추출 정교화 (본문 섞임 및 공백 제거 강력 쉴드)
       let subjectEl = el.querySelector('.subject, .title, .board_title, .td_subject');
-      let cleanSubject = subjectEl ? subjectEl.innerText.trim() : "포토 리뷰입니다.";
-      let targetText = subjectEl ? subjectEl.innerText : link.innerText;
-      
-      if (targetText) {
-         cleanSubject = targetText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
-         // 본문이 딸려오더라도 25자 이상은 무조건 자름 (말줄임표 처리)
-         if (cleanSubject.length > 25) cleanSubject = cleanSubject.substring(0, 25) + '...';
+      let rawSubject = subjectEl ? subjectEl.innerText : link.innerText;
+      let cleanSubject = "포토 리뷰입니다.";
+
+      if (rawSubject) {
+        // 줄바꿈 제거, 앞뒤 공백 제거 후 첫 문장 유효 텍스트만 확보
+        let temp = rawSubject.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
+        // 다중 공백 및 탭을 한 칸의 공백으로 압축
+        temp = temp.replace(/\s+/g, ' ').trim();
+
+        if (temp.length > 0) {
+          cleanSubject = temp;
+          // 본문 유입 방지를 위한 강력한 25자 커트라인 및 말줄임 처리
+          if (cleanSubject.length > 25) {
+            cleanSubject = cleanSubject.substring(0, 25) + '...';
+          }
+        }
       }
 
       payload.push({
         mall_id: CONFIG.mallId,
-        article_no: String(articleNo), // DB 규격에 맞게 복구 (400 에러 해결)
+        article_no: String(articleNo),
         board_no: CONFIG.targetBoardNo,
         subject: cleanSubject,
         content: "본문을 불러오는 중입니다...",
-        writer: cleanWriter, // DB 규격에 맞게 복구 (400 에러 해결)
+        writer: cleanWriter, // 몰 아이디 저장 완료
         stars: extractedStar,
         image_urls: thumbUrl ? [thumbUrl] : [],
         is_visible: true
@@ -117,6 +107,7 @@
 
     if (payload.length === 0) return;
 
+    // 중복 제거
     const uniqueMap = new Map();
     payload.forEach(item => {
       if (!uniqueMap.has(item.article_no)) uniqueMap.set(item.article_no, item);
@@ -126,7 +117,6 @@
     if (limitedPayload.length === 0) return;
 
     try {
-      // API 주소도 article_no로 롤백 (400 에러 해결)
       const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
         method: 'POST',
         headers: {
