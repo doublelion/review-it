@@ -5,7 +5,8 @@ const CAFE24_CLIENT_ID = process.env.CAFE24_CLIENT_ID;
 const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const CAFE24_SCOPE = 'mall.read_store,mall.read_application,mall.write_application,mall.read_product,mall.read_community,mall.write_community';
+// 쇼핑몰 정보 조회를 일단 제외하고 핵심 기능 권한만 채워 넣은 스코프
+const CAFE24_SCOPE = 'mall.read_application,mall.write_application,mall.read_product,mall.read_community,mall.write_community';
 const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
 module.exports = async (req, res) => {
