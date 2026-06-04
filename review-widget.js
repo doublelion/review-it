@@ -54,7 +54,7 @@
   };
 
   const CONFIG = getDynamicConfig();
-  
+
   const ReviewApp = {
     data: {},
     listOrder: [],
@@ -178,14 +178,15 @@
 
         let extractedSubject = null;
         const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
-
+        
         if (readArea) {
-          const titleEl = readArea.querySelector('.title h3, .title h2, .title p, .boardView .title, td.subject');
+          // 💡 [.head h3, .head h2] 셀렉터를 전면에 추가하여 제공해주신 돔 구조를 정확히 타겟팅합니다.
+          const titleEl = readArea.querySelector('.head h3, .head h2, .title h3, .title h2, .title p, .boardView .title, td.subject');
           if (titleEl) {
             let tempTitle = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
-            // 개행 문자 분할 후 다중 공백 제거 압축
-            tempTitle = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim();
-
+            // 본문 유입 방지: 줄바꿈 문자가 있다면 첫 줄만 분리하고 다중 공백 제거
+            tempTitle = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim(); 
+            
             if (tempTitle.length > 25) {
               extractedSubject = tempTitle.substring(0, 25) + '...';
             } else {

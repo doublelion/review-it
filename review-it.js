@@ -81,24 +81,22 @@
         if (match && match[1]) extractedStar = parseInt(match[1], 10);
       }
 
-      // 💡 [요청 반영] 제목 추출 정교화 (본문 섞임 및 공백 제거 강력 쉴드)
+      // 💡 [제목 추출 정교화] td.subject 전체 innerText 대신, 실제 제목이 적힌 링크(link)의 텍스트를 최우선으로 신뢰합니다.
       let subjectEl = el.querySelector('.subject, .title, .board_title, .td_subject');
-      let rawSubject = subjectEl ? subjectEl.innerText : link.innerText;
+      let targetText = link ? link.innerText : (subjectEl ? subjectEl.innerText : "");
       let cleanSubject = "포토 리뷰입니다.";
 
-      if (rawSubject) {
-        // 줄바꿈 제거, 앞뒤 공백 제거 후 첫 문장 유효 텍스트만 확보
-        let temp = rawSubject.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
-        // 다중 공백 및 탭을 한 칸의 공백으로 압축
-        temp = temp.replace(/\s+/g, ' ').trim();
-
-        if (temp.length > 0) {
-          cleanSubject = temp;
-          // 본문 유입 방지를 위한 강력한 25자 커트라인 및 말줄임 처리
-          if (cleanSubject.length > 25) {
-            cleanSubject = cleanSubject.substring(0, 25) + '...';
-          }
-        }
+      if (targetText) {
+         // 공백 압축 및 줄바꿈 차단
+         let temp = targetText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
+         temp = temp.replace(/\s+/g, ' ').trim(); 
+         
+         if (temp.length > 0) {
+           cleanSubject = temp;
+           if (cleanSubject.length > 25) {
+             cleanSubject = cleanSubject.substring(0, 25) + '...';
+           }
+         }
       }
 
       payload.push({

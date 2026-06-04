@@ -342,6 +342,8 @@
   color: white;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   text-transform: uppercase;
+  word-break: keep-all;
+  overflow-wrap:break-word;
 
   /* 로고 느낌 */
   border-left: 1px solid rgba(255, 255, 255, 0.2);
