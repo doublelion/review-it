@@ -84,8 +84,8 @@
       }
 
       // 💡 [핵심 2] 제목 추출 정교화: 띄어쓰기로 본문이 섞이는 현상을 막기 위한 25자 강력 커트
-      let cleanSubject = "포토 리뷰입니다.";
-      const subjectEl = el.querySelector('.subject, .title, .board_title, strong');
+      let subjectEl = el.querySelector('.subject, .title, .board_title, .td_subject');
+      let cleanSubject = subjectEl ? subjectEl.innerText.trim() : "포토 리뷰입니다.";
       let targetText = subjectEl ? subjectEl.innerText : link.innerText;
       
       if (targetText) {
