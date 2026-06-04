@@ -180,6 +180,54 @@
       console.error(e);
     }
   }
+  // ====== [기존 실행 코드 지우기] ======
+  // setTimeout(sync, 2000); 
 
-  setTimeout(sync, 2000);
+
+  // ====== [새로 추가할 스마트 폴링 & 범용 실행 코드] ======
+  function startSmartSync() {
+    let attempts = 0;
+    const maxAttempts = 10; // 최대 10번 (10초) 동안 끈질기게 위젯 렌더링을 기다립니다.
+
+    const interval = setInterval(() => {
+      attempts++;
+
+      // 💡 [핵심] 카페24 기본 구조 + 알파리뷰 등 서드파티 위젯 범용 클래스 동시 탐색
+      const targetItems = document.querySelectorAll(`
+        .xans-board-listpackage .xans-record-, 
+        .xans-product-review .xans-record-,
+        tr[id^="record"], 
+        .boardList tr, 
+        .border-b.group,
+        li.review_list_item,
+        [class*="alpha-review"], [class*="ar-item"], 
+        .crema_product_reviews > li,
+        [class*="vreview-"],
+        .review-widget-item
+      `);
+
+      // 타겟 요소가 화면에 그려졌다면 즉시 수집(sync) 실행 후 반복 종료
+      if (targetItems.length > 0) {
+        clearInterval(interval);
+        console.log(`▶ [REVIEW-IT] 리뷰 위젯 렌더링 감지 완료 (시도 횟수: ${attempts}회) - 수집 시작`);
+
+        // sync 함수 내부에서 items를 다시 찾지 않도록 수정할 수도 있지만,
+        // 기존 sync() 함수 로직을 그대로 재활용하기 위해 그대로 호출합니다.
+        sync();
+      }
+      // 10초가 지나도 아무것도 뜨지 않으면 깔끔하게 포기 (불필요한 리소스 낭비 방지)
+      else if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        console.log("▶ [REVIEW-IT] 리뷰 요소를 찾지 못했습니다. (알파위젯 등 렌더링 지연 또는 리뷰 없음)");
+      }
+    }, 1000); // 1초마다 화면 감시
+  }
+
+  // DOM이 준비되면 스마트 탐색 시작
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startSmartSync);
+  } else {
+    startSmartSync();
+  }
+  // =========================================================================
 })(window);
