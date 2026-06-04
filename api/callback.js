@@ -10,12 +10,13 @@ const CAFE24_API_VERSION = '2026-03-01';
 
 module.exports = async (req, res) => {
   try {
-    const { code, state } = req.query;
-    const mall_id = state;
+    const code = req.query.code;
+    // state가 없으면 카페24가 기본으로 던져주는 mall_id를 낚아챕니다.
+    const mall_id = req.query.mall_id || req.query.state;
 
     if (!code || !mall_id) {
       console.error('❌ 콜백 파라미터 누락:', req.query);
-      return res.status(400).send('인증 코드 또는 쇼핑몰 ID(state)가 누락되었습니다.');
+      return res.status(400).send('인증 코드 또는 쇼핑몰 ID가 누락되었습니다.');
     }
 
     // =================================================================
@@ -82,7 +83,7 @@ module.exports = async (req, res) => {
     // 3. 스크립트 자동 주입
     // =================================================================
     try {
-      let shopIds = [1]; 
+      let shopIds = [1];
 
       try {
         const shopListRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/shops`, {
@@ -151,7 +152,7 @@ module.exports = async (req, res) => {
     try {
       console.log(`🔄 [리뷰 동기화 시작] ${mall_id}의 초기 리뷰 데이터를 가져옵니다.`);
       const boardNo = 4; // 상품 구매후기 게시판 번호 (몰마다 다를 수 있으나 4번이 표준)
-      
+
       const articlesRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/boards/${boardNo}/articles?limit=15`, {
         method: 'GET',
         headers: {
