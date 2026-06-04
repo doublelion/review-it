@@ -5,19 +5,28 @@
  */
 (function (window) {
   const getDynamicConfig = () => {
-    // 1. 카페24 전역 변수에서 mallId를 먼저 찾습니다. (가장 정확함)
-    const cafe24MallId = window.SHOP_ID || (typeof EC_SHOP_ID !== 'undefined' ? EC_SHOP_ID : null);
+    // 💡 [핵심 해결] CAFE24API 전역 객체에서 MALL_ID를 최우선으로 추출합니다.
+    let cafe24MallId = null;
 
-    // 2. 전역 변수가 없을 경우에만 기존의 hostname 파싱 로직을 사용 (백업)
+    if (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) {
+      cafe24MallId = window.CAFE24API.MALL_ID;
+    } else if (typeof window.SHOP_ID !== 'undefined' && window.SHOP_ID) {
+      cafe24MallId = window.SHOP_ID;
+    } else if (typeof EC_SHOP_ID !== 'undefined' && EC_SHOP_ID) {
+      cafe24MallId = EC_SHOP_ID;
+    }
+
+    // 전역 변수가 모두 없을 경우를 대비한 최후의 호스트네임 파싱 백업 로직
     let host = window.location.hostname;
-    let fallbackMallId = host.replace('.cafe24.com', '').split('.').pop() === 'com'
-      ? host.split('.')[host.split('.').length - 2]
-      : host.split('.')[0];
+    let fallbackMallId = host.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
 
-    const finalMallId = cafe24MallId || fallbackMallId.replace('m.', '');
+    const finalMallId = cafe24MallId || fallbackMallId || 'default_mall';
 
-    console.log("▶ [REVIEW-IT] 현재 인식된 Mall ID:", finalMallId);
+    console.log("▶ [REVIEW-IT] 현재 완벽히 인식된 Mall ID:", finalMallId); // 디버깅용
 
+    // 위젯용과 수집기용 리턴값이 살짝 다르므로, 적용하시는 스크립트에 맞춰 아래 return 블록을 유지해 주세요.
+
+    /* --- [수집기 (Collector) 적용 시 return 문] --- */
     return {
       sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
       sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
