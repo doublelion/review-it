@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.0
- * @Update: 
+ * @Project: Review-It Universal Widget Engine v1.0.2
+ * @Update: DB 스키마 완벽 매핑 (article_id, image_urls, author_name) 및 원문보기 링크 정상화
  */
 (function (window) {
   const getDynamicConfig = () => {
@@ -14,22 +14,16 @@
       return urlParams.get('product_no') || null;
     };
 
-    // 카페24 상점명 가져오기
     const getMallName = () => {
       if (window.iMallName && window.iMallName !== "") return window.iMallName;
-
       let title = document.title || "";
-
       if (title.includes('-')) {
-
         const parts = title.split('-');
         title = parts[parts.length - 1].trim();
       } else if (title.includes(':')) {
         title = title.split(':')[0].trim();
       }
-
       title = title.replace(/공식몰|공식홈페이지|온라인스토어/g, "").trim();
-
       return title || "REVIEW-IT";
     };
 
@@ -38,8 +32,6 @@
       KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
       MALL_ID: mallId,
       PRODUCT_NO: getProductNo(),
-      // BOARD_NO: '4',
-      // DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif',
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
@@ -55,21 +47,16 @@
     listOrder: [],
     settings: {
       display_type: 'grid',
-      tagline: 'Verified Authenticity', // 부제목 업데이트
-      title: 'People Choice',           // 제목 업데이트
-      description: '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.', // 디스크립션 업데이트
+      tagline: 'Verified Authenticity',
+      title: 'People Choice',
+      description: '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.',
       display_limit: 15,
       grid_rows_desktop: 5,
       grid_rows_mobile: 2
     },
 
-    // 기존 ReviewApp 객체 내부에 추가할 함수
     renderSkeleton(container) {
-      // 톤앤매너에 맞춘 깔끔한 뼈대 UI 생성 (PC 5개, 모바일 2개 기준)
-      const skeletonCards = Array(5).fill(0).map(() => `
-        <div class="rit-skeleton-card"></div>
-      `).join('');
-
+      const skeletonCards = Array(5).fill(0).map(() => `<div class="rit-skeleton-card"></div>`).join('');
       container.innerHTML = `
         <div class="rit-header-area" style="text-align:center; margin-bottom:30px; opacity:0.6;">
           <div class="rit-skeleton-text" style="width:120px; height:14px; margin:0 auto 10px;"></div>
@@ -82,84 +69,56 @@
         </div>
       `;
     },
-    // ReviewApp 객체 내부에 추가할 함수
-    autoCreateContainer() {
-      // 1. 이미 수동으로 넣은 컨테이너가 있는지 확인
-      let container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
-      if (container) return; // 이미 있으면 종료
 
-      // [긴급 패치] 페이지 엄격 필터링 (URL 기준)
+    autoCreateContainer() {
+      let container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+      if (container) return;
+
       const pathname = window.location.pathname;
-      // 카페24 메인 페이지는 보통 '/' 또는 '/index.html' 로 끝납니다.
       const isMainPage = pathname === '/' || pathname === '/index.html';
       const isProductPage = !!CONFIG.PRODUCT_NO;
 
-      // 메인 페이지도 아니고 상품 상세 페이지도 아니면 위젯을 아예 생성하지 않고 종료 (로그인, 장바구니 등 차단)
-      if (!isMainPage && !isProductPage) {
-        console.log("[REVIEW-IT] 메인 또는 상품 상세 페이지가 아니므로 위젯 노출을 차단합니다.");
-        return;
-      }
+      if (!isMainPage && !isProductPage) return;
 
-      // 2. 조건에 부합할 경우에만 새로 생성
       container = document.createElement('div');
       container.id = 'review-it-widget';
-      container.style.marginTop = '80px'; // 위젯 상단 여백 확보
+      container.style.marginTop = '80px';
       container.style.marginBottom = '80px';
 
-      // 3. 현재 페이지에 따른 삽입 위치 결정
       if (isProductPage) {
-        // [상품 상세 페이지] 
-        const detailArea = document.querySelector('.xans-product-additional') ||
-          document.querySelector('#prdDetail') ||
-          document.querySelector('#detailArea');
-
+        const detailArea = document.querySelector('.xans-product-additional') || document.querySelector('#prdDetail') || document.querySelector('#detailArea');
         if (detailArea) {
           detailArea.appendChild(container);
-          console.log("[REVIEW-IT] 상세 페이지에 위젯 자동 배치 완료");
           return;
         }
       }
 
       if (isMainPage) {
-        // [메인 페이지] 메인 컨텐츠 영역 하단 또는 푸터 바로 위
-        const mainContent = document.querySelector('#contents') ||
-          document.querySelector('.xans-product-listmain') ||
-          document.querySelector('#wrap');
-
+        const mainContent = document.querySelector('#contents') || document.querySelector('.xans-product-listmain') || document.querySelector('#wrap');
         const footer = document.querySelector('#footer');
 
         if (mainContent) {
           mainContent.appendChild(container);
-          console.log("[REVIEW-IT] 메인 컨텐츠 영역 하단에 위젯 자동 배치 완료");
         } else if (footer) {
-          // 메인 영역을 못 찾았다면 안전하게 푸터(하단) 바로 위에 삽입
           document.body.insertBefore(container, footer);
-          console.log("[REVIEW-IT] 푸터 상단에 메인 위젯 자동 배치 완료");
         } else {
-          // 최후의 수단
           document.body.appendChild(container);
         }
       }
-      // 💡 [핵심 추가] 컨테이너가 DOM에 붙자마자 로딩(스켈레톤) 화면을 즉시 렌더링
-      if (document.getElementById('review-it-widget')) {
-        this.renderSkeleton(container);
-      }
+      if (document.getElementById('review-it-widget')) this.renderSkeleton(container);
     },
 
     async init() {
       this.injectCSS();
       this.autoCreateContainer();
-
       await this.loadWidgetSettings();
-      const hasReviews = await this.loadReviews(); // 반환값 확인
+      const hasReviews = await this.loadReviews();
 
-      // 리뷰 데이터가 하나도 없거나 RLS로 차단된 경우(앱 삭제 등) 렌더링 중단 및 숨김 처리
       if (!hasReviews) {
         const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
         if (container) container.style.display = 'none';
         return;
       }
-
       this.renderWidget();
     },
 
@@ -172,7 +131,6 @@
         if (data && data.length > 0) {
           const s = data[0];
           Object.keys(this.settings).forEach(key => {
-            // DB에 값이 실제 존재할 때만 덮어쓰고, 아니면 기존 settings(기본값) 유지
             if (s[key] !== undefined && s[key] !== null && String(s[key]).trim() !== "") {
               this.settings[key] = (key === 'description') ? s[key].replace(/\n/g, '<br>') : s[key];
             }
@@ -183,42 +141,30 @@
 
     maskName(name) {
       if (!name || name === "고객") return "고객";
-      // 운영자 키워드가 포함되어 있으면 마스킹 없이 원본 그대로 반환
       if (CONFIG.ADMIN_KEYWORDS.some(k => name.includes(k))) return name;
-
-      // 일반 고객만 마스킹 처리
       return name.length > 1 ? name.charAt(0) + "*".repeat(name.length - 1) : name;
     },
 
-    // 이미지와 텍스트 분리 로직 강화
-    async _fetchAndSeparateContent(articleNo) {
+    // 💡 [수정] boardNo 파라미터 정상 수신 처리
+    async _fetchAndSeparateContent(articleNo, boardNo = '4') {
       try {
-        // 💡 CONFIG.BOARD_NO 대신 전달받은 boardNo 사용
         const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
         if (!res.ok) throw new Error("Network response was not ok");
 
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
-        // [긴급 패치] 별점 이미지에서 숫자 파싱
         let extractedStar = null;
         const starImg = doc.querySelector('img[src*="icon-star-rating"]');
         if (starImg) {
-          // icon-star-rating2.svg 에서 '2' 추출
           const match = starImg.src.match(/icon-star-rating(\d+)/);
-          if (match && match[1]) {
-            extractedStar = parseInt(match[1], 10);
-          }
+          if (match && match[1]) extractedStar = parseInt(match[1], 10);
         }
 
-        // 셀렉터 확장 (카페24 구버전/신버전/커스텀 스킨 대응)
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail, .v2-board-read-content');
-
-        // contentArea가 없더라도 별점은 찾았을 수 있으므로 별점도 반환
         if (!contentArea) return { images: [], text: "", star: extractedStar };
 
         const extractedImages = [];
-        // 이미지 태그 및 배경 이미지(style)까지 체크
         const imgs = contentArea.querySelectorAll('img');
         imgs.forEach(img => {
           let src = img.getAttribute('src');
@@ -231,34 +177,25 @@
           img.remove();
         });
 
-        return {
-          images: extractedImages,
-          text: contentArea.innerHTML.trim(),
-          star: extractedStar // 별점 데이터 추가 반환
-        };
+        return { images: extractedImages, text: contentArea.innerHTML.trim(), star: extractedStar };
       } catch (e) {
-        console.warn("[REVIEW-IT] 상세 페이지 파싱 실패, articleNo:", articleNo, e);
         return null;
       }
     },
 
-    // 1. 위젯 소스코드 : 완전 무결한 이미지 필터링 & 본문 이미지 강제 구출 로직 적용
     async loadReviews() {
       try {
         let apiUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
         if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
         apiUrl += `&order=created_at.desc`;
 
-        // 1. API 호출 (여기서 res가 최초로 정의됩니다)
         const res = await fetch(apiUrl, {
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
 
-        // 2. 상태 코드 검사 (403 에러 시 즉시 은폐)
         if (!res.ok) {
           if (res.status === 403 || res.status === 401) {
-            console.warn("[REVIEW-IT] 이용 기간 만료 또는 앱 삭제됨. 위젯 영역을 숨깁니다.");
-            const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+            const container = document.getElementById('review-it-widget');
             if (container) container.style.display = 'none';
             return false;
           }
@@ -266,11 +203,8 @@
         }
 
         const list = await res.json();
-
-        // 💡 [추가 방어] RLS 정책에 의해 빈 배열([])이 반환될 경우의 은폐 로직
         if (!list || list.length === 0) {
-          console.warn("[REVIEW-IT] 표시할 리뷰가 없거나 RLS 정책에 의해 차단되었습니다.");
-          const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+          const container = document.getElementById('review-it-widget');
           if (container) container.style.display = 'none';
           return false;
         }
@@ -280,23 +214,19 @@
 
         await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
           const id = String(r.id);
-
-          // 1. 실시간 파싱 시도
-          const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
+          // 💡 [수정] DB 스키마에 맞춰 article_no -> article_id 로 변경
+          const separateData = await this._fetchAndSeparateContent(r.article_id, r.board_no);
 
           if (separateData) {
             r.clean_text_body = separateData.text || r.content;
+            // 💡 [수정] DB 스키마에 맞춰 image_url -> image_urls 로 변경
             r.all_images = (separateData.images && separateData.images.length > 0)
               ? separateData.images
-              : (r.image_url ? [r.image_url] : [CONFIG.DEFAULT_IMG]);
-
-            if (separateData.star !== null && !isNaN(separateData.star)) {
-              r.stars = separateData.star;
-            }
+              : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.DEFAULT_IMG]);
+            if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
           } else {
-            // 파싱 자체가 실패한 경우 DB 데이터 사용
             r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
-            r.all_images = (r.image_url) ? [r.image_url] : [CONFIG.DEFAULT_IMG];
+            r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
           }
 
           this.data[id] = r;
@@ -304,11 +234,8 @@
         }));
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-
         return true;
-
       } catch (e) {
-        console.error("[REVIEW-IT] 데이터 처리 에러:", e);
         return false;
       }
     },
@@ -317,27 +244,23 @@
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (!container) return;
 
-      // 타이틀 분리 로직
       const getFormattedTitle = (rawTitle) => {
         const text = rawTitle || 'PEOPLE CHOICE';
         const words = text.split(' ');
-        if (words.length <= 1) return text; // 단어가 하나면 그대로 반환
-
-        const lastWord = words.pop(); // 마지막 단어 추출
-        const prefix = words.join(' '); // 나머지 단어들
+        if (words.length <= 1) return text;
+        const lastWord = words.pop();
+        const prefix = words.join(' ');
         return `${prefix} <span class="rit-title-point">${lastWord}</span>`;
       };
 
       const isGrid = this.settings.display_type === 'grid';
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
-
       const pcCols = isGrid ? (parseInt(this.settings.grid_rows_desktop) || 5) : 5;
       const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
       let mainHtml = `
     <style>
-      /* 포인트 스타일: CSS 파일이나 인라인에서 조절 가능 */
       .rit-main-grid-layout {
         display: grid !important;
         gap: 15px;
@@ -349,20 +272,16 @@
           gap: 20px;
         }
       }
-      
     </style>
 
     <div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
       <div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px;">
         ${this.settings.tagline || 'Verified Authenticity'}
       </div>
-      
       <h2 class="rit-main-title">
         ${getFormattedTitle(this.settings.title || 'People Choice')}
       </h2>
-      
       <div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>
-      
       <p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all;">
         ${this.settings.description || '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.'}
       </p>
@@ -380,7 +299,6 @@
 
       container.innerHTML = mainHtml;
 
-      // 카페24 구버전 Swiper 호환성 해결 로직 - REVIEW-IT 개선 버전
       if (!isGrid && window.Swiper) {
         const getSwiperConfig = () => {
           const isPc = window.innerWidth >= 1024;
@@ -388,31 +306,19 @@
             slidesPerView: isPc ? pcCols : moCols,
             spaceBetween: isPc ? 20 : 12,
             loop: true,
-            speed: 5000, // 전환 속도 (밀리초)
-
-            // --- [핵심 개선] 부드러운 드래그를 위한 Free Mode ---
+            speed: 5000,
             freeMode: true,
-            freeModeMomentum: false, // 드래그 후 튕기는 관성 효과를 없애 흐름을 자연스럽게 유지
-
-            // --- [핵심 개선] 끊김 없는 자동 롤링 ---
-            autoplay: {
-              delay: 0,
-              disableOnInteraction: false,
-              pauseOnMouseEnter: true, // 카페24 구버전 Swiper 버전에 따라 이 옵션이 버그를 일으킬 수 있으니 테스트 권장
-            },
-
+            freeModeMomentum: false,
+            autoplay: { delay: 0, disableOnInteraction: false, pauseOnMouseEnter: true },
             allowTouchMove: true,
             grabCursor: true,
-
             observer: true,
             observeParents: true,
             roundLengths: true
           };
-
         };
 
         let ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
-
         let isDesktopLast = window.innerWidth >= 1024;
         window.addEventListener('resize', () => {
           const isDesktopNow = window.innerWidth >= 1024;
@@ -423,11 +329,9 @@
           }
         });
       }
-
       this.initModal();
     },
 
-    // 2. initModal 교체: 화살표를 모달 밖으로 빼고 4배(60px)로 확대
     initModal() {
       let modalContainer = document.getElementById('ritModal');
       if (modalContainer) return;
@@ -478,6 +382,7 @@
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
+      // 💡 [수정] 작성자 정보를 author_name 으로 매핑
       return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
         <img src="${thumb}" class="rit-card-img" loading="lazy">
         <div class="rit-card-info">
@@ -497,9 +402,8 @@
       await this.renderDetail(id);
     },
 
-    // 3. renderDetail 교체: 지연 로딩(Lazy Fetch) 적용 및 현재 ID 트래킹
     async renderDetail(id) {
-      this.currentReviewId = id; // 네비게이션을 위한 현재 ID 저장
+      this.currentReviewId = id;
       const d = this.data[id];
       const imgSide = document.getElementById('ritModalImg');
       const contentSide = document.getElementById('ritContent');
@@ -507,20 +411,18 @@
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
 
-      // 파싱 전 로딩 처리
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
 
-      // 한 번도 파싱하지 않은 리뷰일 경우에만 fetch 실행
       if (!d.is_parsed) {
-        const separateData = await this._fetchAndSeparateContent(d.article_no);
+        // 💡 [수정] 파라미터 매핑 정상화
+        const separateData = await this._fetchAndSeparateContent(d.article_id, d.board_no);
         if (separateData) {
           d.clean_text_body = separateData.text || d.content;
           d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
         }
-        d.is_parsed = true; // 완료 캐싱
+        d.is_parsed = true;
       }
 
-      // 이미지 렌더링
       if (d.all_images && d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
         imgSide.innerHTML = `
       <div class="swiper rit-modal-swiper">
@@ -543,31 +445,30 @@
         imgSide.innerHTML = `<div class="rit-no-image"><span>REVIEW-IT</span></div>`;
       }
 
-      // 텍스트 및 메타 렌더링
       const hits = d.hit_count || d.hit || Math.floor(Math.random() * 50) + 1;
+      // 💡 [수정] 작성자 정보를 author_name 으로 매핑
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
-            <span class="rit-author">${this.maskName(d.writer)}</span> <span class="rit-date">${d.created_at.split('T')[0]}</span>
+            <span class="rit-author">${this.maskName(d.author_name)}</span> <span class="rit-date">${d.created_at.split('T')[0]}</span>
             <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
         </div>`;
       document.getElementById('ritSubject').innerText = d.subject;
       contentSide.innerHTML = d.clean_text_body || "본문이 없습니다.";
 
-      this.loadComments(d.article_no, d.board_no);
+      // 💡 [수정] 댓글 파싱 시에도 article_id 전달
+      this.loadComments(d.article_id, d.board_no);
     },
-    // 4. 신규 함수: 이전/다음 리뷰 탐색 (단순 배열 인덱스 활용)
+
     navigateReview(direction) {
       const currentIndex = this.listOrder.indexOf(this.currentReviewId);
       if (currentIndex === -1) return;
 
       let nextIndex = currentIndex + direction;
-      // 끝에 도달하면 처음/마지막으로 루프 처리
       if (nextIndex < 0) nextIndex = this.listOrder.length - 1;
       if (nextIndex >= this.listOrder.length) nextIndex = 0;
 
-      // 다음 리뷰 렌더링
       this.renderDetail(this.listOrder[nextIndex]);
     },
 
@@ -576,12 +477,10 @@
       const gi = document.getElementById('ritGridInner');
       if (gv.classList.contains('rit-hidden')) {
         gv.classList.remove('rit-hidden');
-        // 그리드 뷰 섬네일도 최신 파싱 이미지로 연동
         gi.innerHTML = this.listOrder.map(id => `<div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')"><img src="${this.data[id].all_images[0]}"></div>`).join('');
       } else { gv.classList.add('rit-hidden'); }
     },
 
-    // 3. loadComments 교체: 게시글 번호(articleNo)를 렌더러로 전달
     async loadComments(articleNo, boardNo) {
       const commContainer = document.getElementById('ritCommList');
       if (!commContainer) return;
@@ -601,18 +500,15 @@
           return { writer, content, date };
         }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호'));
 
-        // [수정] 원문 링크 생성을 위해 articleNo 같이 넘김
         this.renderComments(comments, articleNo, boardNo);
       } catch (e) { commContainer.innerHTML = ''; }
     },
 
-    // 4. renderComments 교체: 원문보기 링크 추가 및 담당자 ID 마스킹 해제
     renderComments(comments, articleNo, boardNo) {
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
       const detailUrl = `/board/product/read.html?board_no=${boardNo}&no=${articleNo}`;
-      // [수정] 요청하신 원문보기 HTML 디자인 적용 (헤더 부분)
       const headerHtml = `
         <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:flex-end;">
           <h4 style="font-size:11px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#111; margin:0;">Comments <span style="color:#999; font-weight:normal;">(${comments.length})</span></h4>
@@ -631,11 +527,8 @@
       }
 
       container.innerHTML = headerHtml + comments.map(c => {
-        // 답변은 모두 담당자이므로 마스킹(maskName) 처리 제거
         const displayName = c.writer;
         const bgStyle = 'background:#f9f9f9; border:1px solid transparent;';
-        //const label = '<span style="color:#111; font-weight:800; margin-right:5px;">[SHOP]</span>';
-
         return `
         <div class="rit-comm-item" style="margin-bottom:10px; ${bgStyle} padding:14px; border-radius:10px; font-size:12px;">
           <div style="font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
