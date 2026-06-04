@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.3
- * @Update: 제목 "포토 리뷰입니다." 노출 방지 (실시간 제목 추출 및 본문 미리보기 대체 로직 적용)
+ * @Project: Review-It Universal Widget Engine v1.0.4
+ * @Update: 제목 글로벌 스코프 스크래핑 버그 픽스 및 댓글 관리자명(쇼핑몰명) 자동 치환 로직 추가
  */
 (function (window) {
   const getDynamicConfig = () => {
@@ -35,7 +35,7 @@
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
-      ADMIN_KEYWORDS: ['관리자', 'Official', '운영자'],
+      ADMIN_KEYWORDS: ['관리자', 'Official', '운영자', 'admin', '대표', '주인장'],
       MALL_NAME: getMallName()
     };
   };
@@ -141,7 +141,9 @@
 
     maskName(name) {
       if (!name || name === "고객") return "고객";
-      if (CONFIG.ADMIN_KEYWORDS.some(k => name.includes(k))) return name;
+      // 관리자 키워드가 포함되어 있다면 쇼핑몰 이름으로 즉시 반환
+      if (CONFIG.ADMIN_KEYWORDS.some(k => name.includes(k))) return CONFIG.MALL_NAME;
+      // 일반 고객인 경우 실명 보호를 위해 마스킹 처리 (ex: 김용관 -> 김**)
       return name.length > 1 ? name.charAt(0) + "*".repeat(name.length - 1) : name;
     },
 
@@ -153,7 +155,6 @@
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
-        // 별점 추출
         let extractedStar = null;
         const starImg = doc.querySelector('img[src*="icon-star-rating"]');
         if (starImg) {
@@ -161,12 +162,14 @@
           if (match && match[1]) extractedStar = parseInt(match[1], 10);
         }
 
-        // 💡 [집중 수정] 상세 페이지에서 진짜 제목(Subject) 구출하기
         let extractedSubject = null;
-        const titleEl = doc.querySelector('.xans-board-read .title, td.subject, .boardView .title, .view_title, .board_view_title, .subject');
-        if (titleEl) {
-          // "제목 : " 같은 불필요한 텍스트 걷어내기
-          extractedSubject = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
+        // 💡 [핵심 버그 수정] 글로벌 영역이 아닌, 진짜 게시글 상세 영역(.xans-board-read 등) 내부에서만 제목을 찾습니다.
+        const readArea = doc.querySelector('.xans-board-read, .boardView, .v2-board-read, #board_read');
+        if (readArea) {
+          const titleEl = readArea.querySelector('.title, td.subject, .subject, .view_title, .board_view_title');
+          if (titleEl) {
+            extractedSubject = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
+          }
         }
 
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail .fr-view, .detail, .v2-board-read-content');
@@ -185,7 +188,6 @@
           img.remove();
         });
 
-        // subject 추가 반환
         return { images: extractedImages, text: contentArea.innerHTML.trim(), star: extractedStar, subject: extractedSubject };
       } catch (e) {
         return null;
@@ -233,7 +235,6 @@
             
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
             
-            // 💡 [집중 수정] 상세 페이지에서 구출한 제목으로 덮어쓰기
             if (separateData.subject && separateData.subject.trim().length > 0) {
               r.subject = separateData.subject;
             }
@@ -242,12 +243,10 @@
             r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
           }
 
-          // 💡 [최후의 방어선] 그럼에도 불구하고 제목이 "포토 리뷰입니다." 라면? 
-          // -> 리뷰 본문 텍스트에서 앞 30글자를 떼와서 인스타그램처럼 세련되게 보여줌
           if (r.subject === "포토 리뷰입니다." || !r.subject) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = r.clean_text_body;
-            const plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim(); // HTML 태그 다 떼고 순수 텍스트만 추출
+            const plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim(); 
             if (plainText.length > 0) {
               r.subject = plainText.length > 30 ? plainText.substring(0, 30) + '...' : plainText;
             }
@@ -514,7 +513,16 @@
         const commentRows = doc.querySelectorAll(selectors);
 
         const comments = Array.from(commentRows).map(el => {
-          const writer = (el.querySelector('.name, .writer, strong')?.innerText || "고객").trim();
+          let writer = (el.querySelector('.name, .writer, strong')?.innerText || "고객").trim();
+          
+          // 💡 [핵심 버그 수정] 댓글 작성자가 쇼핑몰 관리자인지 확인 후 이름 치환, 아니면 실명 보호 마스킹 적용
+          const isAdminBadge = el.querySelector('img[src*="admin"], img[src*="staff"]');
+          if (isAdminBadge || CONFIG.ADMIN_KEYWORDS.some(k => writer.includes(k))) {
+            writer = CONFIG.MALL_NAME;
+          } else {
+            writer = this.maskName(writer);
+          }
+
           const content = (el.querySelector('.comment, .content, span[id^="comment_"]')?.innerText || "").trim();
           const date = (el.querySelector('.date')?.innerText || "").trim();
           return { writer, content, date };
@@ -547,12 +555,15 @@
       }
 
       container.innerHTML = headerHtml + comments.map(c => {
-        const displayName = c.writer;
-        const bgStyle = 'background:#f9f9f9; border:1px solid transparent;';
+        // 운영자(쇼핑몰명)일 경우 스타일을 살짝 다르게 주어 돋보이게 처리 가능
+        const isOfficial = c.writer === CONFIG.MALL_NAME;
+        const fontColor = isOfficial ? '#000' : '#111';
+        const bgStyle = isOfficial ? 'background:#f0f4f8; border:1px solid #e2e8f0;' : 'background:#f9f9f9; border:1px solid transparent;';
+        
         return `
         <div class="rit-comm-item" style="margin-bottom:10px; ${bgStyle} padding:14px; border-radius:10px; font-size:12px;">
           <div style="font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#111;">${displayName}</span>
+            <span style="color:${fontColor};">${c.writer} ${isOfficial ? '✓' : ''}</span>
             <span style="font-weight:400; color:#bbb; font-size:11px;">${c.date}</span>
           </div>
           <div style="color:#444; font-weight:400; line-height:1.5;">${c.content}</div>
