@@ -489,10 +489,11 @@
         imgSide.innerHTML = `<div class="rit-no-image"><span>REVIEW-IT</span></div>`;
       }
 
+      // 💡 [수정됨] 기존 this.maskName(d.writer) 대신 CONFIG.MALL_ID를 직접 바인딩합니다.
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
-            <span class="rit-author">${this.maskName(d.writer)}</span> 
+            <span class="rit-author">${CONFIG.MALL_NAME}</span> 
             <span class="rit-date">${d.created_at ? d.created_at.split('T')[0] : ''}</span>
             <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
