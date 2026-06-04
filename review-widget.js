@@ -139,15 +139,14 @@
       } catch (e) { console.warn("[REVIEW-IT] 기본 설정을 유지합니다."); }
     },
 
+    // [위젯 수정 1] 마스킹 로직 완전 제거
     maskName(name) {
       if (!name || name === "고객") return "고객";
-      // 운영자 키워드가 포함되어 있으면 마스킹 없이 원본 그대로 반환
-      if (CONFIG.ADMIN_KEYWORDS.some(k => name.includes(k))) return name;
-
-      // 일반 고객만 마스킹 처리
-      return name.length > 1 ? name.charAt(0) + "*".repeat(name.length - 1) : name;
+      // 관리자든 일반 고객이든 치환 없이 무조건 원본 이름 반환
+      return name;
     },
 
+    // [위젯 수정 2] 상세페이지 제목 파싱 방어 로직
     async _fetchAndSeparateContent(articleNo, boardNo = '4') {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
@@ -164,15 +163,15 @@
         }
 
         let extractedSubject = null;
-        // 💡 [초정밀 패치] 게시글 영역을 최상단 래퍼로 좁히고, 그 안에서만 title을 찾습니다.
         const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
 
         if (readArea) {
-          // 관련 상품 영역 배제: 명확하게 헤더 영역의 제목만 찾음
-          const titleEl = readArea.querySelector('.title h3, .title p, .boardView .title, td.subject');
+          const titleEl = readArea.querySelector('.title h3, .title h2, .title p, .boardView .title, td.subject');
           if (titleEl) {
-            let tempTitle = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').replace(/[\r\n]+/g, ' ').trim();
-            // 제목이 비정상적으로 길다면(본문 스크래핑 오작동 방지) 컷팅
+            let tempTitle = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
+            // 💡 [핵심 디버깅] 카페24 특성상 본문이 엔터로 이어져 들어오는 것을 방지 (첫 줄만 가져옴)
+            tempTitle = tempTitle.split('\n')[0].trim(); 
+            
             if (tempTitle.length > 50) {
               extractedSubject = tempTitle.substring(0, 50) + '...';
             } else {
@@ -181,7 +180,6 @@
           }
         }
 
-        // 본문 영역 타겟팅
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail');
         if (!contentArea) return { images: [], text: "", star: extractedStar, subject: extractedSubject };
 

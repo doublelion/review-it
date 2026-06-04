@@ -74,20 +74,21 @@
         thumbUrl = imgEl.getAttribute('src');
       }
 
-      // 💡 [버그 픽스] 제목(Subject)을 정확히 추출하는 로직 도입
+      // 💡 [버그 픽스] 제목(Subject) DOM 추출 로직 정교화
       let cleanSubject = "포토 리뷰입니다.";
       
-      // 1. 게시판 내 명시적인 제목 클래스를 먼저 찾습니다.
-      const subjectEl = el.querySelector('.subject, .title, td.subject, p.name');
+      // 1. .subject 그 자체가 아니라 그 안의 'a' 태그만 핀포인트로 잡습니다. (본문 회피)
+      const subjectEl = el.querySelector('.subject a, td.subject a, .title a, .board_title');
       
       if (subjectEl) {
-        // '제목 :' 같은 불필요한 접두어 제거 후 저장
-        cleanSubject = subjectEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
+        let rawTitle = subjectEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
+        // 엔터 쳐서 들어간 본문 텍스트 잘라내기
+        cleanSubject = rawTitle.split('\n')[0].trim();
       } else if (link) {
-        // 2. 명확한 제목 요소가 없어 링크 텍스트를 쓸 경우, 글자 수를 제한하여 본문이 통째로 들어가는 것을 방지합니다.
         const linkText = link.innerText.trim();
         if (linkText.length > 0) {
-          cleanSubject = linkText.length > 30 ? linkText.substring(0, 30) + '...' : linkText;
+          let safeText = linkText.split('\n')[0].trim();
+          cleanSubject = safeText.length > 30 ? safeText.substring(0, 30) + '...' : safeText;
         }
       }
 
