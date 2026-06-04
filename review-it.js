@@ -1,7 +1,7 @@
 /**
  * @Project: Review-It Universal Collector Engine
- * @Version: v1.0.6
- * @Update: 독립 도메인 대응 강화, 작성자 몰아이디 매핑, 제목 본문 혼입 방지 정교화
+ * @Version: v1.0.6 (Option A - Background Fetch Applied)
+ * @Update: 독립 도메인 대응 강화, 작성자 몰아이디 매핑, 제목 본문 혼입 방지 정교화, 백그라운드 게시판 스크래핑 추가
  */
 (function (window) {
   const getDynamicConfig = () => {
@@ -24,9 +24,6 @@
 
     console.log("▶ [REVIEW-IT] 현재 완벽히 인식된 Mall ID:", finalMallId); // 디버깅용
 
-    // 위젯용과 수집기용 리턴값이 살짝 다르므로, 적용하시는 스크립트에 맞춰 아래 return 블록을 유지해 주세요.
-
-    /* --- [수집기 (Collector) 적용 시 return 문] --- */
     return {
       sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
       sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
@@ -48,16 +45,37 @@
       return;
     }
 
-    const items = document.querySelectorAll(`
-      .xans-board-listpackage .xans-record-, 
-      .xans-product-review .xans-record-,
-      tr[id^="record"], 
-      .boardList tr, 
-      .border-b.group,
-      li.review_list_item
-    `);
     const payload = [];
+    let items; // forEach에서 사용할 수 있도록 외부에서 변수 선언
 
+    // [추가된 로직] 백그라운드에서 게시판 HTML을 강제로 가져옵니다.
+    try {
+      // targetBoardNo를 이용해 리뷰 게시판 1페이지 URL 생성
+      const boardUrl = `/board/product/list.html?board_no=${CONFIG.targetBoardNo}`;
+      const response = await fetch(boardUrl);
+      const htmlText = await response.text();
+
+      // 가져온 HTML을 임시 DOM으로 파싱
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, 'text/html');
+
+      // 현재 페이지(document)가 아닌, 백그라운드로 가져온 게시판 페이지(doc)에서 리뷰 요소 찾기
+      items = doc.querySelectorAll(`
+          .xans-board-listpackage .xans-record-, 
+          .xans-product-review .xans-record-,
+          tr[id^="record"], 
+          .boardList tr, 
+          .border-b.group,
+          li.review_list_item
+      `);
+
+      console.log(`✅ [REVIEW-IT] 백그라운드 게시판 로드 성공! (${items.length}개 요소 발견)`);
+    } catch (error) {
+      console.error("❌ [REVIEW-IT] 백그라운드 게시판 로드 실패:", error);
+      return; // 실패하면 여기서 스크립트 중단
+    }
+
+    // HTML을 성공적으로 가져왔을 때만 아래 forEach 실행
     items.forEach(el => {
       const link = el.querySelector('a[href*="article_no="], a[href*="/article/"], a[href*="no="]');
       if (!link) return;
@@ -67,24 +85,19 @@
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      // 💡 [요청 반영] 작성자명을 화면의 실명/쇼핑몰명 대신 현재 인식된 '몰 아이디(Mall ID)'로 변경
       let cleanWriter = CONFIG.mallId || "customer";
 
       // 썸네일 및 별점 추출
-      // ====== [기존 썸네일 추출 코드 (이 부분을 찾아서 지우세요)] ======
-      // let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
-      // let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
+      let thumbUrl = CONFIG.defaultImg;
 
-      // ====== [최종 고도화: 전역 및 모듈형 상품 정보 완벽 대응형 썸네일 로직] ======
-      let thumbUrl = CONFIG.defaultImg; // 기본값: 최후의 보루
-
-      // 1순위: 소비자가 직접 올린 실제 후기 이미지 (보통 /board/ 경로를 탐)
+      // 1순위: 소비자가 직접 올린 실제 후기 이미지
       let reviewImg = el.querySelector('img[src*="/board/"]:not([src*="icon"])');
 
       // 2순위: 현재 행(el) 내부에 존재하는 상품 이미지 영역 매칭
       let productImg = el.querySelector('.typeProduct img, td.thumb img, .product-img img, img[src*="/product/"]:not([src*="icon"])');
 
-      // 3순위 (💡 초강력 전역 백업): 행 내부에는 없지만, 보내주신 코드처럼 페이지 상/하단에 상품 정보 박스가 떠 있는 경우
+      // 3순위: 행 내부에는 없지만 상/하단 상품 정보 박스가 떠 있는 경우 
+      // (주의: 백그라운드 로드시에는 document가 아닌 doc에서 찾아야 함)
       if (!reviewImg && !productImg) {
         productImg = document.querySelector('.typeProduct img, .xans-board-product img, .xans-board-product-4 img');
       }
@@ -96,7 +109,7 @@
         thumbUrl = productImg.getAttribute('src');
       }
 
-      // [안전장치] 깨진 이미지 엑스박스나 카페24 기본 기본티콘, 별점 아이콘 필터링 강화
+      // 깨진 이미지 및 기본 아이콘 필터링
       if (thumbUrl.match(/star|icon|btn|logo|dummy|ec2-common|echosting|thumb\/75x75|rating|댓글/i)) {
         thumbUrl = CONFIG.defaultImg;
       }
@@ -107,7 +120,6 @@
       } else if (thumbUrl.startsWith('/')) {
         thumbUrl = window.location.origin + thumbUrl;
       }
-      // =========================================================================
 
       let extractedStar = 5;
       const starImg = el.querySelector('img[src*="icon-star-rating"]');
@@ -116,13 +128,11 @@
         if (match && match[1]) extractedStar = parseInt(match[1], 10);
       }
 
-      // 💡 [제목 추출 정교화] td.subject 전체 innerText 대신, 실제 제목이 적힌 링크(link)의 텍스트를 최우선으로 신뢰합니다.
       let subjectEl = el.querySelector('.subject, .title, .board_title, .td_subject');
       let targetText = link ? link.innerText : (subjectEl ? subjectEl.innerText : "");
       let cleanSubject = "포토 리뷰입니다.";
 
       if (targetText) {
-        // 공백 압축 및 줄바꿈 차단
         let temp = targetText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
         temp = temp.replace(/\s+/g, ' ').trim();
 
@@ -140,7 +150,7 @@
         board_no: CONFIG.targetBoardNo,
         subject: cleanSubject,
         content: "본문을 불러오는 중입니다...",
-        writer: cleanWriter, // 몰 아이디 저장 완료
+        writer: cleanWriter,
         stars: extractedStar,
         image_urls: thumbUrl ? [thumbUrl] : [],
         is_visible: true
@@ -158,6 +168,7 @@
 
     if (limitedPayload.length === 0) return;
 
+    // Supabase 전송
     try {
       const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
         method: 'POST',
