@@ -1,7 +1,7 @@
 /**
  * @Project: Review-It Universal Collector Engine
- * @Version: v1.0.1
- * @Goal: 무설정(Zero-Config) 기반 리뷰 자동 수집 및 전환율 극대화
+ * @Version: v1.0.2
+ * @Update: 제목 DOM 추출 로직 정교화 및 매칭 안정성 강화
  */
 (function (window) {
   const getDynamicConfig = () => {
@@ -54,35 +54,50 @@
       if (!articleNo) return;
 
       const starImg = el.querySelector('img[src*="icon-star-rating"]');
-      if (!starImg) return;
-
       let extractedStar = 5;
-      const match = starImg.getAttribute('src').match(/icon-star-rating(\d+)/);
-      if (match && match[1]) {
-        extractedStar = parseInt(match[1], 10);
+      if (starImg) {
+        const match = starImg.getAttribute('src').match(/icon-star-rating(\d+)/);
+        if (match && match[1]) {
+          extractedStar = parseInt(match[1], 10);
+        }
       }
 
-      // 💡 [수정] 작성자 이름 추출 방어 로직 추가
       let cleanWriter = "고객";
       const writerEl = el.querySelector('.writer, .name, [class*="writer"], td:nth-child(2)'); 
       if (writerEl) {
         cleanWriter = writerEl.innerText.trim();
       }
 
-      // 💡 [수정] 썸네일 이미지 추출 방어 로직 추가
       let thumbUrl = null;
       const imgEl = el.querySelector('.thumb img, img.thumb, .thumbnail img');
       if (imgEl) {
         thumbUrl = imgEl.getAttribute('src');
       }
 
+      // 💡 [버그 픽스] 제목(Subject)을 정확히 추출하는 로직 도입
+      let cleanSubject = "포토 리뷰입니다.";
+      
+      // 1. 게시판 내 명시적인 제목 클래스를 먼저 찾습니다.
+      const subjectEl = el.querySelector('.subject, .title, td.subject, p.name');
+      
+      if (subjectEl) {
+        // '제목 :' 같은 불필요한 접두어 제거 후 저장
+        cleanSubject = subjectEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
+      } else if (link) {
+        // 2. 명확한 제목 요소가 없어 링크 텍스트를 쓸 경우, 글자 수를 제한하여 본문이 통째로 들어가는 것을 방지합니다.
+        const linkText = link.innerText.trim();
+        if (linkText.length > 0) {
+          cleanSubject = linkText.length > 30 ? linkText.substring(0, 30) + '...' : linkText;
+        }
+      }
+
       payload.push({
         mall_id: CONFIG.mallId,
         article_id: String(articleNo),
         board_no: CONFIG.targetBoardNo,
-        subject: link.innerText.trim() || "포토 리뷰입니다.",
+        subject: cleanSubject,
         content: "본문을 불러오는 중입니다...",
-        author_name: cleanWriter, // 💡 writer -> author_name 으로 DB와 통일
+        author_name: cleanWriter,
         stars: extractedStar,
         image_urls: thumbUrl ? [thumbUrl] : [],
         is_visible: true
@@ -94,7 +109,6 @@
       return;
     }
 
-    // 💡 [수정] article_id 기준으로 중복 데이터 완벽 제거
     const uniqueMap = new Map();
     payload.forEach(item => {
       if (!uniqueMap.has(item.article_id)) {
@@ -121,8 +135,6 @@
       if (res.ok) {
         console.log(`✅ [REVIEW-IT] ${CONFIG.mallId} 수집 완료 (${limitedPayload.length}건)`);
         localStorage.setItem('rit_last_sync', new Date().getTime().toString());
-      } else {
-        console.error("❌ 데이터 전송 실패:", await res.text());
       }
     } catch (e) {
       console.error("❌ 오류 발생:", e);

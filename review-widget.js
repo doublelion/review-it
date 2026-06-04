@@ -141,9 +141,10 @@
 
     maskName(name) {
       if (!name || name === "고객") return "고객";
-      // 관리자 키워드가 포함되어 있다면 쇼핑몰 이름으로 즉시 반환
-      if (CONFIG.ADMIN_KEYWORDS.some(k => name.includes(k))) return CONFIG.MALL_NAME;
-      // 일반 고객인 경우 실명 보호를 위해 마스킹 처리 (ex: 김용관 -> 김**)
+      // 운영자 키워드가 포함되어 있으면 마스킹 없이 원본 그대로 반환
+      if (CONFIG.ADMIN_KEYWORDS.some(k => name.includes(k))) return name;
+
+      // 일반 고객만 마스킹 처리
       return name.length > 1 ? name.charAt(0) + "*".repeat(name.length - 1) : name;
     },
 
