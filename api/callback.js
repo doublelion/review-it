@@ -169,13 +169,17 @@ module.exports = async (req, res) => {
           // Supabase 'reviews' 테이블에 데이터 매핑 및 저장
           const reviewsToInsert = articles.map(article => ({
             mall_id: mall_id,
-            article_id: article.article_no,
+            article_id: String(article.article_no),
             product_no: article.product_no || null,
             member_id: article.member_id || 'guest',
-            author_name: article.writer || '익명',
-            subject: article.subject,
-            content: article.content,
-            created_at: article.created_date // 카페24 날짜 포맷 (YYYY-MM-DDTHH:mm:ss 등)
+
+            // 💡 DB의 Not-Null 제약조건을 통과하기 위해 명시적으로 추가
+            writer: article.writer || '고객',
+            author_name: article.writer || '고객',
+
+            subject: article.subject || '포토 리뷰입니다.',
+            content: article.content || '본문을 불러오는 중입니다...',
+            created_at: article.created_date
           }));
 
           const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
