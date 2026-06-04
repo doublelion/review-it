@@ -139,11 +139,13 @@
       } catch (e) { console.warn("[REVIEW-IT] 기본 설정을 유지합니다."); }
     },
 
-    // [위젯 수정 1] 마스킹 로직 완전 제거
+    // 💡 [핵심 3] 쇼핑몰 ID & 실명 마스킹 로직 부활 (ykinas -> yki***)
     maskName(name) {
       if (!name || name === "고객") return "고객";
-      // 관리자든 일반 고객이든 치환 없이 무조건 원본 이름 반환
-      return name;
+      name = name.trim();
+      if (name.length <= 2) return name.charAt(0) + '*';
+      // 앞 2~3글자만 살리고 나머지는 * 처리
+      return name.substring(0, 2) + '*'.repeat(Math.max(1, name.length - 2)); 
     },
 
     // [위젯 수정 2] 상세페이지 제목 파싱 방어 로직
@@ -410,6 +412,7 @@
       document.body.appendChild(modalContainer);
     },
 
+    // 💡 카드 렌더링 시 d.author_name 대신 d.writer 호출
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
@@ -418,7 +421,7 @@
         <div class="rit-card-info">
           <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
           <div class="rit-card-meta">
-            <span>${this.maskName(d.author_name)}</span>
+            <span>${this.maskName(d.writer)}</span> <!-- writer 호출 -->
             <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
           </div>
         </div>
@@ -478,14 +481,15 @@
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
-            <span class="rit-author">${this.maskName(d.author_name)}</span> <span class="rit-date">${d.created_at.split('T')[0]}</span>
+            <span class="rit-author">${this.maskName(d.writer)}</span> <!-- writer 호출 -->
+            <span class="rit-date">${d.created_at.split('T')[0]}</span>
             <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
         </div>`;
       document.getElementById('ritSubject').innerText = d.subject;
       contentSide.innerHTML = d.clean_text_body || "본문이 없습니다.";
 
-      this.loadComments(d.article_id, d.board_no);
+      this.loadComments(d.article_id || d.article_no, d.board_no);
     },
 
     navigateReview(direction) {

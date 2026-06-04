@@ -1,7 +1,7 @@
 /**
  * @Project: Review-It Universal Collector Engine
- * @Version: v1.0.3
- * @Update: 작성자 ID 제거 로직(v1.0.0) 복구 및 제목/본문 완벽 분리
+ * @Version: v1.0.5
+ * @Update: 400 Bad Request 픽스 (컬럼명 롤백) & 실명 대신 아이디 추출 적용 & 제목 본문 차단
  */
 (function (window) {
   const getDynamicConfig = () => {
@@ -24,7 +24,7 @@
   async function sync() {
     const lastSync = localStorage.getItem('rit_last_sync');
     const now = new Date().getTime();
-    const COOLDOWN_MS = 1000 * 60 * 60; // 1시간 쿨타임
+    const COOLDOWN_MS = 1000 * 60 * 60;
 
     if (lastSync && (now - parseInt(lastSync) < COOLDOWN_MS)) {
       console.log(`⏳ [REVIEW-IT] 동기화 쿨타임 대기 중입니다.`);
@@ -52,7 +52,7 @@
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      // 💡 [핵심 1] 구버전(v1.0.0)의 정밀한 이름 추출 및 괄호(아이디) 제거 로직 완벽 복구
+      // 💡 [핵심 1] 실명 대신 괄호 안의 '몰 아이디(ID)' 추출 로직
       let rawWriter = "고객";
       const writerEl = el.querySelector('.writer, .name, div.mt-3 > span:first-child');
       
@@ -62,10 +62,17 @@
         rawWriter = tds[4].innerText.trim();
       }
 
-      let cleanWriter = rawWriter.split('[')[0].split('(')[0].replace(/[*]/g, '').trim();
+      let cleanWriter = rawWriter;
+      // 김용관(ykinas) 형태로 올 경우 실명은 버리고 ykinas만 추출
+      if (cleanWriter.includes('(') && cleanWriter.includes(')')) {
+        cleanWriter = cleanWriter.split('(')[1].split(')')[0].trim();
+      } else {
+        cleanWriter = cleanWriter.split('[')[0].trim(); // 기타 특수기호 제거
+      }
+      cleanWriter = cleanWriter.replace(/[*]/g, '').trim();
       if (!cleanWriter) cleanWriter = "고객";
 
-      // 썸네일 및 별점 추출
+      // 썸네일 및 별점
       let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
       let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
 
@@ -76,21 +83,24 @@
         if (match && match[1]) extractedStar = parseInt(match[1], 10);
       }
 
-      // 💡 [핵심 2] 제목 텍스트에서 엔터(\n) 기준 첫 줄만 가져와 본문과 완벽하게 분리
+      // 💡 [핵심 2] 제목 추출 정교화: 띄어쓰기로 본문이 섞이는 현상을 막기 위한 25자 강력 커트
       let cleanSubject = "포토 리뷰입니다.";
-      const linkText = link.innerText.trim();
-      if (linkText) {
-         cleanSubject = linkText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
-         if (cleanSubject.length > 30) cleanSubject = cleanSubject.substring(0, 30) + '...';
+      const subjectEl = el.querySelector('.subject, .title, .board_title, strong');
+      let targetText = subjectEl ? subjectEl.innerText : link.innerText;
+      
+      if (targetText) {
+         cleanSubject = targetText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
+         // 본문이 딸려오더라도 25자 이상은 무조건 자름 (말줄임표 처리)
+         if (cleanSubject.length > 25) cleanSubject = cleanSubject.substring(0, 25) + '...';
       }
 
       payload.push({
         mall_id: CONFIG.mallId,
-        article_id: String(articleNo),
+        article_no: String(articleNo), // DB 규격에 맞게 복구 (400 에러 해결)
         board_no: CONFIG.targetBoardNo,
         subject: cleanSubject,
         content: "본문을 불러오는 중입니다...",
-        author_name: cleanWriter, // 💡 DB 규격에 맞춰 author_name으로 전송
+        writer: cleanWriter, // DB 규격에 맞게 복구 (400 에러 해결)
         stars: extractedStar,
         image_urls: thumbUrl ? [thumbUrl] : [],
         is_visible: true
@@ -99,17 +109,17 @@
 
     if (payload.length === 0) return;
 
-    // 중복 제거 로직
     const uniqueMap = new Map();
     payload.forEach(item => {
-      if (!uniqueMap.has(item.article_id)) uniqueMap.set(item.article_id, item);
+      if (!uniqueMap.has(item.article_no)) uniqueMap.set(item.article_no, item);
     });
     const limitedPayload = Array.from(uniqueMap.values()).slice(0, 20);
 
     if (limitedPayload.length === 0) return;
 
     try {
-      const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_id`, {
+      // API 주소도 article_no로 롤백 (400 에러 해결)
+      const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
         method: 'POST',
         headers: {
           'apikey': CONFIG.sbKey,
@@ -123,6 +133,8 @@
       if (res.ok) {
         console.log(`✅ [REVIEW-IT] 동기화 완료 (${limitedPayload.length}건)`);
         localStorage.setItem('rit_last_sync', new Date().getTime().toString());
+      } else {
+        console.error("❌ 데이터 전송 실패:", await res.text());
       }
     } catch (e) {
       console.error(e);
