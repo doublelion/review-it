@@ -34,12 +34,11 @@ export default async function handler(req, res) {
 
       const { error } = await supabase
         .from('reviews')
-        .upsert(payload, { onConflict: 'mall_id,article_no' });
-
+        .upsert(payload, { onConflict: 'mall_id,article_id' }); // 💡 article_no를 article_id로 변경!
       if (error) throw error;
       return res.status(200).json({ success: true });
     }
-    
+
     // 3. GET 요청: 위젯에 뿌려줄 리뷰 데이터 반환
     if (req.method === 'GET') {
       // 프론트에서 ?limit=15 형태로 보내면 그 값을 쓰고, 없으면 기본값 15 적용

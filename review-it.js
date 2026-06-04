@@ -73,7 +73,7 @@
 
       payload.push({
         mall_id: CONFIG.mallId,
-        article_no: String(articleNo),
+        article_id: String(articleNo),
         board_no: CONFIG.targetBoardNo,
         subject: link.innerText.trim() || "포토 리뷰입니다.",
         content: "본문을 불러오는 중입니다...",
@@ -104,7 +104,7 @@
     if (limitedPayload.length === 0) return;
 
     try {
-      const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
+      const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_id`, {
         method: 'POST',
         headers: {
           'apikey': CONFIG.sbKey,
