@@ -5,15 +5,23 @@
  */
 (function (window) {
   const getDynamicConfig = () => {
+    // 1. 카페24 전역 변수에서 mallId를 먼저 찾습니다. (가장 정확함)
+    const cafe24MallId = window.SHOP_ID || (typeof EC_SHOP_ID !== 'undefined' ? EC_SHOP_ID : null);
+    
+    // 2. 전역 변수가 없을 경우에만 기존의 hostname 파싱 로직을 사용 (백업)
     let host = window.location.hostname;
-    let mallId = host.replace('.cafe24.com', '').split('.').pop() === 'com'
+    let fallbackMallId = host.replace('.cafe24.com', '').split('.').pop() === 'com'
       ? host.split('.')[host.split('.').length - 2]
       : host.split('.')[0];
+
+    const finalMallId = cafe24MallId || fallbackMallId.replace('m.', '');
+
+    console.log("▶ [REVIEW-IT] 현재 인식된 Mall ID:", finalMallId); // 디버깅용 로그
 
     return {
       sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
       sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-      mallId: mallId.replace('m.', ''),
+      mallId: finalMallId, // 여기서 결정된 ID를 사용
       targetBoardNo: '4',
       defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg'
     };
