@@ -1,7 +1,7 @@
 /**
  * @Project: Review-It Universal Collector Engine
- * @Version: v1.0.2
- * @Update: 제목 DOM 추출 로직 정교화 및 매칭 안정성 강화
+ * @Version: v1.0.3
+ * @Update: 작성자 ID 제거 로직(v1.0.0) 복구 및 제목/본문 완벽 분리
  */
 (function (window) {
   const getDynamicConfig = () => {
@@ -31,8 +31,6 @@
       return;
     }
 
-    console.log(`🚀 [REVIEW-IT] ${CONFIG.mallId} 상점 데이터 수집 시작...`);
-
     const items = document.querySelectorAll(`
       .xans-board-listpackage .xans-record-, 
       .xans-product-review .xans-record-,
@@ -48,48 +46,42 @@
       if (!link) return;
 
       const href = link.getAttribute('href');
-      
+      const tds = el.querySelectorAll('td');
+
       const articleNoMatch = href.match(/article_no=(\d+)/) || href.match(/\/(\d+)\/?$/) || href.match(/\/(\d+)\/($|\?)/);
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      const starImg = el.querySelector('img[src*="icon-star-rating"]');
+      // 💡 [핵심 1] 구버전(v1.0.0)의 정밀한 이름 추출 및 괄호(아이디) 제거 로직 완벽 복구
+      let rawWriter = "고객";
+      const writerEl = el.querySelector('.writer, .name, div.mt-3 > span:first-child');
+      
+      if (writerEl) {
+        rawWriter = writerEl.innerText.trim();
+      } else if (tds.length >= 5) {
+        rawWriter = tds[4].innerText.trim();
+      }
+
+      let cleanWriter = rawWriter.split('[')[0].split('(')[0].replace(/[*]/g, '').trim();
+      if (!cleanWriter) cleanWriter = "고객";
+
+      // 썸네일 및 별점 추출
+      let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
+      let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
+
       let extractedStar = 5;
+      const starImg = el.querySelector('img[src*="icon-star-rating"]');
       if (starImg) {
         const match = starImg.getAttribute('src').match(/icon-star-rating(\d+)/);
-        if (match && match[1]) {
-          extractedStar = parseInt(match[1], 10);
-        }
+        if (match && match[1]) extractedStar = parseInt(match[1], 10);
       }
 
-      let cleanWriter = "고객";
-      const writerEl = el.querySelector('.writer, .name, [class*="writer"], td:nth-child(2)'); 
-      if (writerEl) {
-        cleanWriter = writerEl.innerText.trim();
-      }
-
-      let thumbUrl = null;
-      const imgEl = el.querySelector('.thumb img, img.thumb, .thumbnail img');
-      if (imgEl) {
-        thumbUrl = imgEl.getAttribute('src');
-      }
-
-      // 💡 [버그 픽스] 제목(Subject) DOM 추출 로직 정교화
+      // 💡 [핵심 2] 제목 텍스트에서 엔터(\n) 기준 첫 줄만 가져와 본문과 완벽하게 분리
       let cleanSubject = "포토 리뷰입니다.";
-      
-      // 1. .subject 그 자체가 아니라 그 안의 'a' 태그만 핀포인트로 잡습니다. (본문 회피)
-      const subjectEl = el.querySelector('.subject a, td.subject a, .title a, .board_title');
-      
-      if (subjectEl) {
-        let rawTitle = subjectEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
-        // 엔터 쳐서 들어간 본문 텍스트 잘라내기
-        cleanSubject = rawTitle.split('\n')[0].trim();
-      } else if (link) {
-        const linkText = link.innerText.trim();
-        if (linkText.length > 0) {
-          let safeText = linkText.split('\n')[0].trim();
-          cleanSubject = safeText.length > 30 ? safeText.substring(0, 30) + '...' : safeText;
-        }
+      const linkText = link.innerText.trim();
+      if (linkText) {
+         cleanSubject = linkText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
+         if (cleanSubject.length > 30) cleanSubject = cleanSubject.substring(0, 30) + '...';
       }
 
       payload.push({
@@ -98,26 +90,21 @@
         board_no: CONFIG.targetBoardNo,
         subject: cleanSubject,
         content: "본문을 불러오는 중입니다...",
-        author_name: cleanWriter,
+        author_name: cleanWriter, // 💡 DB 규격에 맞춰 author_name으로 전송
         stars: extractedStar,
         image_urls: thumbUrl ? [thumbUrl] : [],
         is_visible: true
       });
     });
 
-    if (payload.length === 0) {
-      console.log(`⚠️ [REVIEW-IT] ${CONFIG.mallId} 수집할 리뷰 데이터가 없습니다.`);
-      return;
-    }
+    if (payload.length === 0) return;
 
+    // 중복 제거 로직
     const uniqueMap = new Map();
     payload.forEach(item => {
-      if (!uniqueMap.has(item.article_id)) {
-        uniqueMap.set(item.article_id, item);
-      }
+      if (!uniqueMap.has(item.article_id)) uniqueMap.set(item.article_id, item);
     });
-    const uniquePayload = Array.from(uniqueMap.values());
-    const limitedPayload = uniquePayload.slice(0, 20);
+    const limitedPayload = Array.from(uniqueMap.values()).slice(0, 20);
 
     if (limitedPayload.length === 0) return;
 
@@ -134,11 +121,11 @@
       });
 
       if (res.ok) {
-        console.log(`✅ [REVIEW-IT] ${CONFIG.mallId} 수집 완료 (${limitedPayload.length}건)`);
+        console.log(`✅ [REVIEW-IT] 동기화 완료 (${limitedPayload.length}건)`);
         localStorage.setItem('rit_last_sync', new Date().getTime().toString());
       }
     } catch (e) {
-      console.error("❌ 오류 발생:", e);
+      console.error(e);
     }
   }
 
