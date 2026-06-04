@@ -483,7 +483,7 @@
         <div class="rit-card-info">
           <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
           <div class="rit-card-meta">
-            <span>${this.maskName(d.writer)}</span>
+            <span>${this.maskName(d.author_name)}</span>
             <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
           </div>
         </div>
