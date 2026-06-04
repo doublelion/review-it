@@ -4,11 +4,19 @@
  */
 (function (window) {
   const getDynamicConfig = () => {
-    // 💡 [버그 수정 핵심] 수집기와 동일하게 카페24 엔진 내부 변수를 활용하여 독립 도메인 완벽 대응
-    const cafe24MallId = window.SHOP_ID || (typeof EC_SHOP_ID !== 'undefined' ? EC_SHOP_ID : null);
-    
+    // 💡 [버그 수정 핵심] CAFE24API 전역 객체를 최우선 탐색하여 독립 도메인 완벽 대응
+    let cafe24MallId = null;
+
+    if (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) {
+      cafe24MallId = window.CAFE24API.MALL_ID;
+    } else if (typeof window.SHOP_ID !== 'undefined' && window.SHOP_ID) {
+      cafe24MallId = window.SHOP_ID;
+    } else if (typeof EC_SHOP_ID !== 'undefined' && EC_SHOP_ID) {
+      cafe24MallId = EC_SHOP_ID;
+    }
+
     let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
-    
+
     const finalMallId = cafe24MallId || fallbackMallId || 'default_mall';
 
     console.log("▶ [REVIEW-IT Widget] 매핑된 상점 Mall ID:", finalMallId);
@@ -46,7 +54,7 @@
   };
 
   const CONFIG = getDynamicConfig();
-
+  
   const ReviewApp = {
     data: {},
     listOrder: [],
@@ -149,7 +157,7 @@
       name = name.trim();
       // 만약 작성자가 몰 아이디 형태(영어+숫자)라면 마스킹을 유연하게 처리
       if (name.length <= 2) return name.charAt(0) + '*';
-      return name.substring(0, 2) + '*'.repeat(Math.max(1, name.length - 2)); 
+      return name.substring(0, 2) + '*'.repeat(Math.max(1, name.length - 2));
     },
 
     // 💡 상세페이지 비동기 스크래핑 시 제목 파싱 필터링 트윅 고도화
@@ -176,8 +184,8 @@
           if (titleEl) {
             let tempTitle = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
             // 개행 문자 분할 후 다중 공백 제거 압축
-            tempTitle = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim(); 
-            
+            tempTitle = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim();
+
             if (tempTitle.length > 25) {
               extractedSubject = tempTitle.substring(0, 25) + '...';
             } else {
