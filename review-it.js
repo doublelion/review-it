@@ -75,34 +75,39 @@
       // let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
       // let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
 
+      // ====== [최종 고도화: 전역 및 모듈형 상품 정보 완벽 대응형 썸네일 로직] ======
+      let thumbUrl = CONFIG.defaultImg; // 기본값: 최후의 보루
 
-      // ====== [새로 덮어씌울 3단계 썸네일 추출 코드] ======
-      let thumbUrl = CONFIG.defaultImg; // 3순위: 최후의 보루 (기본 이미지)
+      // 1순위: 소비자가 직접 올린 실제 후기 이미지 (보통 /board/ 경로를 탐)
+      let reviewImg = el.querySelector('img[src*="/board/"]:not([src*="icon"])');
 
-      // 1순위: 고객이 직접 올린 후기 이미지 (보통 /board/ 경로를 탐, 아이콘 제외)
-      let reviewImg = el.querySelector('img[src*="/board/"]:not([src*="icon"]), .thumbnail img');
+      // 2순위: 현재 행(el) 내부에 존재하는 상품 이미지 영역 매칭
+      let productImg = el.querySelector('.typeProduct img, td.thumb img, .product-img img, img[src*="/product/"]:not([src*="icon"])');
 
-      // 2순위: 게시판 리스트에 노출된 '상품 썸네일 이미지' (클래스가 thumb이거나 /product/ 경로)
-      let productImg = el.querySelector('td.thumb img, .product-img img, img[src*="/product/"]:not([src*="icon"])');
+      // 3순위 (💡 초강력 전역 백업): 행 내부에는 없지만, 보내주신 코드처럼 페이지 상/하단에 상품 정보 박스가 떠 있는 경우
+      if (!reviewImg && !productImg) {
+        productImg = document.querySelector('.typeProduct img, .xans-board-product img, .xans-board-product-4 img');
+      }
 
+      // 우선순위에 따라 이미지 주소 확정
       if (reviewImg && reviewImg.getAttribute('src')) {
         thumbUrl = reviewImg.getAttribute('src');
       } else if (productImg && productImg.getAttribute('src')) {
-        thumbUrl = productImg.getAttribute('src'); // 상품 이미지를 낚아채서 덮어씀!
+        thumbUrl = productImg.getAttribute('src');
       }
 
-      // 💡 [안전장치] 만약 낚아챈 이미지가 엉뚱한 별점이나 UI 아이콘이면 최후의 보루로 강제 리셋
-      if (thumbUrl.match(/star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|댓글/i)) {
+      // [안전장치] 깨진 이미지 엑스박스나 카페24 기본 기본티콘, 별점 아이콘 필터링 강화
+      if (thumbUrl.match(/star|icon|btn|logo|dummy|ec2-common|echosting|thumb\/75x75|rating|댓글/i)) {
         thumbUrl = CONFIG.defaultImg;
       }
 
-      // URL 절대경로 보정 (카페24 썸네일은 종종 '//' 나 '/' 로 시작하므로 완벽한 URL로 조립)
+      // URL 주소 절대경로 표준화 처리
       if (thumbUrl.startsWith('//')) {
         thumbUrl = 'https:' + thumbUrl;
       } else if (thumbUrl.startsWith('/')) {
         thumbUrl = window.location.origin + thumbUrl;
       }
-      // =======================================================
+      // =========================================================================
 
       let extractedStar = 5;
       const starImg = el.querySelector('img[src*="icon-star-rating"]');
