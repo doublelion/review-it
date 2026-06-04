@@ -38,7 +38,7 @@
       KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
       MALL_ID: mallId,
       PRODUCT_NO: getProductNo(),
-      BOARD_NO: '4',
+      // BOARD_NO: '4',
       // DEFAULT_IMG: '//img.echosting.cafe24.com/thumb/img_product_medium.gif',
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
@@ -193,7 +193,8 @@
     // 이미지와 텍스트 분리 로직 강화
     async _fetchAndSeparateContent(articleNo) {
       try {
-        const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
+        // 💡 CONFIG.BOARD_NO 대신 전달받은 boardNo 사용
+        const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
         if (!res.ok) throw new Error("Network response was not ok");
 
         const html = await res.text();
@@ -281,7 +282,7 @@
           const id = String(r.id);
 
           // 1. 실시간 파싱 시도
-          const separateData = await this._fetchAndSeparateContent(r.article_no);
+          const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
 
           if (separateData) {
             r.clean_text_body = separateData.text || r.content;
@@ -554,7 +555,7 @@
       document.getElementById('ritSubject').innerText = d.subject;
       contentSide.innerHTML = d.clean_text_body || "본문이 없습니다.";
 
-      this.loadComments(d.article_no);
+      this.loadComments(d.article_no, d.board_no);
     },
     // 4. 신규 함수: 이전/다음 리뷰 탐색 (단순 배열 인덱스 활용)
     navigateReview(direction) {
@@ -581,13 +582,13 @@
     },
 
     // 3. loadComments 교체: 게시글 번호(articleNo)를 렌더러로 전달
-    async loadComments(articleNo) {
+    async loadComments(articleNo, boardNo) {
       const commContainer = document.getElementById('ritCommList');
       if (!commContainer) return;
       commContainer.innerHTML = '<div style="padding:15px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; margin-top:20px;">댓글 연결 중...</div>';
 
       try {
-        const res = await fetch(`/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`);
+        const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const selectors = ['.xans-board-commentlist li', '.boardComment li', '.commentList li', '.replyArea li', '[class*="comment"] li'].join(', ');
@@ -601,17 +602,16 @@
         }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호'));
 
         // [수정] 원문 링크 생성을 위해 articleNo 같이 넘김
-        this.renderComments(comments, articleNo);
+        this.renderComments(comments, articleNo, boardNo);
       } catch (e) { commContainer.innerHTML = ''; }
     },
 
     // 4. renderComments 교체: 원문보기 링크 추가 및 담당자 ID 마스킹 해제
-    renderComments(comments, articleNo) {
+    renderComments(comments, articleNo, boardNo) {
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
-      const detailUrl = `/board/product/read.html?board_no=${CONFIG.BOARD_NO}&no=${articleNo}`;
-
+      const detailUrl = `/board/product/read.html?board_no=${boardNo}&no=${articleNo}`;
       // [수정] 요청하신 원문보기 HTML 디자인 적용 (헤더 부분)
       const headerHtml = `
         <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:flex-end;">
