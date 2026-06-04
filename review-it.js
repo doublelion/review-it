@@ -51,40 +51,24 @@
       if (!link) return;
 
       const href = link.getAttribute('href');
-      const tds = el.querySelectorAll('td');
-
+      // 💡 게시판 번호 동적 추출 (없으면 'unknown' 처리하되 수집은 진행)
       const boardNoMatch = href.match(/board_no=(\d+)/) || href.match(/\/article\/[^/]+\/(\d+)\//);
-      const currentBoardNo = boardNoMatch ? boardNoMatch[1] : null;
-
-      if (currentBoardNo !== CONFIG.targetBoardNo) return;
+      const currentBoardNo = boardNoMatch ? boardNoMatch[1] : 'unknown';
 
       const articleNoMatch = href.match(/article_no=(\d+)/) || href.match(/\/(\d+)\/?$/) || href.match(/\/(\d+)\/($|\?)/);
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      let rawWriter = "고객";
-      const writerEl = el.querySelector('.writer, .name, div.mt-3 > span:first-child');
-
-      if (writerEl) {
-        rawWriter = writerEl.innerText.trim();
-      } else if (tds.length >= 5) {
-        rawWriter = tds[4].innerText.trim();
-      }
-
-      let cleanWriter = rawWriter.split('[')[0].split('(')[0].replace(/[*]/g, '').trim();
-      if (!cleanWriter) cleanWriter = "고객";
-
-      let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
-      let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
-
-      // [핵심 패치] 리스트에서 별점 이미지 찾아서 숫자 추출
-      let extractedStar = 5; // 기본값
+      // 💡 [핵심 패치] 리스트에서 별점 이미지가 있는지 먼저 확인
       const starImg = el.querySelector('img[src*="icon-star-rating"]');
-      if (starImg) {
-        const match = starImg.getAttribute('src').match(/icon-star-rating(\d+)/);
-        if (match && match[1]) {
-          extractedStar = parseInt(match[1], 10);
-        }
+
+      // 별점 이미지가 없으면 리뷰가 아닌 일반 게시글(공지사항, Q&A 등)로 간주하고 패스
+      if (!starImg) return;
+
+      let extractedStar = 5;
+      const match = starImg.getAttribute('src').match(/icon-star-rating(\d+)/);
+      if (match && match[1]) {
+        extractedStar = parseInt(match[1], 10);
       }
 
       payload.push({
