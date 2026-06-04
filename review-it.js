@@ -71,8 +71,38 @@
       let cleanWriter = CONFIG.mallId || "customer";
 
       // 썸네일 및 별점 추출
-      let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
-      let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
+      // ====== [기존 썸네일 추출 코드 (이 부분을 찾아서 지우세요)] ======
+      // let thumbEl = el.querySelector('img[src*="/product/"], img[src*="/board/"]');
+      // let thumbUrl = thumbEl ? thumbEl.getAttribute('src') : CONFIG.defaultImg;
+
+
+      // ====== [새로 덮어씌울 3단계 썸네일 추출 코드] ======
+      let thumbUrl = CONFIG.defaultImg; // 3순위: 최후의 보루 (기본 이미지)
+
+      // 1순위: 고객이 직접 올린 후기 이미지 (보통 /board/ 경로를 탐, 아이콘 제외)
+      let reviewImg = el.querySelector('img[src*="/board/"]:not([src*="icon"]), .thumbnail img');
+
+      // 2순위: 게시판 리스트에 노출된 '상품 썸네일 이미지' (클래스가 thumb이거나 /product/ 경로)
+      let productImg = el.querySelector('td.thumb img, .product-img img, img[src*="/product/"]:not([src*="icon"])');
+
+      if (reviewImg && reviewImg.getAttribute('src')) {
+        thumbUrl = reviewImg.getAttribute('src');
+      } else if (productImg && productImg.getAttribute('src')) {
+        thumbUrl = productImg.getAttribute('src'); // 상품 이미지를 낚아채서 덮어씀!
+      }
+
+      // 💡 [안전장치] 만약 낚아챈 이미지가 엉뚱한 별점이나 UI 아이콘이면 최후의 보루로 강제 리셋
+      if (thumbUrl.match(/star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|댓글/i)) {
+        thumbUrl = CONFIG.defaultImg;
+      }
+
+      // URL 절대경로 보정 (카페24 썸네일은 종종 '//' 나 '/' 로 시작하므로 완벽한 URL로 조립)
+      if (thumbUrl.startsWith('//')) {
+        thumbUrl = 'https:' + thumbUrl;
+      } else if (thumbUrl.startsWith('/')) {
+        thumbUrl = window.location.origin + thumbUrl;
+      }
+      // =======================================================
 
       let extractedStar = 5;
       const starImg = el.querySelector('img[src*="icon-star-rating"]');
@@ -87,16 +117,16 @@
       let cleanSubject = "포토 리뷰입니다.";
 
       if (targetText) {
-         // 공백 압축 및 줄바꿈 차단
-         let temp = targetText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
-         temp = temp.replace(/\s+/g, ' ').trim(); 
-         
-         if (temp.length > 0) {
-           cleanSubject = temp;
-           if (cleanSubject.length > 25) {
-             cleanSubject = cleanSubject.substring(0, 25) + '...';
-           }
-         }
+        // 공백 압축 및 줄바꿈 차단
+        let temp = targetText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
+        temp = temp.replace(/\s+/g, ' ').trim();
+
+        if (temp.length > 0) {
+          cleanSubject = temp;
+          if (cleanSubject.length > 25) {
+            cleanSubject = cleanSubject.substring(0, 25) + '...';
+          }
+        }
       }
 
       payload.push({
