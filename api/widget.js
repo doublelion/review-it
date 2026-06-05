@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
       const { error } = await supabase
         .from('reviews')
-        .upsert(payload, { onConflict: 'mall_id,article_id' }); // 💡 article_no를 article_id로 변경!
+        .upsert(payload, { onConflict: 'mall_id,article_no' }); // 💡 DB 컬럼에 맞춰 article_no로 원복
       if (error) throw error;
       return res.status(200).json({ success: true });
     }

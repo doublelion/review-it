@@ -169,7 +169,7 @@ module.exports = async (req, res) => {
           // Supabase 'reviews' 테이블에 데이터 매핑 및 저장
           const reviewsToInsert = articles.map(article => ({
             mall_id: mall_id,
-            article_id: String(article.article_no),
+            article_no: String(article.article_no), // ✅ DB 스키마에 맞게 article_no로 통일
             product_no: article.product_no || null,
             member_id: article.member_id || 'guest',
 

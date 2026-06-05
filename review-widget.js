@@ -178,15 +178,15 @@
 
         let extractedSubject = null;
         const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
-        
+
         if (readArea) {
           // 💡 [.head h3, .head h2] 셀렉터를 전면에 추가하여 제공해주신 돔 구조를 정확히 타겟팅합니다.
           const titleEl = readArea.querySelector('.head h3, .head h2, .title h3, .title h2, .title p, .boardView .title, td.subject');
           if (titleEl) {
             let tempTitle = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
             // 본문 유입 방지: 줄바꿈 문자가 있다면 첫 줄만 분리하고 다중 공백 제거
-            tempTitle = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim(); 
-            
+            tempTitle = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim();
+
             if (tempTitle.length > 25) {
               extractedSubject = tempTitle.substring(0, 25) + '...';
             } else {
@@ -248,7 +248,8 @@
 
         await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
           const id = String(r.id);
-          const separateData = await this._fetchAndSeparateContent(r.article_id || r.article_no, r.board_no);
+
+          const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
 
           if (separateData) {
             r.clean_text_body = separateData.text || r.content;
@@ -460,7 +461,8 @@
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
 
       if (!d.is_parsed) {
-        const separateData = await this._fetchAndSeparateContent(d.article_id || d.article_no, d.board_no);
+        const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
+
         if (separateData) {
           d.clean_text_body = separateData.text || d.content;
           d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
@@ -502,7 +504,7 @@
       document.getElementById('ritSubject').innerText = d.subject;
       contentSide.innerHTML = d.clean_text_body || "본문이 없습니다.";
 
-      this.loadComments(d.article_id || d.article_no, d.board_no);
+      this.loadComments(d.article_no, d.board_no);
     },
 
     navigateReview(direction) {
