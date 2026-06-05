@@ -74,6 +74,7 @@
     listOrder: [],
     settings: {
       display_type: 'grid',
+      is_header_enabled: true, // 💡 [추가] 헤더 노출 여부 기본값 세팅
       tagline: 'Verified Authenticity',
       title: 'People Choice',
       description: '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.',
@@ -159,7 +160,12 @@
           const s = data[0];
           Object.keys(this.settings).forEach(key => {
             if (s[key] !== undefined && s[key] !== null && String(s[key]).trim() !== "") {
-              this.settings[key] = (key === 'description') ? s[key].replace(/\n/g, '<br>') : s[key];
+              // 💡 [수정] boolean 타입인 is_header_enabled는 문자열 정제(replace) 없이 그대로 대입
+              if (key === 'is_header_enabled') {
+                this.settings[key] = s[key];
+              } else {
+                this.settings[key] = (key === 'description') ? s[key].replace(/\n/g, '<br>') : s[key];
+              }
             }
           });
         }
@@ -306,7 +312,7 @@
             if (separateData.date) {
               r.original_date = separateData.date;
             }
-            
+
             // 💡 [추가] 상세페이지에서 파싱한 실제 작성자 이름으로 DB 데이터를 강제 보정 (핵심 로직)
             if (separateData.writer) {
               r.author_name = separateData.writer;
@@ -371,18 +377,22 @@
       }
     </style>
 
-    <div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
-      <div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px;">
-        ${this.settings.tagline || 'Verified Authenticity'}
-      </div>
-      <h2 class="rit-main-title">
-        ${getFormattedTitle(this.settings.title || 'People Choice')}
-      </h2>
-      <div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>
-      <p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all;">
-        ${this.settings.description || '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.'}
-      </p>
-    </div>
+    <!-- 💡 [수정] 이 조건문 분기를 통해 토글이 꺼졌을(false) 때 헤더 영역 전체를 제어합니다. -->
+    ${this.settings.is_header_enabled !== false 
+      ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
+          <div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px;">
+            ${this.settings.tagline || 'Verified Authenticity'}
+          </div>
+          <h2 class="rit-main-title">
+            ${getFormattedTitle(this.settings.title || 'People Choice')}
+          </h2>
+          <div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>
+          <p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all;">
+            ${this.settings.description || '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.'}
+          </p>
+         </div>`
+      : ''
+    }
 
     ${isGrid
           ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
@@ -553,7 +563,7 @@
 
       // 💡 [추가] 노출할 날짜 결정: 원본 스크래핑 날짜 최우선, 없으면 DB 생성일
       const displayDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
-      
+
       // 💡 [수정] ${displayDate} 변수로 날짜 부분 교체
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
