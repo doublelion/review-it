@@ -29,6 +29,12 @@
 
     const getMallName = () => {
       if (window.iMallName && window.iMallName !== "") return window.iMallName;
+
+      // 💡 1순위: 메타 태그의 og:site_name 추출 (가장 깔끔한 상점명)
+      const ogSiteName = document.querySelector('meta[property="og:site_name"]');
+      if (ogSiteName && ogSiteName.content) return ogSiteName.content.trim();
+
+      // 💡 2순위: title 태그 폴백 및 가공
       let title = document.title || "";
       if (title.includes('-')) {
         const parts = title.split('-');
@@ -36,7 +42,15 @@
       } else if (title.includes(':')) {
         title = title.split(':')[0].trim();
       }
+
+      // 불필요한 키워드 제거
       title = title.replace(/공식몰|공식홈페이지|온라인스토어/g, "").trim();
+
+      // 긴 SEO 문구가 딸려왔을 경우 레이아웃 보호를 위해 15자로 강제 컷
+      if (title.length > 15) {
+        title = title.substring(0, 15) + '...';
+      }
+
       return title || "REVIEW-IT";
     };
 
@@ -155,9 +169,14 @@
     maskName(name) {
       if (!name || name === "고객") return "고객";
       name = name.trim();
-      // 만약 작성자가 몰 아이디 형태(영어+숫자)라면 마스킹을 유연하게 처리
+
+      // 1~2글자: 첫 글자 + *
       if (name.length <= 2) return name.charAt(0) + '*';
-      return name.substring(0, 2) + '*'.repeat(Math.max(1, name.length - 2));
+      // 3글자 (일반적인 한국 이름): 가운데 마스킹 (예: 홍*동)
+      if (name.length === 3) return name.charAt(0) + '*' + name.charAt(2);
+
+      // 4글자 이상 (긴 아이디 등): 앞 2글자 노출 후 별표 2개로 고정하여 UI 깨짐 방지
+      return name.substring(0, 2) + '**';
     },
 
     // 💡 상세페이지 비동기 스크래핑 시 제목 파싱 필터링 트윅 고도화
@@ -435,7 +454,7 @@
           <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
           <div class="rit-card-meta">
             <!-- 💡 [수정됨] 썸네일 카드 영역에서도 동일하게 마스킹 적용 -->
-            <span>${this.maskName(CONFIG.MALL_NAME)}</span> 
+            <span>${this.maskName(d.author_name || d.writer || '고객')}</span>
             <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
           </div>
         </div>
@@ -496,7 +515,7 @@
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
-            <span class="rit-author">${this.maskName(CONFIG.MALL_NAME)}</span> 
+            <span class="rit-author">${this.maskName(d.author_name || d.writer || '고객')}</span> 
             <span class="rit-date">${d.created_at ? d.created_at.split('T')[0] : ''}</span>
             <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
