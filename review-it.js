@@ -85,7 +85,12 @@
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      let cleanWriter = CONFIG.mallId || "customer";
+      // ❌ 기존 코드: 작성자를 파싱하지 않고 mallId로 덮어씌움
+      // let cleanWriter = CONFIG.mallId || "customer";
+
+      // ✅ 수정된 코드: 카페24 스킨 DOM에서 실제 작성자 이름을 스크래핑
+      let authorNameEl = el.querySelector('.writer, .name, td.name, span.name, td:nth-child(3)');
+      let cleanWriter = authorNameEl ? authorNameEl.innerText.trim() : (CONFIG.mallId || "customer");
 
       // 썸네일 및 별점 추출
       let thumbUrl = CONFIG.defaultImg;

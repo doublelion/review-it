@@ -449,7 +449,7 @@
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
       
-      // 💡 DB의 author_name을 최우선으로 가져오도록 수정
+      // 💡 DB의 author_name을 최우선으로 가져오도록 확정
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
       return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
@@ -457,7 +457,8 @@
         <div class="rit-card-info">
           <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
           <div class="rit-card-meta">
-            <span>${this.maskName(displayName)}</span>
+            <!-- 💡 마스킹 래핑 제거: DB 텍스트 원본 노출 -->
+            <span>${displayName}</span>
             <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
           </div>
         </div>
@@ -519,7 +520,7 @@
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
-            <span class="rit-author">${this.maskName(displayName)}</span> 
+            <span class="rit-author">${displayName}</span> 
             <span class="rit-date">${d.created_at ? d.created_at.split('T')[0] : ''}</span>
             <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
