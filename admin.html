@@ -81,7 +81,6 @@
     <div
       class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 border-b border-gray-200 pb-6">
       <div>
-        <!-- [로직 2 추가] 연동 상태 확인 뱃지 -->
         <div class="flex items-center gap-3 mb-2">
           <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Review-It 관리자</h1>
           <span id="integration-badge"
@@ -103,10 +102,9 @@
       </div>
     </div>
 
-    <!-- 사용자 대상: 설치 완료 및 서비스 자동 연동 가이드 -->
+    <!-- 안내 패널 -->
     <div class="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
       <div class="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl -mr-10 -mt-10 opacity-50"></div>
-
       <div class="relative z-10">
         <h2 class="text-[15px] font-bold text-blue-900 flex items-center gap-2 mb-3">
           <span class="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs">✔</span>
@@ -133,12 +131,10 @@
         </p>
       </div>
     </div>
-    <!-- // 가이드 패널 끝 -->
 
-    <!-- 기존 위젯 환경 설정 영역 -->
+    <!-- 위젯 환경 설정 영역 -->
     <div class="mb-6 space-y-4">
       <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">위젯 환경 설정</h2>
-
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">그리드 상세 설정</span>
@@ -204,7 +200,7 @@
       </div>
     </div>
 
-    <!-- [로직 1 추가] 실시간 위젯 미리보기 영역 -->
+    <!-- 실시간 위젯 미리보기 영역 -->
     <div
       class="mb-10 bg-[#111111] rounded-2xl p-6 shadow-xl border border-gray-800 text-white overflow-hidden relative">
       <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
@@ -215,7 +211,6 @@
         <span class="text-[10px] text-gray-500 bg-gray-800 px-2 py-1 rounded font-mono">LIVE PREVIEW</span>
       </div>
 
-      <!-- 미리보기 캔버스 -->
       <div
         class="bg-black/60 border border-gray-800 rounded-xl p-10 max-w-5xl mx-auto flex flex-col items-center text-center">
         <span id="preview-tagline" class="text-[11px] font-bold text-blue-500 tracking-widest uppercase mb-2">Verified
@@ -224,16 +219,13 @@
         <p id="preview-description" class="text-sm text-gray-400 max-w-2xl leading-relaxed">
           당신의 선택에 확신을 더하는 기록 텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.
         </p>
-
-        <!-- 레이아웃 목업 -->
         <div id="preview-layout-visual"
           class="mt-10 w-full flex justify-center items-center gap-4 opacity-70 transition-all duration-300">
-          <!-- JS로 자동 생성됨 -->
         </div>
       </div>
     </div>
 
-    <!-- 리뷰 리스트 -->
+    <!-- 리뷰 리스트 테이블 -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <table class="w-full text-left border-collapse">
         <thead>
@@ -269,9 +261,8 @@
     let currentPage = 0;
     const itemsPerPage = 15;
     let currentSearchKeyword = '';
-    let currentWidgetType = 'grid'; // 현재 선택된 위젯 타입 상태
+    let currentWidgetType = 'grid';
 
-    // [로직 1] 실시간 타이핑 이벤트 바인딩 함수
     function bindPreviewEvents() {
       const elTagline = document.getElementById('input-tagline');
       const elTitle = document.getElementById('input-title');
@@ -292,14 +283,12 @@
       });
     }
 
-    // [로직 1] 텍스트 미리보기 업데이트 함수 (DB 로드 시)
     function syncPreviewText() {
       document.getElementById('preview-tagline').innerText = document.getElementById('input-tagline').value || 'TAGLINE';
       document.getElementById('preview-title').innerText = document.getElementById('input-title').value || 'MAIN TITLE';
       document.getElementById('preview-description').innerText = document.getElementById('input-description').value || 'Description';
     }
 
-    // [로직 1] 그리드/스와이퍼 레이아웃 목업 렌더링 함수
     function renderPreviewLayoutVisual(type) {
       const container = document.getElementById('preview-layout-visual');
       if (type === 'grid') {
@@ -370,7 +359,7 @@
         }
 
         refreshSettingUI(currentWidgetType);
-        syncPreviewText(); // DB 로드 후 미리보기 텍스트 즉시 동기화
+        syncPreviewText();
       } catch (err) {
         console.error("설정 로드 실패:", err);
       }
@@ -424,7 +413,11 @@
         const from = currentPage * itemsPerPage;
         const to = from + itemsPerPage - 1;
         let query = `${SB_URL}/reviews?mall_id=eq.${MALL_ID}&select=*&order=created_at.desc`;
-        if (currentSearchKeyword) query += `&or=(subject.ilike.*${currentSearchKeyword}*,writer.ilike.*${currentSearchKeyword}*)`;
+        
+        // 💡 [수정] 위젯 데이터 정규화에 맞춰 author_name 필드도 어드민 검색 조건에 전격 포함
+        if (currentSearchKeyword) {
+          query += `&or=(subject.ilike.*${currentSearchKeyword}*,writer.ilike.*${currentSearchKeyword}*,author_name.ilike.*${currentSearchKeyword}*)`;
+        }
 
         const res = await fetch(query, {
           headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Range': `${from}-${to}`, 'Prefer': 'count=exact' }
@@ -447,8 +440,18 @@
         const thumbnail = getCleanThumbnail(rv.image_urls);
         const displayImg = thumbnail ? thumbnail : 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg';
 
+        // 본문 내 HTML 태그 완벽 제거 및 텍스트화
         const rawContent = rv.content ? rv.content.replace(/<[^>]*>?/gm, '') : '';
         const displayContent = rawContent.trim() ? rawContent : '본문 내용이 없는 리뷰입니다.';
+
+        // 💡 [버그 수정 1] 위젯 엔진 핵심 로직과 통일: author_name 우선 바인딩
+        const displayName = rv.author_name ? rv.author_name : (rv.writer || '고객');
+
+        // 💡 [버그 수정 2] 제목 필드 클렌징 및 폴백 처리 (통째로 내용이 유입되었거나 누락되었을 때)
+        let displaySubject = (rv.subject || '').trim();
+        if (!displaySubject || displaySubject === '포토 리뷰입니다.') {
+          displaySubject = displayContent.length > 25 ? displayContent.substring(0, 25) + '...' : displayContent;
+        }
 
         const starCount = rv.stars ?? 5;
         const activeStars = '★'.repeat(starCount);
@@ -456,14 +459,18 @@
 
         return `
         <tr class="hover:bg-blue-50/30 transition-colors">
-          <td class="p-5 font-semibold text-gray-700 text-sm">${rv.writer || '익명'}</td>
+          <!-- 정확하게 매핑된 작성자 명 노출 -->
+          <td class="p-5 font-semibold text-gray-700 text-sm whitespace-nowrap">${displayName}</td>
           <td class="p-5">
-            <div class="flex items-center gap-4">
+            <div class="flex items-start gap-4">
               <div class="img-box rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
                 <img src="${displayImg}" class="w-full h-full object-cover" onerror="this.src='https://review-it-tau.vercel.app/assets/rit_noimg.jpg'">
               </div>
-              <div class="flex-1">
-                <div class="text-sm font-bold text-gray-900 mb-1">${rv.subject || '제목없음'}</div>
+              <div class="flex-1 min-w-0">
+                <!-- 깔끔하게 정제된 제목 -->
+                <div class="text-sm font-bold text-gray-900 mb-1 truncate">${displaySubject}</div>
+                <!-- 💡 [크리티컬 버그 수정 3] 묵살되었던 실제 리뷰 본문(Content)을 제목 하단에 무결성 렌더링 -->
+                <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed max-w-xl">${displayContent}</p>
               </div>
             </div>
           </td>
@@ -498,8 +505,6 @@
       document.querySelectorAll('.rit-btn-toggle').forEach(btn => btn.classList.remove('active'));
       const target = document.getElementById(`btn-${type}`);
       if (target) target.classList.add('active');
-
-      // 레이아웃 시각적 미리보기 연동
       renderPreviewLayoutVisual(type);
     }
 
@@ -520,7 +525,8 @@
       }
     }
 
-    const AUTH_SIG = params.get('auth_sig');
+    const paramsObj = new URLSearchParams(window.location.search);
+    const AUTH_SIG = paramsObj.get('auth_sig');
     function checkAuthentication() {
       if (!AUTH_SIG && window.location.hostname !== 'localhost') {
         alert("로그인이 만료되었거나 올바르지 않은 접근입니다.");
@@ -543,7 +549,6 @@
           return false;
         }
 
-        // [로직 2 연동] 상태가 정상(active)이면 연동 뱃지를 표시합니다.
         const badge = document.getElementById('integration-badge');
         badge.classList.remove('hidden');
         badge.classList.add('flex');
@@ -556,12 +561,9 @@
     }
 
     window.onload = async () => {
-      // 텍스트 입력창 이벤트 바인딩
       bindPreviewEvents();
-
       if (checkAuthentication()) {
         const isActive = await checkMallStatus();
-
         if (isActive) {
           loadSettings();
           loadAdminData();
