@@ -459,7 +459,6 @@
 
         return `
         <tr class="hover:bg-blue-50/30 transition-colors">
-          <!-- 정확하게 매핑된 작성자 명 노출 -->
           <td class="p-5 font-semibold text-gray-700 text-sm whitespace-nowrap">${displayName}</td>
           <td class="p-5">
             <div class="flex items-start gap-4">
@@ -467,11 +466,9 @@
                 <img src="${displayImg}" class="w-full h-full object-cover" onerror="this.src='https://review-it-tau.vercel.app/assets/rit_noimg.jpg'">
               </div>
               <div class="flex-1 min-w-0">
-                <!-- 깔끔하게 정제된 제목 -->
                 <div class="text-sm font-bold text-gray-900 mb-1 truncate">${displaySubject}</div>
-                <!-- 💡 [크리티컬 버그 수정 3] 묵살되었던 실제 리뷰 본문(Content)을 제목 하단에 무결성 렌더링 -->
-                <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed max-w-xl">${displayContent}</p>
-              </div>
+                
+                </div>
             </div>
           </td>
           <td class="p-5 text-center">
