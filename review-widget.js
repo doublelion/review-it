@@ -198,6 +198,18 @@
         let extractedSubject = null;
         const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
 
+        // 💡 [추가] 원본 작성일 스크래핑 및 정제 로직
+        let extractedDate = null;
+        const dateEl = doc.querySelector('.date, .write-date, td.date, .info .date, .boardView .date');
+        if (dateEl) {
+          const rawDate = dateEl.innerText.trim();
+          // "2026-05-12", "2026. 05. 12" 등의 카페24 날짜 패턴 매칭
+          const dateMatch = rawDate.match(/\d{4}\s*[-./]\s*\d{2}\s*[-./]\s*\d{2}/);
+          if (dateMatch) {
+            extractedDate = dateMatch[0].replace(/\s/g, '').replace(/[\./]/g, '-');
+          }
+        }
+
         if (readArea) {
           // 💡 [.head h3, .head h2] 셀렉터를 전면에 추가하여 제공해주신 돔 구조를 정확히 타겟팅합니다.
           const titleEl = readArea.querySelector('.head h3, .head h2, .title h3, .title h2, .title p, .boardView .title, td.subject');
@@ -230,7 +242,7 @@
           img.remove();
         });
 
-        return { images: extractedImages, text: contentArea.innerHTML.trim(), star: extractedStar, subject: extractedSubject };
+        return { images: extractedImages, text: contentArea.innerHTML.trim(), star: extractedStar, subject: extractedSubject, date: extractedDate };
       } catch (e) {
         return null;
       }
@@ -279,6 +291,11 @@
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
             if (separateData.subject && separateData.subject.trim().length > 0) {
               r.subject = separateData.subject;
+            }
+
+            // 💡 [추가] 스크래핑된 원본 날짜가 존재하면 데이터에 추가
+            if (separateData.date) {
+              r.original_date = separateData.date;
             }
           } else {
             r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
@@ -448,7 +465,7 @@
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
-      
+
       // 💡 DB의 author_name을 최우선으로 가져오도록 확정
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
@@ -490,6 +507,8 @@
         if (separateData) {
           d.clean_text_body = separateData.text || d.content;
           d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
+          // 💡 [추가] 지연 파싱 시에도 날짜 챙겨오기
+          if (separateData.date) d.original_date = separateData.date;
         }
         d.is_parsed = true;
       }
@@ -516,12 +535,15 @@
         imgSide.innerHTML = `<div class="rit-no-image"><span>REVIEW-IT</span></div>`;
       }
 
-      // 💡 [수정됨] CONFIG.MALL_NAME을 maskName 함수로 감싸 마스킹 처리
+      // 💡 [추가] 노출할 날짜 결정: 원본 스크래핑 날짜 최우선, 없으면 DB 생성일
+      const displayDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
+      
+      // 💡 [수정] ${displayDate} 변수로 날짜 부분 교체
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
             <span class="rit-author">${displayName}</span> 
-            <span class="rit-date">${d.created_at ? d.created_at.split('T')[0] : ''}</span>
+            <span class="rit-date">${displayDate}</span>
             <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
         </div>`;
