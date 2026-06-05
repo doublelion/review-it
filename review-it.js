@@ -90,7 +90,16 @@
 
       // ✅ 수정된 코드: 카페24 스킨 DOM에서 실제 작성자 이름을 스크래핑
       let authorNameEl = el.querySelector('.writer, .name, td.name, span.name, td:nth-child(3)');
-      let cleanWriter = authorNameEl ? authorNameEl.innerText.trim() : (CONFIG.mallId || "customer");
+      let cleanWriter = "고객";
+      if (authorNameEl) {
+        // 복제본을 만들어 displaynone 클래스(ip 정보 등)를 제거 후 텍스트 추출
+        let clone = authorNameEl.cloneNode(true);
+        let hidden = clone.querySelector('.displaynone');
+        if (hidden) hidden.remove();
+
+        let tempName = clone.innerText.replace(/\(ip:.*\)/gi, '').trim();
+        if (tempName) cleanWriter = tempName;
+      }
 
       // 썸네일 및 별점 추출
       let thumbUrl = CONFIG.defaultImg;

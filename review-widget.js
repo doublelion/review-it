@@ -226,6 +226,17 @@
           }
         }
 
+        // 💡 [추가] 원본 작성자 이름 스크래핑 및 정제 로직
+        let extractedWriter = null;
+        // 제공해주신 DOM 구조(.description .name)를 포함하여 타겟팅
+        const writerEl = doc.querySelector('.description .name, .head .name, .xans-board-read .name, .xans-board-read .writer, .boardView .name');
+        if (writerEl) {
+          const clone = writerEl.cloneNode(true);
+          const hidden = clone.querySelector('.displaynone');
+          if (hidden) hidden.remove();
+          extractedWriter = clone.innerText.replace(/\(ip:.*\)/gi, '').trim();
+        }
+
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail');
         if (!contentArea) return { images: [], text: "", star: extractedStar, subject: extractedSubject };
 
@@ -242,7 +253,7 @@
           img.remove();
         });
 
-        return { images: extractedImages, text: contentArea.innerHTML.trim(), star: extractedStar, subject: extractedSubject, date: extractedDate };
+        return { images: extractedImages, text: contentArea.innerHTML.trim(), star: extractedStar, subject: extractedSubject, date: extractedDate, writer: extractedWriter };
       } catch (e) {
         return null;
       }
@@ -292,10 +303,13 @@
             if (separateData.subject && separateData.subject.trim().length > 0) {
               r.subject = separateData.subject;
             }
-
-            // 💡 [추가] 스크래핑된 원본 날짜가 존재하면 데이터에 추가
             if (separateData.date) {
               r.original_date = separateData.date;
+            }
+            
+            // 💡 [추가] 상세페이지에서 파싱한 실제 작성자 이름으로 DB 데이터를 강제 보정 (핵심 로직)
+            if (separateData.writer) {
+              r.author_name = separateData.writer;
             }
           } else {
             r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
@@ -495,6 +509,7 @@
       const imgSide = document.getElementById('ritModalImg');
       const contentSide = document.getElementById('ritContent');
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
+      const updatedDisplayName = d.author_name ? d.author_name : (d.writer || '고객');
 
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
@@ -509,6 +524,7 @@
           d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
           // 💡 [추가] 지연 파싱 시에도 날짜 챙겨오기
           if (separateData.date) d.original_date = separateData.date;
+          if (separateData.writer) d.author_name = separateData.writer;
         }
         d.is_parsed = true;
       }
@@ -542,7 +558,7 @@
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
-            <span class="rit-author">${displayName}</span> 
+            <span class="rit-author">${updatedDisplayName}</span> 
             <span class="rit-date">${displayDate}</span>
             <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
