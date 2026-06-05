@@ -448,13 +448,16 @@
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
+      
+      // 💡 DB의 author_name을 최우선으로 가져오도록 수정
+      const displayName = d.author_name ? d.author_name : (d.writer || '고객');
+
       return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
         <img src="${thumb}" class="rit-card-img" loading="lazy">
         <div class="rit-card-info">
           <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
           <div class="rit-card-meta">
-            <!-- 💡 [수정됨] 썸네일 카드 영역에서도 동일하게 마스킹 적용 -->
-            <span>${this.maskName(d.author_name || d.writer || '고객')}</span>
+            <span>${this.maskName(displayName)}</span>
             <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
           </div>
         </div>
@@ -473,6 +476,7 @@
       const d = this.data[id];
       const imgSide = document.getElementById('ritModalImg');
       const contentSide = document.getElementById('ritContent');
+      const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
@@ -515,7 +519,7 @@
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">
-            <span class="rit-author">${this.maskName(d.author_name || d.writer || '고객')}</span> 
+            <span class="rit-author">${this.maskName(displayName)}</span> 
             <span class="rit-date">${d.created_at ? d.created_at.split('T')[0] : ''}</span>
             <div class="rit-stars-gold"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
@@ -560,17 +564,20 @@
 
         const comments = Array.from(commentRows).map(el => {
           let writer = (el.querySelector('.name, .writer, strong')?.innerText || "고객").trim();
+          let isOfficial = false;
 
           const isAdminBadge = el.querySelector('img[src*="admin"], img[src*="staff"]');
-          if (isAdminBadge || CONFIG.ADMIN_KEYWORDS.some(k => writer.includes(k))) {
-            writer = CONFIG.MALL_NAME;
+          // 💡 관리자 키워드 포함 또는 상점명과 일치하는 경우 마스킹 제외
+          if (isAdminBadge || CONFIG.ADMIN_KEYWORDS.some(k => writer.includes(k)) || writer.includes(CONFIG.MALL_NAME) || CONFIG.MALL_NAME.includes(writer.replace(/\*/g, ''))) {
+            isOfficial = true;
+            // 관리자는 마스킹 없이 원문 이름 그대로 노출 (예: 에이치몰)
           } else {
             writer = this.maskName(writer);
           }
 
           const content = (el.querySelector('.comment, .content, span[id^="comment_"]')?.innerText || "").trim();
           const date = (el.querySelector('.date')?.innerText || "").trim();
-          return { writer, content, date };
+          return { writer, content, date, isOfficial };
         }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호'));
 
         this.renderComments(comments, articleNo, boardNo);
@@ -600,14 +607,14 @@
       }
 
       container.innerHTML = headerHtml + comments.map(c => {
-        const isOfficial = c.writer === CONFIG.MALL_NAME;
-        const fontColor = isOfficial ? '#000' : '#111';
-        const bgStyle = isOfficial ? 'background:#f0f4f8; border:1px solid #e2e8f0;' : 'background:#f9f9f9; border:1px solid transparent;';
+        // 💡 isOfficial 속성을 기반으로 UI 스타일링
+        const fontColor = c.isOfficial ? '#000' : '#111';
+        const bgStyle = c.isOfficial ? 'background:#f0f4f8; border:1px solid #e2e8f0;' : 'background:#f9f9f9; border:1px solid transparent;';
 
         return `
         <div class="rit-comm-item" style="margin-bottom:10px; ${bgStyle} padding:14px; border-radius:10px; font-size:12px;">
           <div style="font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:${fontColor};">${c.writer} ${isOfficial ? '✓' : ''}</span>
+            <span style="color:${fontColor};">${c.writer} ${c.isOfficial ? '<span style="color:#3b82f6; margin-left:2px;">✓</span>' : ''}</span>
             <span style="font-weight:400; color:#bbb; font-size:11px;">${c.date}</span>
           </div>
           <div style="color:#444; font-weight:400; line-height:1.5;">${c.content}</div>
