@@ -461,7 +461,7 @@
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
 
       if (!d.is_parsed) {
-        const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
+        const separateData = await this._fetchAndSeparateContent(d.article_no, d.board_no);
 
         if (separateData) {
           d.clean_text_body = separateData.text || d.content;
