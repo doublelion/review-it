@@ -506,16 +506,15 @@
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
       return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
-        <img src="${thumb}" class="rit-card-img" loading="lazy">
-        <div class="rit-card-info">
-          <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
-          <div class="rit-card-meta">
-            <!-- 💡 마스킹 래핑 제거: DB 텍스트 원본 노출 -->
-            <span>${displayName}</span>
-            <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
-          </div>
+      <img src="${thumb}" class="rit-card-img" loading="lazy" onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';">
+      <div class="rit-card-info">
+        <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
+        <div class="rit-card-meta">
+          <span>${displayName}</span>
+          <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
         </div>
-      </div>`;
+      </div>
+    </div>`;
     },
 
     async openModal(id) {
@@ -615,7 +614,15 @@
       const gi = document.getElementById('ritGridInner');
       if (gv.classList.contains('rit-hidden')) {
         gv.classList.remove('rit-hidden');
-        gi.innerHTML = this.listOrder.map(id => `<div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')"><img src="${this.data[id].all_images[0]}"></div>`).join('');
+
+        // 💡 [수정] 모달 내 그리드뷰 격자 이미지 엑박 방어 및 매핑 구조 최적화
+        gi.innerHTML = this.listOrder.map(id => {
+          const imgUrl = this.data[id].all_images[0] || CONFIG.DEFAULT_IMG;
+          return `<div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')">
+          <img src="${imgUrl}" onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';">
+        </div>`;
+        }).join('');
+
       } else { gv.classList.add('rit-hidden'); }
     },
 
