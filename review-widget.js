@@ -204,6 +204,15 @@
         let extractedSubject = null;
         const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
 
+        // 💡 [추가] 리뷰 상세페이지 내의 상품 썸네일 고화질 추출 로직
+        let highResProductImg = null;
+        const prdImgEl = doc.querySelector('.prdWrap img, .product-info img, .thumbnail img, .info img');
+        if (prdImgEl && prdImgEl.getAttribute('src')) {
+          let src = prdImgEl.getAttribute('src');
+          if (!CONFIG.SPAM_KEYWORDS.test(src) && !src.includes('.gif')) {
+            highResProductImg = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
+          }
+        }
         // 💡 [추가] 원본 작성일 스크래핑 및 정제 로직
         let extractedDate = null;
         const dateEl = doc.querySelector('.date, .write-date, td.date, .info .date, .boardView .date');
@@ -256,7 +265,7 @@
           }
           // 💡 [화질 업스케일링 적용]
           src = src.replace(/\/(tiny|small|medium)\//gi, '/big/');
-          
+
           const finalSrc = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
           extractedImages.push(finalSrc);
           img.remove();
@@ -381,8 +390,8 @@
     </style>
 
     <!-- 💡 [수정] 이 조건문 분기를 통해 토글이 꺼졌을(false) 때 헤더 영역 전체를 제어합니다. -->
-    ${this.settings.is_header_enabled !== false 
-      ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
+    ${this.settings.is_header_enabled !== false
+          ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
           <div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px;">
             ${this.settings.tagline || 'Verified Authenticity'}
           </div>
@@ -394,8 +403,8 @@
             ${this.settings.description || '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.'}
           </p>
          </div>`
-      : ''
-    }
+          : ''
+        }
 
     ${isGrid
           ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
@@ -535,28 +544,38 @@
         if (separateData) {
           d.clean_text_body = separateData.text || d.content;
           d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
-          // 💡 [추가] 지연 파싱 시에도 날짜 챙겨오기
           if (separateData.date) d.original_date = separateData.date;
           if (separateData.writer) d.author_name = separateData.writer;
         }
         d.is_parsed = true;
       }
 
+      // 💡 [핵심 트윅] 이미지가 존재하고 기본 이미지가 아닐 때의 처리
       if (d.all_images && d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
         imgSide.innerHTML = `
-      <div class="swiper rit-modal-swiper">
+      <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
         <div class="swiper-wrapper">
-          ${d.all_images.map(img => `<div class="swiper-slide"><img src="${img}" alt="review"></div>`).join('')}
+          ${d.all_images.map(img => `
+            <div class="swiper-slide" style="position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center;">
+              <div style="position: absolute; inset: -20px; background-image: url('${img}'); background-size: cover; background-position: center; filter: blur(20px); opacity: 0.4; pointer-events: none;"></div>
+              
+              <img src="${img}" alt="review" 
+                   onerror="this.src='${CONFIG.DEFAULT_IMG}'; this.style.filter='none'; this.previousElementSibling.style.display='none';" 
+                   style="position: relative; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1;">
+            </div>
+          `).join('')}
         </div>
         <div class="rit-fraction"></div>
         <div class="swiper-button-next"></div><div class="swiper-button-prev"></div>
       </div>`;
+
         if (window.Swiper) {
           setTimeout(() => {
             new Swiper('.rit-modal-swiper', {
               pagination: { el: '.rit-fraction', type: 'fraction' },
               navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
-              centeredSlides: true, loop: d.all_images.length > 1
+              centeredSlides: true,
+              loop: d.all_images.length > 1
             });
           }, 50);
         }
@@ -564,10 +583,8 @@
         imgSide.innerHTML = `<div class="rit-no-image"><span>REVIEW-IT</span></div>`;
       }
 
-      // 💡 [추가] 노출할 날짜 결정: 원본 스크래핑 날짜 최우선, 없으면 DB 생성일
       const displayDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
 
-      // 💡 [수정] ${displayDate} 변수로 날짜 부분 교체
       document.getElementById('ritMetaArea').innerHTML = `
         <div class="rit-meta-container">
           <div class="rit-meta-top">

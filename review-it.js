@@ -118,15 +118,11 @@
 
       // 우선순위에 따라 이미지 주소 확정
       if (reviewImg && reviewImg.getAttribute('src')) {
-        // 1순위: 고객이 직접 올린 후기 이미지는 그대로 사용
+        // 1순위: 소비자가 직접 올린 실제 후기 이미지
         thumbUrl = reviewImg.getAttribute('src');
       } else if (productImg && productImg.getAttribute('src')) {
-        // 2, 3순위: 상품 썸네일을 가져왔을 경우
-        let rawProductImgUrl = productImg.getAttribute('src');
-        
-        // 💡 [핵심 트윅] 카페24 저화질 썸네일 경로를 원본(big) 경로로 강제 치환 (상세페이지 크롤링 불필요!)
-        // /tiny/, /small/, /medium/ 폴더 경로를 모두 /big/ 으로 바꿉니다.
-        thumbUrl = rawProductImgUrl.replace(/\/(tiny|small|medium)\//gi, '/big/');
+        // 2순위: 상품 썸네일을 가져왔을 경우 (강제 치환 로직 제거, 원본 그대로 수집)
+        thumbUrl = productImg.getAttribute('src');
       }
 
       // 깨진 이미지 및 기본 아이콘 필터링
