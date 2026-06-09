@@ -254,6 +254,9 @@
             img.remove();
             return;
           }
+          // 💡 [화질 업스케일링 적용]
+          src = src.replace(/\/(tiny|small|medium)\//gi, '/big/');
+          
           const finalSrc = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
           extractedImages.push(finalSrc);
           img.remove();
