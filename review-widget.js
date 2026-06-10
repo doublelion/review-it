@@ -460,41 +460,41 @@
       modalContainer.className = 'rit-modal-container';
       modalContainer.style.display = 'none';
       modalContainer.innerHTML = `
-    <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
-    
-    <button class="rit-nav-btn rit-nav-prev" onclick="ReviewApp.navigateReview(-1)" style="position:fixed; left:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10094;</button>
-    <button class="rit-nav-btn rit-nav-next" onclick="ReviewApp.navigateReview(1)" style="position:fixed; right:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10095;</button>
+      <div class="rit-modal-bg" onclick="ReviewApp.closeModal()"></div>
+      
+      <button class="rit-nav-btn rit-nav-prev" onclick="ReviewApp.navigateReview(-1)" style="position:fixed; left:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10094;</button>
+      <button class="rit-nav-btn rit-nav-next" onclick="ReviewApp.navigateReview(1)" style="position:fixed; right:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10095;</button>
 
-    <div class="rit-modal-window">
-       <div class="rit-modal-header">
-          <span class="rit-logo-text">${CONFIG.MALL_NAME}</span>
-          <div class="rit-header-buttons">
-            <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
-            <svg viewBox="0 0 24 24">
-                    <rect x="2" y="2" width="9" height="9" rx="1" />
-                    <rect x="13" y="2" width="9" height="9" rx="1" />
-                    <rect x="2" y="13" width="9" height="9" rx="1" />
-                    <rect x="13" y="13" width="9" height="9" rx="1" />
-                  </svg>GRID VIEW</button>
-            <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
-          </div>
-       </div>
-       <div class="rit-modal-body">
-          <div id="ritDetailView" class="rit-flex-container">
-            <div id="ritModalImg" class="rit-img-side"></div>
-            <div class="rit-txt-side">
-              <div id="ritMetaArea"></div>
-              <h3 id="ritSubject"></h3>
-              <div id="ritContent" class="rit-body-text"></div>
-              <div id="ritCommList"></div>
+      <div class="rit-modal-window">
+        <div class="rit-modal-header">
+            <span class="rit-logo-text">${CONFIG.MALL_NAME}</span>
+            <div class="rit-header-buttons">
+              <button onclick="ReviewApp.toggleGrid()" class="btn-rit-grid">
+              <svg viewBox="0 0 24 24">
+                      <rect x="2" y="2" width="9" height="9" rx="1" />
+                      <rect x="13" y="2" width="9" height="9" rx="1" />
+                      <rect x="2" y="13" width="9" height="9" rx="1" />
+                      <rect x="13" y="13" width="9" height="9" rx="1" />
+                    </svg>GRID VIEW</button>
+              <button onclick="ReviewApp.closeModal()" class="btn-rit-close">✕</button>
             </div>
-          </div>
-          <div id="ritGridView" class="rit-grid-overlay rit-hidden">
-            <div id="ritGridInner" class="rit-grid-box-wrap"></div>
-          </div>
-       </div>
-    </div>
-  `;
+        </div>
+        <div class="rit-modal-body">
+            <div id="ritDetailView" class="rit-flex-container">
+              <div id="ritModalImg" class="rit-img-side"></div>
+              <div class="rit-txt-side">
+                <div id="ritMetaArea"></div>
+                <h3 id="ritSubject"></h3>
+                <div id="ritContent" class="rit-body-text"></div>
+                <div id="ritCommList"></div>
+              </div>
+            </div>
+            <div id="ritGridView" class="rit-grid-overlay rit-hidden">
+              <div id="ritGridInner" class="rit-grid-box-wrap"></div>
+            </div>
+        </div>
+      </div>
+    `;
       document.body.appendChild(modalContainer);
     },
 
@@ -502,21 +502,29 @@
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
 
-      // 💡 DB의 author_name을 최우선으로 가져오도록 확정
+      // DB의 author_name을 최우선으로 가져오도록 확정
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
-      return `<div class="rit-card" onclick="ReviewApp.openModal('${id}')">
-      <img src="${thumb}" class="rit-card-img" loading="lazy" onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';">
-      <div class="rit-card-info">
-        <div class="rit-card-subject line-clamp-2 break-keep">${d.subject}</div>
-        <div class="rit-card-meta">
-          <span>${displayName}</span>
-          <div class="rit-stars-small"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg"></div>
+      return `
+    <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff;">
+      
+      <div class="rit-card-blur-bg" style="position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 1/1; background-image: url('${thumb}'); background-size: cover; background-position: center; filter: blur(15px); opacity: 0.35; pointer-events: none; z-index: 1;"></div>
+      
+      <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
+        <img src="${thumb}" class="rit-card-img" loading="lazy" 
+            onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';"
+            style="max-width: 100%; max-height: 100%; object-fit: contain; width: auto; height: auto; transition: transform 0.3s ease;">
+      </div>
+
+      <div class="rit-card-info" style="position: relative; z-index: 3; background: #fff; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+        <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; color: #222; margin-bottom: 10px; font-weight: 500;">${d.subject}</div>
+        <div class="rit-card-meta" style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: #888;">${displayName}</span>
+          <div class="rit-stars-small" style="width: 65px;"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" style="width:100%;"></div>
         </div>
       </div>
     </div>`;
     },
-
     async openModal(id) {
       this.currentScrollY = window.pageYOffset;
       document.getElementById('ritModal').style.display = 'flex';
