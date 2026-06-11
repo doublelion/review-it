@@ -233,11 +233,7 @@
             // 본문 유입 방지: 줄바꿈 문자가 있다면 첫 줄만 분리하고 다중 공백 제거
             tempTitle = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim();
 
-            if (tempTitle.length > 25) {
-              extractedSubject = tempTitle.substring(0, 25) + '...';
-            } else {
-              extractedSubject = tempTitle;
-            }
+            extractedSubject = tempTitle;
           }
         }
 
@@ -340,7 +336,8 @@
             tempDiv.innerHTML = r.clean_text_body;
             let plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim();
             if (plainText.length > 0) {
-              r.subject = plainText.length > 25 ? plainText.substring(0, 25) + '...' : plainText;
+              // 💡 [수정] 25자 제한 절삭 로직 제거
+              r.subject = plainText;
             }
           }
 
@@ -484,7 +481,7 @@
               <div id="ritModalImg" class="rit-img-side"></div>
               <div class="rit-txt-side">
                 <div id="ritMetaArea"></div>
-                <h3 id="ritSubject"></h3>
+                <h3 id="ritSubject" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; word-break: keep-all; margin-bottom: 15px;"></h3>
                 <div id="ritContent" class="rit-body-text"></div>
                 <div id="ritCommList"></div>
               </div>
