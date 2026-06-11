@@ -172,8 +172,9 @@
             <div class="flex items-center gap-2">
               <span class="text-[11px] font-bold text-gray-500 uppercase" id="header-toggle-text">노출 켜짐</span>
               <label class="relative inline-flex items-center cursor-pointer">
-               
-                <input type="checkbox" id="toggle-header" class="sr-only peer" checked onchange="updateToggleText(); saveHeaderSettings(currentWidgetType);">
+
+                <input type="checkbox" id="toggle-header" class="sr-only peer" checked
+                  onchange="updateToggleText(); saveHeaderSettings(currentWidgetType);">
                 <div
                   class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
                 </div>
@@ -240,7 +241,12 @@
     const SB_KEY = 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt';
 
     const params = new URLSearchParams(window.location.search);
-    const MALL_ID = params.get('mall_id') || window.location.hostname.split('.')[0];
+
+    // 💡 [수정 1] 상단에서 한 번만 let으로 선언하여 중복 충돌을 방지합니다.
+    let MALL_ID = params.get('mall_id') || window.location.hostname.split('.')[0];
+    const AUTH_SIG = params.get('auth_sig');
+
+    // 초기 렌더링 시에는 주소창의 MALL_ID를 일단 보여줍니다 (이후 검증 실패 시 튕겨냄)
     document.getElementById('display-mall-name').innerText = MALL_ID;
 
     let currentPage = 0;
@@ -305,7 +311,6 @@
           document.getElementById('input-title').value = s.title || '';
           document.getElementById('input-description').value = s.description || '';
 
-          // 헤더 노출 여부 값 바인딩 (DB에 해당 컬럼이 없다면 기본값 true로 작동)
           const isHeaderEnabled = s.is_header_enabled !== undefined ? s.is_header_enabled : true;
           document.getElementById('toggle-header').checked = isHeaderEnabled;
 
@@ -322,7 +327,7 @@
           currentWidgetType = 'grid';
         }
 
-        updateToggleText(); // UI 업데이트
+        updateToggleText();
         refreshSettingUI(currentWidgetType);
       } catch (err) {
         console.error("설정 로드 실패:", err);
@@ -337,7 +342,7 @@
         const payload = {
           mall_id: MALL_ID,
           display_type: typeToSave,
-          is_header_enabled: isHeaderEnabled, // DB 업데이트용 페이로드에 추가
+          is_header_enabled: isHeaderEnabled,
           title: document.getElementById('input-title').value,
           description: document.getElementById('input-description').value,
           tagline: document.getElementById('input-tagline').value,
@@ -364,7 +369,7 @@
           throw new Error(errRes.message || '위젯 설정 반영 실패');
         }
       } catch (err) {
-        alert('❌ 저장 중 오류 발생: ' + err.message + '\n\n* 만약 문제가 지속되면 SQL 적용 상태를 확인해 주세요.');
+        alert('❌ 저장 중 오류 발생: ' + err.message);
       }
     }
 
@@ -481,15 +486,37 @@
       }
     }
 
-    const paramsObj = new URLSearchParams(window.location.search);
-    const AUTH_SIG = paramsObj.get('auth_sig');
-    function checkAuthentication() {
-      if (!AUTH_SIG && window.location.hostname !== 'localhost') {
-        alert("로그인이 만료되었거나 올바르지 않은 접근입니다.");
+    async function checkAuthentication() {
+      // 로컬 개발 환경은 패스
+      if (window.location.hostname === 'localhost') return true;
+
+      if (!AUTH_SIG || !MALL_ID) {
+        alert("올바르지 않은 접근입니다.");
         window.location.href = '/index.html';
         return false;
       }
-      return true;
+
+      try {
+        // 💡 주의: 이 API 경로는 대표님의 실제 검증 라우터 주소에 맞게 나중에 연결해야 합니다.
+        // 백엔드 구현 전까지는 일단 개발 테스트를 위해 이 부분이 주석 처리되어 있거나 우회되도록 임시 처리할 수도 있습니다.
+        const authCheck = await fetch(`/api/auth?mall_id=${MALL_ID}&auth_sig=${AUTH_SIG}`);
+
+        if (!authCheck.ok) {
+          throw new Error("인증 실패");
+        }
+
+        const authResult = await authCheck.json();
+
+        // 💡 여기서 백엔드가 넘겨준 '진짜' 상점 ID로 덮어씌웁니다.
+        MALL_ID = authResult.verified_mall_id;
+        document.getElementById('display-mall-name').innerText = MALL_ID;
+
+        return true;
+      } catch (err) {
+        alert("🔒 보안 경고: 변조된 접근이 감지되었거나 로그인이 만료되었습니다.");
+        window.location.href = '/index.html';
+        return false;
+      }
     }
 
     async function checkMallStatus() {
@@ -517,7 +544,10 @@
     }
 
     window.onload = async () => {
-      if (checkAuthentication()) {
+      // 💡 [수정 2] checkAuthentication은 비동기 함수이므로 반드시 await를 붙여서 검증이 끝날 때까지 기다려야 합니다!
+      const isAuthValid = await checkAuthentication();
+
+      if (isAuthValid) {
         const isActive = await checkMallStatus();
         if (isActive) {
           loadSettings();

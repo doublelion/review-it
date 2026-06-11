@@ -11,10 +11,27 @@ const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
 module.exports = async (req, res) => {
   try {
-    const { mall_id, code, hmac } = req.query;
+    // 💡 [수정 1] 프론트엔드에서 넘겨주는 auth_sig를 받을 수 있도록 추가했습니다.
+    const { mall_id, code, hmac, auth_sig } = req.query;
 
     if (!mall_id) {
       return res.status(400).send('mall_id가 누락되었습니다.');
+    }
+
+    // =====================================================================
+    // [핵심 보안 패치] 프론트엔드(admin.html)의 권한 검증 API 요청 처리
+    // 프론트에서 넘어온 auth_sig가 서버에서 만든 서명과 일치하는지 확인합니다.
+    // =====================================================================
+    if (auth_sig) {
+      const expectedSig = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
+
+      if (auth_sig === expectedSig) {
+        // 서명이 일치함: 주소창 조작이 없는 정상 요청
+        return res.status(200).json({ verified_mall_id: mall_id });
+      } else {
+        // 서명이 불일치함: mall_id를 임의로 조작한 타 상점 접근 시도 (해킹 차단)
+        return res.status(403).json({ error: "권한이 없습니다. 변조된 요청입니다." });
+      }
     }
 
     // =====================================================================
