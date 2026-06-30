@@ -287,6 +287,8 @@
           if (res.status === 403 || res.status === 401) {
             const container = document.getElementById('review-it-widget');
             if (container) container.style.display = 'none';
+            // 💡 추가: 디버깅을 위한 에러 로그
+            console.error(`[REVIEW-IT] 접근 거부(403/401): 결제 만료 또는 유효하지 않은 상점입니다.`);
             return false;
           }
           throw new Error(`API 오류: ${res.status}`);
@@ -296,6 +298,8 @@
         if (!list || list.length === 0) {
           const container = document.getElementById('review-it-widget');
           if (container) container.style.display = 'none';
+          // 💡 추가: 데이터 없음 로그
+          console.warn(`[REVIEW-IT] 노출할 리뷰 데이터가 DB에 없습니다.`);
           return false;
         }
 
