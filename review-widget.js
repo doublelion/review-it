@@ -3,6 +3,8 @@
  * @Update: 독립 도메인(.co.kr) 타겟 몰아이디 파싱 버그 완벽 픽스 및 상세페이지 제목 가공 강화
  */
 (function (window) {
+  console.log("▶ [REVIEW-IT] 프론트엔드 스크립트 로드 완료!");
+  
   const getDynamicConfig = () => {
     // 💡 [버그 수정 핵심] CAFE24API 전역 객체를 최우선 탐색하여 독립 도메인 완벽 대응
     let cafe24MallId = null;
