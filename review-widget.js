@@ -1,12 +1,11 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.5
- * @Update: 독립 도메인(.co.kr) 타겟 몰아이디 파싱 버그 완벽 픽스 및 상세페이지 제목 가공 강화
+ * @Project: Review-It Universal Widget Engine v1.0.6
+ * @Update: 독립 도메인 완벽 대응 및 관리자 설정 빈 값(EMPTY/공백) 명시적 미노출 버그 완벽 픽스
  */
 (function (window) {
   console.log("▶ [REVIEW-IT] 프론트엔드 스크립트 로드 완료!");
-  
+
   const getDynamicConfig = () => {
-    // 💡 [버그 수정 핵심] CAFE24API 전역 객체를 최우선 탐색하여 독립 도메인 완벽 대응
     let cafe24MallId = null;
 
     if (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) {
@@ -18,7 +17,6 @@
     }
 
     let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
-
     const finalMallId = cafe24MallId || fallbackMallId || 'default_mall';
 
     console.log("▶ [REVIEW-IT Widget] 매핑된 상점 Mall ID:", finalMallId);
@@ -32,11 +30,9 @@
     const getMallName = () => {
       if (window.iMallName && window.iMallName !== "") return window.iMallName;
 
-      // 💡 1순위: 메타 태그의 og:site_name 추출 (가장 깔끔한 상점명)
       const ogSiteName = document.querySelector('meta[property="og:site_name"]');
       if (ogSiteName && ogSiteName.content) return ogSiteName.content.trim();
 
-      // 💡 2순위: title 태그 폴백 및 가공
       let title = document.title || "";
       if (title.includes('-')) {
         const parts = title.split('-');
@@ -45,10 +41,8 @@
         title = title.split(':')[0].trim();
       }
 
-      // 불필요한 키워드 제거
       title = title.replace(/공식몰|공식홈페이지|온라인스토어/g, "").trim();
 
-      // 긴 SEO 문구가 딸려왔을 경우 레이아웃 보호를 위해 15자로 강제 컷
       if (title.length > 15) {
         title = title.substring(0, 15) + '...';
       }
@@ -59,7 +53,7 @@
     return {
       URL: 'https://ozxnynnntkjjjhyszbms.supabase.co',
       KEY: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-      MALL_ID: finalMallId, // 정확하게 일치된 몰 아이디 바인딩
+      MALL_ID: finalMallId,
       PRODUCT_NO: getProductNo(),
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
@@ -76,7 +70,7 @@
     listOrder: [],
     settings: {
       display_type: 'grid',
-      is_header_enabled: true, // 💡 [추가] 헤더 노출 여부 기본값 세팅
+      is_header_enabled: true,
       tagline: 'Verified Authenticity',
       title: 'People Choice',
       description: '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.',
@@ -161,12 +155,17 @@
         if (data && data.length > 0) {
           const s = data[0];
           Object.keys(this.settings).forEach(key => {
-            if (s[key] !== undefined && s[key] !== null && String(s[key]).trim() !== "") {
-              // 💡 [수정] boolean 타입인 is_header_enabled는 문자열 정제(replace) 없이 그대로 대입
+            if (s[key] !== undefined && s[key] !== null) {
               if (key === 'is_header_enabled') {
                 this.settings[key] = s[key];
               } else {
-                this.settings[key] = (key === 'description') ? s[key].replace(/\n/g, '<br>') : s[key];
+                let dbValue = String(s[key]).trim();
+                // 💡 [트윅 1] DB 값이 대문자 'EMPTY'이거나 실제 공백/빈 문자열이면 명시적 빈 값("")으로 세팅
+                if (dbValue === "" || dbValue === "EMPTY") {
+                  this.settings[key] = "";
+                } else {
+                  this.settings[key] = (key === 'description') ? String(s[key]).replace(/\n/g, '<br>') : String(s[key]);
+                }
               }
             }
           });
@@ -178,16 +177,12 @@
       if (!name || name === "고객") return "고객";
       name = name.trim();
 
-      // 1~2글자: 첫 글자 + *
       if (name.length <= 2) return name.charAt(0) + '*';
-      // 3글자 (일반적인 한국 이름): 가운데 마스킹 (예: 홍*동)
       if (name.length === 3) return name.charAt(0) + '*' + name.charAt(2);
 
-      // 4글자 이상 (긴 아이디 등): 앞 2글자 노출 후 별표 2개로 고정하여 UI 깨짐 방지
       return name.substring(0, 2) + '**';
     },
 
-    // 💡 상세페이지 비동기 스크래핑 시 제목 파싱 필터링 트윅 고도화
     async _fetchAndSeparateContent(articleNo, boardNo = '4') {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
@@ -206,7 +201,6 @@
         let extractedSubject = null;
         const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
 
-        // 💡 [추가] 리뷰 상세페이지 내의 상품 썸네일 고화질 추출 로직
         let highResProductImg = null;
         const prdImgEl = doc.querySelector('.prdWrap img, .product-info img, .thumbnail img, .info img');
         if (prdImgEl && prdImgEl.getAttribute('src')) {
@@ -215,12 +209,11 @@
             highResProductImg = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
           }
         }
-        // 💡 [추가] 원본 작성일 스크래핑 및 정제 로직
+
         let extractedDate = null;
         const dateEl = doc.querySelector('.date, .write-date, td.date, .info .date, .boardView .date');
         if (dateEl) {
           const rawDate = dateEl.innerText.trim();
-          // "2026-05-12", "2026. 05. 12" 등의 카페24 날짜 패턴 매칭
           const dateMatch = rawDate.match(/\d{4}\s*[-./]\s*\d{2}\s*[-./]\s*\d{2}/);
           if (dateMatch) {
             extractedDate = dateMatch[0].replace(/\s/g, '').replace(/[\./]/g, '-');
@@ -228,20 +221,15 @@
         }
 
         if (readArea) {
-          // 💡 [.head h3, .head h2] 셀렉터를 전면에 추가하여 제공해주신 돔 구조를 정확히 타겟팅합니다.
           const titleEl = readArea.querySelector('.head h3, .head h2, .title h3, .title h2, .title p, .boardView .title, td.subject');
           if (titleEl) {
             let tempTitle = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
-            // 본문 유입 방지: 줄바꿈 문자가 있다면 첫 줄만 분리하고 다중 공백 제거
             tempTitle = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim();
-
             extractedSubject = tempTitle;
           }
         }
 
-        // 💡 [추가] 원본 작성자 이름 스크래핑 및 정제 로직
         let extractedWriter = null;
-        // 제공해주신 DOM 구조(.description .name)를 포함하여 타겟팅
         const writerEl = doc.querySelector('.description .name, .head .name, .xans-board-read .name, .xans-board-read .writer, .boardView .name');
         if (writerEl) {
           const clone = writerEl.cloneNode(true);
@@ -261,9 +249,7 @@
             img.remove();
             return;
           }
-          // 💡 [화질 업스케일링 적용]
           src = src.replace(/\/(tiny|small|medium)\//gi, '/big/');
-
           const finalSrc = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
           extractedImages.push(finalSrc);
           img.remove();
@@ -289,7 +275,6 @@
           if (res.status === 403 || res.status === 401) {
             const container = document.getElementById('review-it-widget');
             if (container) container.style.display = 'none';
-            // 💡 추가: 디버깅을 위한 에러 로그
             console.error(`[REVIEW-IT] 접근 거부(403/401): 결제 만료 또는 유효하지 않은 상점입니다.`);
             return false;
           }
@@ -300,7 +285,6 @@
         if (!list || list.length === 0) {
           const container = document.getElementById('review-it-widget');
           if (container) container.style.display = 'none';
-          // 💡 추가: 데이터 없음 로그
           console.warn(`[REVIEW-IT] 노출할 리뷰 데이터가 DB에 없습니다.`);
           return false;
         }
@@ -310,7 +294,6 @@
 
         await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
           const id = String(r.id);
-
           const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
 
           if (separateData) {
@@ -326,8 +309,6 @@
             if (separateData.date) {
               r.original_date = separateData.date;
             }
-
-            // 💡 [추가] 상세페이지에서 파싱한 실제 작성자 이름으로 DB 데이터를 강제 보정 (핵심 로직)
             if (separateData.writer) {
               r.author_name = separateData.writer;
             }
@@ -336,13 +317,11 @@
             r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
           }
 
-          // 💡 서브젝트 정제 백업 필터
           if (r.subject === "포토 리뷰입니다." || !r.subject) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = r.clean_text_body;
             let plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim();
             if (plainText.length > 0) {
-              // 💡 [수정] 25자 제한 절삭 로직 제거
               r.subject = plainText;
             }
           }
@@ -363,7 +342,8 @@
       if (!container) return;
 
       const getFormattedTitle = (rawTitle) => {
-        const text = rawTitle || 'PEOPLE CHOICE';
+        const text = rawTitle || '';
+        if (!text) return '';
         const words = text.split(' ');
         if (words.length <= 1) return text;
         const lastWord = words.pop();
@@ -392,20 +372,14 @@
       }
     </style>
 
-    <!-- 💡 [수정] 이 조건문 분기를 통해 토글이 꺼졌을(false) 때 헤더 영역 전체를 제어합니다. -->
+    <!-- 💡 [트윅 2] 과도한 연산자(||) 제거하여 DB에서 세팅한 명시적 빈 문자열을 온전히 렌더링하도록 처리 -->
     ${this.settings.is_header_enabled !== false
           ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
-          <div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px;">
-            ${this.settings.tagline || 'Verified Authenticity'}
-          </div>
-          <h2 class="rit-main-title">
-            ${getFormattedTitle(this.settings.title || 'People Choice')}
-          </h2>
-          <div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>
-          <p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all;">
-            ${this.settings.description || '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.'}
-          </p>
-         </div>`
+              ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">${this.settings.tagline}</div>` : ''}
+              ${this.settings.title ? `<h2 class="rit-main-title" style="margin:0;">${getFormattedTitle(this.settings.title)}</h2>` : ''}
+              ${(this.settings.tagline || this.settings.title) ? `<div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>` : ''}
+              ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all; margin:0 auto; max-width:80%;">${this.settings.description}</p>` : ''}
+             </div>`
           : ''
         }
 
@@ -504,21 +478,16 @@
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
-
-      // DB의 author_name을 최우선으로 가져오도록 확정
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
       return `
     <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff;">
-      
       <div class="rit-card-blur-bg" style="position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 1/1; background-image: url('${thumb}'); background-size: cover; background-position: center; filter: blur(15px); opacity: 0.35; pointer-events: none; z-index: 1;"></div>
-      
       <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
         <img src="${thumb}" class="rit-card-img" loading="lazy" 
             onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';"
             style="max-width: 100%; max-height: 100%; object-fit: contain; width: auto; height: auto; transition: transform 0.3s ease;">
       </div>
-
       <div class="rit-card-info" style="position: relative; z-index: 3; background: #fff; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
         <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; color: #222; margin-bottom: 10px; font-weight: 500;">${d.subject}</div>
         <div class="rit-card-meta" style="display: flex; justify-content: space-between; align-items: center;">
@@ -528,6 +497,7 @@
       </div>
     </div>`;
     },
+
     async openModal(id) {
       this.currentScrollY = window.pageYOffset;
       document.getElementById('ritModal').style.display = 'flex';
@@ -540,17 +510,14 @@
       const d = this.data[id];
       const imgSide = document.getElementById('ritModalImg');
       const contentSide = document.getElementById('ritContent');
-      const displayName = d.author_name ? d.author_name : (d.writer || '고객');
       const updatedDisplayName = d.author_name ? d.author_name : (d.writer || '고객');
 
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
-
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
 
       if (!d.is_parsed) {
         const separateData = await this._fetchAndSeparateContent(d.article_no, d.board_no);
-
         if (separateData) {
           d.clean_text_body = separateData.text || d.content;
           d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
@@ -560,7 +527,6 @@
         d.is_parsed = true;
       }
 
-      // 💡 [핵심 트윅] 이미지가 존재하고 기본 이미지가 아닐 때의 처리
       if (d.all_images && d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
         imgSide.innerHTML = `
       <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
@@ -568,7 +534,6 @@
           ${d.all_images.map(img => `
             <div class="swiper-slide" style="position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center;">
               <div style="position: absolute; inset: -20px; background-image: url('${img}'); background-size: cover; background-position: center; filter: blur(20px); opacity: 0.4; pointer-events: none;"></div>
-              
               <img src="${img}" alt="review" 
                    onerror="this.src='${CONFIG.DEFAULT_IMG}'; this.style.filter='none'; this.previousElementSibling.style.display='none';" 
                    style="position: relative; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1;">
@@ -625,15 +590,12 @@
       const gi = document.getElementById('ritGridInner');
       if (gv.classList.contains('rit-hidden')) {
         gv.classList.remove('rit-hidden');
-
-        // 💡 [수정] 모달 내 그리드뷰 격자 이미지 엑박 방어 및 매핑 구조 최적화
         gi.innerHTML = this.listOrder.map(id => {
           const imgUrl = this.data[id].all_images[0] || CONFIG.DEFAULT_IMG;
           return `<div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')">
           <img src="${imgUrl}" onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';">
         </div>`;
         }).join('');
-
       } else { gv.classList.add('rit-hidden'); }
     },
 
@@ -654,10 +616,8 @@
           let isOfficial = false;
 
           const isAdminBadge = el.querySelector('img[src*="admin"], img[src*="staff"]');
-          // 💡 관리자 키워드 포함 또는 상점명과 일치하는 경우 마스킹 제외
           if (isAdminBadge || CONFIG.ADMIN_KEYWORDS.some(k => writer.includes(k)) || writer.includes(CONFIG.MALL_NAME) || CONFIG.MALL_NAME.includes(writer.replace(/\*/g, ''))) {
             isOfficial = true;
-            // 관리자는 마스킹 없이 원문 이름 그대로 노출 (예: 에이치몰)
           } else {
             writer = this.maskName(writer);
           }
@@ -694,7 +654,6 @@
       }
 
       container.innerHTML = headerHtml + comments.map(c => {
-        // 💡 isOfficial 속성을 기반으로 UI 스타일링
         const fontColor = c.isOfficial ? '#000' : '#111';
         const bgStyle = c.isOfficial ? 'background:#f0f4f8; border:1px solid #e2e8f0;' : 'background:#f9f9f9; border:1px solid transparent;';
 
