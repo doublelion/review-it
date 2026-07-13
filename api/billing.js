@@ -35,6 +35,8 @@ export default async function handler(req, res) {
     let nextStatus = 'inactive';
     let isDeleted = false;
 
+    // api/billing.js
+
     switch (event_type) {
       case 'app.paid':
       case 'app.extended':
@@ -42,11 +44,12 @@ export default async function handler(req, res) {
         break;
       case 'app.deleted':
         nextStatus = 'inactive';
-        isDeleted = true; // 💡 삭제됨 감지
+        isDeleted = true;
         break;
       case 'app.expired':
       case 'app.refund':
         nextStatus = 'inactive';
+        isDeleted = true; // 💡 [수정 포인트] 만료나 환불 시에도 isDeleted를 true로 주어 토큰을 날립니다!
         break;
       default:
         nextStatus = 'inactive';
