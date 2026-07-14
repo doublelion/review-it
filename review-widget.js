@@ -402,10 +402,19 @@
             slidesPerView: isPc ? pcCols : moCols,
             spaceBetween: isPc ? 20 : 12,
             loop: true,
-            speed: 5000,
-            freeMode: true,
-            freeModeMomentum: false,
-            autoplay: { delay: 0, disableOnInteraction: false, pauseOnMouseEnter: true },
+            // 슬라이드 개수가 적을 때 루프가 멈추는 버그 방지 (선택 사항이나 권장)
+            loopedSlides: isPc ? pcCols * 2 : moCols * 2,
+            speed: 4000, // 롤링 속도 (5000은 터치 후 복귀 시 다소 답답할 수 있어 4000 권장)
+
+            // freeMode는 delay:0 방식과 충돌을 일으키므로 false로 두는 것이 훨씬 자연스럽습니다.
+            freeMode: false,
+
+            autoplay: {
+              delay: 0,
+              disableOnInteraction: false, // 드래그 후에도 계속 자동 재생
+              pauseOnMouseEnter: true // PC 환경에서 마우스 오버 시 멈춤 (사용성 증가)
+            },
+
             allowTouchMove: true,
             grabCursor: true,
             observer: true,
@@ -416,12 +425,24 @@
 
         let ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
         let isDesktopLast = window.innerWidth >= 1024;
+
         window.addEventListener('resize', () => {
           const isDesktopNow = window.innerWidth >= 1024;
           if (isDesktopLast !== isDesktopNow) {
             isDesktopLast = isDesktopNow;
             if (ritSwiper && ritSwiper.destroy) ritSwiper.destroy(true, true);
             ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
+          }
+        });
+
+        // 백그라운드(다른 탭) 이동 후 돌아왔을 때 스와이퍼가 멈춰있는 버그 해결
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            // 탭을 벗어나면 애니메이션 일시 정지 (리소스 절약 및 꼬임 방지)
+            if (ritSwiper && ritSwiper.autoplay) ritSwiper.autoplay.stop();
+          } else {
+            // 탭으로 돌아오면 재시작
+            if (ritSwiper && ritSwiper.autoplay) ritSwiper.autoplay.start();
           }
         });
       }
