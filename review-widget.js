@@ -133,13 +133,23 @@
     },
 
     async init() {
-      this.injectCSS();
       this.autoCreateContainer();
+      
+      const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+
+      // 💡 [긴급 픽스] 위젯 컨테이너가 없는 페이지(글쓰기, 게시판 등)라면 여기서 즉시 스크립트 실행을 중단합니다.
+      // 이 방어 코드가 없으면 글쓰기 페이지에서도 최대 15번의 fetch API가 백그라운드에서 실행되어 카페24 서버와 충돌(보안 차단)을 일으킵니다.
+      if (!container) {
+        console.log("▶ [REVIEW-IT] 위젯 노출 대상 페이지가 아니므로 실행을 안전하게 중단합니다.");
+        return;
+      }
+
+      // 2. 컨테이너가 있는 메인/상품 상세 페이지에서만 이후 로직(API 호출, CSS 주입) 실행
+      this.injectCSS();
       await this.loadWidgetSettings();
       const hasReviews = await this.loadReviews();
 
       if (!hasReviews) {
-        const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
         if (container) container.style.display = 'none';
         return;
       }
