@@ -19,19 +19,40 @@
   };
 
   const currentMallId = getDynamicConfig();
+  console.log("▶ [REVIEW-IT Debug] 1. 인식된 몰 ID:", currentMallId);
 
-  // 🛑 [안전 게이트웨이] ykinas 몰이 아니면 스크립트 강제 종료 (정식 런칭 시 이 블록 삭제)
-  if (currentMallId !== 'ykinas') return;
+  // 🛑 [안전 게이트웨이] ykinas 몰이 아니면 스크립트 강제 종료
+  if (currentMallId !== 'ykinas') {
+    console.log("▶ [REVIEW-IT Debug] ykinas 몰이 아니므로 실행을 안전하게 중단합니다.");
+    return;
+  }
 
-  // 2. 리뷰 게시판 리스트 페이지 감지
-  const isReviewBoardPage = window.location.pathname.includes('/board/product/list.html') || window.location.pathname.includes('/board/상품-사용후기/');
-  if (!isReviewBoardPage) return;
+  // 2. 리뷰 게시판 리스트 페이지 감지 (💡 한글 인코딩 디코딩 및 다중 패턴 감지 적용)
+  const currentPath = decodeURIComponent(window.location.pathname);
+  const currentSearch = window.location.search;
+  console.log("▶ [REVIEW-IT Debug] 2. 디코딩된 URL 경로:", currentPath);
+  
+  // /board/product/list.html?board_no=4 이거나 /board/상품-사용후기/4/ 형태 모두 감지
+  const isReviewBoardPage = 
+    currentPath.includes('/board/product/list') || 
+    currentPath.includes('상품-사용후기') ||
+    (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
+  console.log("▶ [REVIEW-IT Debug] 3. 리뷰 게시판 여부 확인:", isReviewBoardPage);
+
+  if (!isReviewBoardPage) {
+    console.log("▶ [REVIEW-IT Debug] 여기는 리뷰 리스트 페이지가 아니므로 위젯을 띄우지 않습니다.");
+    return; 
+  }
+
+  // ---------------------------------------------------------
+  // 👇 여기서부터는 기존 ReviewListApp 코드가 그대로 이어집니다.
+  // ---------------------------------------------------------
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     mallId: currentMallId,
-    limit: 10, // 한 번에 불러올 리뷰 개수
+    limit: 10, 
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating'
   };
@@ -42,7 +63,7 @@
     hasMore: true,
 
     init() {
-      console.log("▶ [REVIEW-IT] 모바일 퍼스트 맨선리 뷰 가동!");
+      console.log("▶ [REVIEW-IT Debug] 4. 모바일 퍼스트 맨선리 뷰 정상 가동 시작!");
       this.hideDefaultBoard();
       this.injectCSS();
       this.createLayout();
@@ -50,10 +71,26 @@
       this.initIntersectionObserver();
     },
 
-    // 카페24 기본 투박한 리스트 숨기기
+    // 💡 [업그레이드] 카페24 구형, 신형, 프리미엄 스킨의 모든 리뷰 게시판 요소를 완벽 차단
     hideDefaultBoard() {
-      const defaultBoards = document.querySelectorAll('.xans-board-listpackage, .boardSort, .xans-board-empty');
-      defaultBoards.forEach(el => el.style.display = 'none');
+      const selectors = [
+        '.xans-board-listpackage', 
+        '.boardSort',                 
+        '.xans-board-empty',          
+        '#prdReview',                 
+        '.xans-product-review',       
+        '.review_list_item',          
+        'div[id^="ec-product-review"]', 
+        '.board-list-wrap'           
+      ].join(', ');
+
+      const defaultBoards = document.querySelectorAll(selectors);
+      
+      defaultBoards.forEach(el => {
+        el.style.setProperty('display', 'none', 'important');
+      });
+
+      console.log(`▶ [REVIEW-IT Debug] 5. 기본 리뷰 게시판 DOM 차단 완료`);
     },
 
     // 초경량 맨선리 CSS 주입 (모바일 퍼스트)
