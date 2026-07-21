@@ -1,6 +1,6 @@
 /**
  * @Project: Review-It Universal Board List Engine
- * @Update: 하드코딩 더미 데이터 100% 덮어쓰기 및 구형 클릭 이벤트 완벽 방어
+ * @Update: 썸네일 이미지 누락 완벽 해결 (스크래핑 엔진 동기화)
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -32,8 +32,8 @@
 
   const currentPath = decodeURIComponent(window.location.pathname);
   const currentSearch = window.location.search;
-  const isReviewBoardPage =
-    currentPath.includes('/board/product/list') ||
+  const isReviewBoardPage = 
+    currentPath.includes('/board/product/list') || 
     currentPath.includes('상품-사용후기') ||
     (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
@@ -44,7 +44,7 @@
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     mallId: env.mallId,
     mallName: env.mallName,
-    limit: 15,
+    limit: 15, 
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating'
   };
@@ -56,14 +56,14 @@
     renderedIds: new Set(),
 
     init() {
-      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (클린 앤 덮어쓰기 모드)");
+      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (이미지 파싱 강화 모드)");
       this.hideConflicts();
-      this.injectGridCSS();
+      this.injectGridCSS(); 
       this.createLayout();
-
+      
       if (window.ReviewApp && typeof window.ReviewApp.initModal === 'function') {
         window.ReviewApp.initModal();
-        this.hijackModal();
+        this.hijackModal(); 
       }
 
       this.fetchReviews();
@@ -116,34 +116,33 @@
     },
 
     createLayout() {
-      // 카페24 스킨에 하드코딩된 요소가 있을 경우를 대비해 DOM이 없으면 새로 생성합니다.
-      if (!document.querySelector('.rit-list-container')) {
-        const wrapper = document.querySelector('#contents') || document.body;
-        const container = document.createElement('div');
-        container.className = 'rit-list-container';
-        container.innerHTML = `
-          <div class="rit-masonry-grid" id="rit-masonry-grid"></div>
-          <div id="rit-scroll-anchor" style="text-align:center; padding:30px; color:#999; font-size:13px;">리뷰를 불러오는 중입니다...</div>
-        `;
-        wrapper.appendChild(container);
-      }
+      document.querySelectorAll('.rit-list-container, .rit-masonry-item').forEach(el => el.remove());
+
+      const wrapper = document.querySelector('#contents') || document.body;
+      const container = document.createElement('div');
+      container.className = 'rit-list-container';
+      container.innerHTML = `
+        <div class="rit-masonry-grid" id="rit-masonry-grid"></div>
+        <div id="rit-scroll-anchor" style="text-align:center; padding:30px; color:#999; font-size:13px;">리뷰를 불러오는 중입니다...</div>
+      `;
+      wrapper.appendChild(container);
     },
 
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
         const origRender = window.ReviewApp.renderDetail;
-        window.ReviewApp.renderDetail = async function (id) {
+        window.ReviewApp.renderDetail = async function(id) {
           await origRender.call(this, id);
+          
           const authorEl = document.querySelector('#ritMetaArea .rit-author');
           if (authorEl) {
-            authorEl.innerText = CONFIG.mallName;
+             authorEl.innerText = CONFIG.mallName;
           }
         };
       }
     },
 
-    // 🛑 [철통 방어] 혹시라도 옛날 하드코딩 코드를 클릭했을 때 에러를 뱉지 않게 하는 우회 함수
     openModal(id) {
       if (window.ReviewApp) {
         window.ReviewApp.openModal(id);
@@ -160,25 +159,42 @@
           headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}`, 'Range': `${offset}-${offset + CONFIG.limit - 1}` }
         });
         const data = await res.json();
-
+        
         if (data.length < CONFIG.limit) {
           this.hasMore = false;
           const anchor = document.getElementById('rit-scroll-anchor');
-          if (anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
+          if(anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
         }
 
-        if (window.ReviewApp) {
-          data.forEach(r => {
+        // 💡 [핵심 픽스] 렌더링 전, 위젯의 스크래핑 엔진을 빌려 '진짜 이미지'를 모두 가져옵니다!
+        const enrichedData = await Promise.all(data.map(async (r) => {
+          if (window.ReviewApp) {
             if (!window.ReviewApp.data[r.id]) {
-              r.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
-              r.is_parsed = false;
               window.ReviewApp.data[r.id] = r;
               window.ReviewApp.listOrder.push(r.id);
             }
-          });
-        }
+            
+            let widgetData = window.ReviewApp.data[r.id];
+            
+            // 아직 파싱이 안 된 데이터라면 스크래핑 함수를 실행하여 고화질 이미지를 추출
+            if (!widgetData.is_parsed && typeof window.ReviewApp._fetchAndSeparateContent === 'function') {
+              const scraped = await window.ReviewApp._fetchAndSeparateContent(r.article_no, r.board_no);
+              if (scraped) {
+                widgetData.all_images = (scraped.images && scraped.images.length > 0) ? scraped.images : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg]);
+                if (scraped.subject) widgetData.subject = scraped.subject;
+              } else {
+                widgetData.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
+              }
+              widgetData.is_parsed = true;
+            }
+            return widgetData;
+          }
+          // 위젯이 로드되지 않았을 경우 최후의 방어 (기본 DB 데이터 사용)
+          r.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
+          return r;
+        }));
 
-        this.renderItems(data);
+        this.renderItems(enrichedData);
         this.page++;
       } catch (error) {
         console.error("❌ [REVIEW-IT] 리스트 로드 실패:", error);
@@ -193,17 +209,18 @@
 
       const uniqueReviews = [];
       reviews.forEach(r => {
-        const checkKey = r.article_no || r.id;
+        const checkKey = r.article_no || r.id; 
         if (!this.renderedIds.has(checkKey)) {
           this.renderedIds.add(checkKey);
           uniqueReviews.push(r);
         }
       });
 
-      if (uniqueReviews.length === 0) return;
+      if (uniqueReviews.length === 0) return; 
 
       const html = uniqueReviews.map(r => {
-        const imgUrl = (r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg) ? r.image_urls[0] : CONFIG.defaultImg;
+        // 🛑 [수정됨] 빈 값이던 r.image_urls 대신, 스크래핑이 완료된 꽉 찬 데이터 r.all_images 를 사용합니다!
+        const imgUrl = (r.all_images && r.all_images.length > 0 && r.all_images[0] !== CONFIG.defaultImg) ? r.all_images[0] : CONFIG.defaultImg;
         return `
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
             <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
@@ -218,10 +235,8 @@
         `;
       }).join('');
 
-      // 🛑 [결정적 픽스] 첫 페이지(0) 데이터를 그릴 때는 무조건 덮어쓰기! 
-      // 카페24 스킨에 남아있던 과거의 지저분한 하드코딩 코드들이 한 방에 소멸됩니다.
       if (this.page === 0) {
-        grid.innerHTML = html;
+        grid.innerHTML = html; 
       } else {
         grid.insertAdjacentHTML('beforeend', html);
       }
@@ -229,7 +244,7 @@
 
     initIntersectionObserver() {
       const anchor = document.getElementById('rit-scroll-anchor');
-      if (!anchor) return;
+      if(!anchor) return;
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && this.hasMore && !this.isLoading) {
           this.fetchReviews();
@@ -239,7 +254,6 @@
     }
   };
 
-  // 🛑 글로벌 전역 개체 할당 (옛날 HTML 요소 클릭 시에도 에러 방어)
   window.ReviewListApp = ReviewListApp;
 
   if (document.readyState === 'complete') ReviewListApp.init();
