@@ -48,6 +48,7 @@
     page: 0,
     isLoading: false,
     hasMore: true,
+    renderedIds: new Set(),
 
     init() {
       console.log("▶ [REVIEW-IT] 리스트 뷰 및 기존 모달 연동 시작");
@@ -129,7 +130,14 @@
           });
         }
 
-        this.renderItems(data);
+        // 🛑 [긴급 픽스] 장부를 확인하여 중복 데이터 걸러내기
+        const newReviews = data.filter(r => !this.renderedIds.has(r.id));
+        newReviews.forEach(r => this.renderedIds.add(r.id)); // 새 데이터는 장부에 기록
+
+        if (newReviews.length > 0) {
+          this.renderItems(newReviews); // 중복이 제거된 순수 새 데이터만 화면에 그리기
+        }
+
         this.page++;
       } catch (error) {
         console.error("❌ [REVIEW-IT] 리스트 로드 실패:", error);

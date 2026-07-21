@@ -624,12 +624,14 @@
         d.is_parsed = true;
       }
 
+      // ... (renderDetail 상단 로직 유지) ...
+
       if (d.all_images && d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
         imgSide.innerHTML = `
       <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
         <div class="swiper-wrapper">
           ${d.all_images.map(img => `
-            <div class="swiper-slide" style="position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center;">
+            <div class="swiper-slide" style="position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center; width: 100% !important; box-sizing: border-box;">
               <div style="position: absolute; inset: -20px; background-image: url('${img}'); background-size: cover; background-position: center; filter: blur(20px); opacity: 0.4; pointer-events: none;"></div>
               <img src="${img}" alt="review" 
                    onerror="this.src='${CONFIG.DEFAULT_IMG}'; this.style.filter='none'; this.previousElementSibling.style.display='none';" 
@@ -642,12 +644,22 @@
       </div>`;
 
         if (window.Swiper) {
+          // 🛑 [긴급 픽스] 기존에 열려있던 좀비 스와이퍼 인스턴스 파괴 (충돌 방지)
+          if (window.ritActiveModalSwiper) {
+            window.ritActiveModalSwiper.destroy(true, true);
+          }
+
+          // DOM이 완전히 그려질 틈을 주기 위한 미세 딜레이
           setTimeout(() => {
-            new Swiper('.rit-modal-swiper', {
+            window.ritActiveModalSwiper = new Swiper('.rit-modal-swiper', {
               pagination: { el: '.rit-fraction', type: 'fraction' },
               navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
               centeredSlides: true,
-              loop: d.all_images.length > 1
+              loop: d.all_images.length > 1,
+              // 🛑 [긴급 픽스] 모달 창 내부에서 Swiper를 쓸 때 필수인 동적 감지 옵션
+              observer: true,
+              observeParents: true,
+              resizeObserver: true
             });
           }, 50);
         }
