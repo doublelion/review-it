@@ -1,7 +1,7 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.1
- * @Role: Cafe24 Review SaaS Lead Developer
- * @Update: 임시 상품 태그 칩 시현 연동, 별점 비어있는 영역 톤앤매너 보정, 모달 쇼퍼블 스마트 연동
+ * @Project: Review-It Universal Board List Engine v1.0.2
+ * @Role: Cafe24 Review SaaS Lead Developer & PO
+ * @Update: 1. 기존 페이지네이션(< 1 >) 강제 차단, 2. 모달 내 상품 버튼 미니멀화 및 현재창 이동 적용
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -66,7 +66,7 @@
     allFetchedReviews: [],
 
     init() {
-      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동");
+      console.log("▶ [REVIEW-IT] 고도화 UI/UX 적용 리스트 엔진 가동");
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
@@ -81,7 +81,20 @@
     },
 
     hideConflicts() {
-      const selectors = ['.xans-board-listpackage', '.boardSort', '.xans-board-empty', '#prdReview', '.xans-product-review', '.review_list_item', 'div[id^="ec-product-review"]', '.board-list-wrap'];
+      // 🛑 [결정적 픽스] 카페24 기존 게시판 요소 및 상단 페이지네이션(< 1 >) 완벽 숨김
+      const selectors = [
+        '.xans-board-listpackage',
+        '.boardSort',
+        '.xans-board-empty',
+        '#prdReview',
+        '.xans-product-review',
+        '.review_list_item',
+        'div[id^="ec-product-review"]',
+        '.board-list-wrap',
+        '.xans-board-paging',
+        '.ec-base-paginate',
+        'div[class*="paginate"]'
+      ];
       document.querySelectorAll(selectors.join(', ')).forEach(el => el.style.setProperty('display', 'none', 'important'));
     },
 
@@ -99,9 +112,13 @@
       style.id = 'rit-list-grid-css';
       style.innerHTML = `
         #review-it-widget, #rit-widget-container { display: none !important; }
-        .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; padding: 0 15px; }
         
-        /* 📊 상단 소셜 프루프 대시보드 카드 */
+        /* 🛑 기존 카페24 페이지네이션 UI 강제 숨김 */
+        .xans-board-paging, .ec-base-paginate, div[class*="paginate"] { display: none !important; }
+
+        .rit-list-container { width: 100%; max-width: 1200px; margin: 20px auto 60px; padding: 0 15px; }
+        
+        /* 📊 대시보드 카드 */
         .rit-dashboard-card {
           background: #ffffff;
           border: 1px solid #f0f0f0;
@@ -137,7 +154,7 @@
         .rit-gauge-fill { height: 100%; background: #18181b; border-radius: 3px; transition: width 0.6s ease; }
         .rit-gauge-percent { width: 32px; text-align: right; font-weight: 500; color: #71717a; }
 
-        /* 🛍️ 미니멀 상품 정보 태그 칩 스타일 */
+        /* 🛍️ 미니멀 상품 정보 태그 칩 */
         .rit-product-chip {
           display: flex;
           align-items: center;
@@ -147,49 +164,9 @@
           padding: 6px 10px;
           border-radius: 6px;
           margin-bottom: 12px;
-          transition: background 0.2s;
         }
-        .rit-product-chip:hover {
-          background: #f1f5f9;
-        }
-        .rit-product-chip-img {
-          width: 22px;
-          height: 22px;
-          border-radius: 4px;
-          object-fit: cover;
-        }
-        .rit-product-chip-name {
-          font-size: 11px;
-          color: #475569;
-          font-weight: 600;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        /* 🛍️ 미니멀 라인 쇼퍼블 버튼 */
-        .rit-shoppable-wrap { margin-top: 25px; padding-top: 20px; border-top: 1px solid #f4f4f5; }
-        .rit-btn-shoppable {
-          display: flex !important;
-          align-items: center !important;
-          justify-content: space-between !important;
-          background: #fafafa !important;
-          color: #18181b !important;
-          border: 1px solid #e4e4e7 !important;
-          text-decoration: none !important;
-          padding: 13px 18px !important;
-          border-radius: 10px !important;
-          font-size: 12.5px !important;
-          font-weight: 700 !important;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-        }
-        .rit-btn-shoppable:hover {
-          background: #18181b !important;
-          color: #ffffff !important;
-          border-color: #18181b !important;
-          transform: translateY(-1px) !important;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
-        }
+        .rit-product-chip-img { width: 22px; height: 22px; border-radius: 4px; object-fit: cover; }
+        .rit-product-chip-name { font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         /* 🖼️ 진성 맨선리 레이아웃 */
         .rit-masonry-grid { column-count: 2; column-gap: 12px; }
@@ -224,6 +201,7 @@
     },
 
     createLayout() {
+      this.hideConflicts();
       document.querySelectorAll('.rit-list-container, #rit-scroll-anchor').forEach(el => el.remove());
 
       const wrapper = document.querySelector('#contents') || document.body;
@@ -289,6 +267,7 @@
       `;
     },
 
+    // 🛑 [핵심 수정] 미니멀 상품 이동 버튼을 COMMENTS 상단으로 우아하게 이동 (현재창 이동)
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
@@ -304,25 +283,25 @@
           const d = window.ReviewApp.data[id];
           const contentSide = document.getElementById('ritContent');
 
-          if (d && contentSide) {
+          // 모달 중간에 있던 과거의 투박한 큰 버튼 제거
+          if (contentSide) {
             const oldWrap = contentSide.querySelector('.rit-shoppable-wrap');
             if (oldWrap) oldWrap.remove();
+          }
 
-            const productNo = d.product_no || d.product_id;
-
-            // 💡 실제 상품 번호가 있거나 테스트 상태일 때 쇼퍼블 버튼 출력
-            const targetProductNo = productNo || '11'; // 시현용 기본 상품 ID
+          // 댓글 헤더 오른쪽의 '리뷰 원문보기' 자리를 '상품 보러가기' 미니 버튼으로 교체
+          const commHead = document.querySelector('.rit-comm-head');
+          if (commHead && d) {
+            const targetProductNo = d.product_no || d.product_id || '11';
             const productUrl = `/product/detail.html?product_no=${targetProductNo}`;
 
-            const shoppableBtnHtml = `
-              <div class="rit-shoppable-wrap">
-                <a href="${productUrl}" class="rit-btn-shoppable" target="_blank">
-                  <span>🛍️ 리뷰 속 상품 보러가기</span>
-                  <span>→</span>
-                </a>
-              </div>
+            // 기존 텍스트 '리뷰 원문보기' 제거하고 미니멀 버튼 삽입 (target="_self" 현재창 이동)
+            commHead.innerHTML = `
+              <h4 style="font-size:11px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#111; margin:0;">Comments</h4>
+              <a href="${productUrl}" target="_self" style="font-size:11px; font-weight:700; color:#18181b; background:#f4f4f5; padding:4px 10px; border-radius:6px; text-decoration:none; border:1px solid #e4e4e7; transition:all 0.2s;">
+                🛍️ 상품 보러가기 →
+              </a>
             `;
-            contentSide.insertAdjacentHTML('beforeend', shoppableBtnHtml);
           }
         };
       }
@@ -409,7 +388,6 @@
         const imgUrl = (r.all_images && r.all_images.length > 0 && r.all_images[0] !== CONFIG.defaultImg) ? r.all_images[0] : CONFIG.defaultImg;
         const cleanContent = r.clean_text_body || '내용이 없습니다.';
 
-        // 💡 [핵심 연동] 시현용 임시 상품 칩 주입 (대표님이 요청하신 크리마/넥젠 스타일의 미니멀 칩)
         const sampleProductName = r.product_name || "REVIEW-IT 프리미엄 솔루션";
         const sampleProductImg = r.product_img || imgUrl;
 
@@ -426,7 +404,7 @@
             <div class="rit-masonry-info">
               <div class="rit-masonry-subject">${r.subject}</div>
               <div class="rit-masonry-desc">${cleanContent}</div>
-              ${productChipHtml} <!-- 💡 카드 내 상품 태그 칩 노출 -->
+              ${productChipHtml}
               <div class="rit-masonry-meta">
                 <span style="font-weight:600; color:#52525b;">${CONFIG.mallName}</span>
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" class="rit-card-star" alt="star">
