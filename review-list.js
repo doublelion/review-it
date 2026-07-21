@@ -1,6 +1,6 @@
 /**
  * @Project: Review-It Universal Board List Engine
- * @Update: 위젯 의존성 분리 및 자체 구동 최적화 (서브페이지 충돌 원천 차단)
+ * @Update: DB 단위 중복 렌더링 100% 차단 (article_no 기준), 모달 헤더 복구, 작성자 몰이름 강제 고정
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -16,11 +16,20 @@
       cafe24MallId = EC_SHOP_ID;
     }
     let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
-    return cafe24MallId || fallbackMallId || 'default_mall';
+
+    // 💡 몰 이름 추출 (작성자 표기용)
+    let mallName = "REVIEW-IT";
+    const ogSiteName = document.querySelector('meta[property="og:site_name"]');
+    if (ogSiteName && ogSiteName.content) mallName = ogSiteName.content.trim();
+
+    return {
+      mallId: cafe24MallId || fallbackMallId || 'default_mall',
+      mallName: mallName
+    };
   };
 
-  const currentMallId = getDynamicConfig();
-  if (currentMallId !== 'ykinas') return;
+  const env = getDynamicConfig();
+  if (env.mallId !== 'ykinas') return;
 
   const currentPath = decodeURIComponent(window.location.pathname);
   const currentSearch = window.location.search;
@@ -34,7 +43,8 @@
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-    mallId: currentMallId,
+    mallId: env.mallId,
+    mallName: env.mallName,
     limit: 15,
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating'
@@ -44,15 +54,14 @@
     page: 0,
     isLoading: false,
     hasMore: true,
-    renderedIds: new Set(),
+    renderedIds: new Set(), // 🛑 [핵심 픽스] DB 내부 ID가 아닌 '게시글 번호(article_no)' 장부
 
     init() {
-      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (독립 구동 모드)");
+      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (중복 차단 모드)");
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
 
-      // 💡 [핵심] 위젯 UI는 생성되지 않지만, 모달 창 뼈대는 리스트 뷰를 위해 강제 생성
       if (window.ReviewApp && typeof window.ReviewApp.initModal === 'function') {
         window.ReviewApp.initModal();
       }
@@ -64,10 +73,12 @@
     hideConflicts() {
       const selectors = ['.xans-board-listpackage', '.boardSort', '.xans-board-empty', '#prdReview', '.xans-product-review', '.review_list_item', 'div[id^="ec-product-review"]', '.board-list-wrap'];
       document.querySelectorAll(selectors.join(', ')).forEach(el => el.style.setProperty('display', 'none', 'important'));
+
+      const mainWidget = document.getElementById('review-it-widget');
+      if (mainWidget) mainWidget.style.setProperty('display', 'none', 'important');
     },
 
     injectGridCSS() {
-      // 💡 [핵심 픽스 1] 메인 스타일시트(review-it.css)가 없으면 강제로 불러옵니다.
       if (!document.getElementById('rit-css-link')) {
         const link = document.createElement('link');
         link.id = 'rit-css-link';
@@ -76,16 +87,12 @@
         document.head.appendChild(link);
       }
 
-      // 🛑 [핵심 픽스 2] 그리드 전용 CSS 중복 주입 방지
       if (document.getElementById('rit-list-grid-css')) return;
-
       const style = document.createElement('style');
       style.id = 'rit-list-grid-css';
       style.innerHTML = `
-        /* 하단 중복 롤링 위젯 강제 숨김 */
         #review-it-widget, #rit-widget-container { display: none !important; }
         
-        /* 맨선리 격자 레이아웃 전용 CSS */
         .rit-list-container { width: 100%; max-width: 1200px; margin: 40px auto; padding: 0 15px; }
         .rit-masonry-grid { column-count: 2; column-gap: 10px; }
         @media (min-width: 768px) { .rit-masonry-grid { column-count: 3; column-gap: 15px; } }
@@ -97,9 +104,12 @@
         .rit-masonry-subject { font-size: 13px; color: #222; font-weight: 600; line-height: 1.4; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .rit-masonry-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #888; }
         
-        /* 다중 이미지 스와이퍼 깨짐 원격 치료 */
         .rit-modal-swiper .swiper-wrapper { display: flex !important; }
         .rit-modal-swiper .swiper-slide { width: 100% !important; flex-shrink: 0 !important; }
+
+        /* 🛑 [핵심 픽스] 잘려나갔던 모달 상단 헤더(버튼, 몰 이름) 완벽 복구 */
+        .rit-modal-window { overflow: visible !important; }
+        .rit-modal-header { display: flex !important; z-index: 99999 !important; visibility: visible !important; opacity: 1 !important; }
       `;
       document.head.appendChild(style);
     },
@@ -133,12 +143,11 @@
           if (anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
         }
 
-        // 💡 [속도 개선] 스크래핑 대기 없이 즉시 DB 데이터만 모달 장부에 저장
         if (window.ReviewApp) {
           data.forEach(r => {
             if (!window.ReviewApp.data[r.id]) {
               r.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
-              r.is_parsed = false; // 고객이 모달 클릭 시에만 스크래핑 작동
+              r.is_parsed = false;
               window.ReviewApp.data[r.id] = r;
             }
           });
@@ -157,8 +166,14 @@
       const grid = document.getElementById('rit-masonry-grid');
       if (!grid) return;
 
-      const uniqueReviews = reviews.filter(r => !this.renderedIds.has(r.id));
-      uniqueReviews.forEach(r => this.renderedIds.add(r.id));
+      // 🛑 [핵심 픽스] r.id 가 아니라 r.article_no(게시글 번호)를 장부에 기록! (DB 내 중복 원천 제거)
+      const uniqueReviews = [];
+      reviews.forEach(r => {
+        if (!this.renderedIds.has(r.article_no)) {
+          this.renderedIds.add(r.article_no);
+          uniqueReviews.push(r);
+        }
+      });
 
       if (uniqueReviews.length === 0) return;
 
@@ -170,7 +185,7 @@
             <div class="rit-masonry-info">
               <div class="rit-masonry-subject">${r.subject}</div>
               <div class="rit-masonry-meta">
-                <span>${r.writer || '고객'}</span>
+                <span>${CONFIG.mallName}</span> <!-- 💡 작성자 이름 강제 고정 -->
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" style="height:12px; filter: invert(1) drop-shadow(0 0 2px rgba(0, 0, 0, 0.5)); background: rgba(255, 255, 255, 0.2); padding: 2px 4px; border-radius: 4px;">
               </div>
             </div>
