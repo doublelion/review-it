@@ -1,8 +1,15 @@
 /**
  * @Project: Review-It Universal Board List Engine
- * @Update: 기존 프리미엄 모달(ReviewApp) 완벽 연동 및 CSS 충돌 원천 차단
+ * @Update: 중복 실행(이중 렌더링) 완벽 차단 및 썸네일 데이터 연동 안정화
  */
 (function (window) {
+  // 🛑 [핵심 픽스 1] 스크립트 중복 실행 원천 차단
+  if (window.RIT_LIST_LOADED) {
+    console.log("▶ [REVIEW-IT] 리스트 엔진이 이미 가동 중입니다. 중복 실행을 차단합니다.");
+    return;
+  }
+  window.RIT_LIST_LOADED = true;
+
   const getDynamicConfig = () => {
     let cafe24MallId = null;
     if (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) {
@@ -45,7 +52,7 @@
     init() {
       console.log("▶ [REVIEW-IT] 리스트 뷰 및 기존 모달 연동 시작");
       this.hideConflicts();
-      this.injectGridCSS(); // 모달 CSS는 건드리지 않고 오직 리스트 격자 CSS만 주입
+      this.injectGridCSS(); 
       this.createLayout();
       this.fetchReviews();
       this.initIntersectionObserver();
@@ -60,12 +67,14 @@
     },
 
     injectGridCSS() {
+      // 🛑 [핵심 픽스 2] CSS 중복 주입 방지
+      if (document.getElementById('rit-list-grid-css')) return;
+      
       const style = document.createElement('style');
+      style.id = 'rit-list-grid-css';
       style.innerHTML = `
-        /* 하단 중복 롤링 위젯 강제 숨김 */
         #review-it-widget, #rit-widget-container { display: none !important; }
         
-        /* 맨선리 격자 레이아웃 전용 CSS */
         .rit-list-container { width: 100%; max-width: 1200px; margin: 40px auto; padding: 0 15px; }
         .rit-masonry-grid { column-count: 2; column-gap: 10px; }
         @media (min-width: 768px) { .rit-masonry-grid { column-count: 3; column-gap: 15px; } }
@@ -81,6 +90,9 @@
     },
 
     createLayout() {
+      // 🛑 [핵심 픽스 3] 컨테이너가 이미 존재하면 다시 만들지 않음
+      if (document.querySelector('.rit-list-container')) return;
+
       const wrapper = document.querySelector('#contents') || document.body;
       const container = document.createElement('div');
       container.className = 'rit-list-container';
@@ -104,10 +116,10 @@
         
         if (data.length < CONFIG.limit) {
           this.hasMore = false;
-          document.getElementById('rit-scroll-anchor').innerHTML = '모든 리뷰를 불러왔습니다.';
+          const anchor = document.getElementById('rit-scroll-anchor');
+          if(anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
         }
         
-        // 💡 [핵심 연동 포인트] 불러온 데이터를 기존 전역 ReviewApp.data에 주입
         if (window.ReviewApp) {
           data.forEach(r => {
             if (!window.ReviewApp.data[r.id]) {
@@ -128,9 +140,10 @@
 
     renderItems(reviews) {
       const grid = document.getElementById('rit-masonry-grid');
+      if (!grid) return;
+
       const html = reviews.map(r => {
-        const imgUrl = (r.image_urls && r.image_urls.length > 0) ? r.image_urls[0] : CONFIG.defaultImg;
-        // 💡 기존 위젯의 완벽한 모달 팝업(ReviewApp.openModal)을 그대로 호출!
+        const imgUrl = (r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg) ? r.image_urls[0] : CONFIG.defaultImg;
         return `
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
             <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
@@ -157,7 +170,6 @@
     }
   };
 
-  // 전역 접근 허용 (혹시 모를 에러 방지)
   window.ReviewListApp = ReviewListApp;
 
   if (document.readyState === 'complete') ReviewListApp.init();
