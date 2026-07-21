@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Universal Board List Engine
- * @Update: 범용 골드 별점 색상 보정 & AI 리뷰 3줄 요약 대시보드 컴포넌트 탑재
+ * @Project: Review-It Universal Board List Engine (Test Lock Mode: ykinas)
+ * @Update: 상단 소셜 프루프 대시보드 + 모달 내 쇼퍼블 구매링크 버튼 완벽 탑재
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -34,6 +34,8 @@
   };
 
   const env = getDynamicConfig();
+  
+  // 🔒 [테스트 안전장치] ykinas 몰에서만 작동하도록 유지
   if (env.mallId !== 'ykinas') return;
 
   const currentPath = decodeURIComponent(window.location.pathname);
@@ -63,7 +65,7 @@
     allFetchedReviews: [],
 
     init() {
-      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (AI 요약 & 범용 별점 세팅 모드)");
+      console.log("▶ [REVIEW-IT] 테스트 환경 가동 (ykinas 전용 | 쇼퍼블 버튼 & 대시보드 테스트)");
       this.hideConflicts();
       this.injectGridCSS(); 
       this.createLayout();
@@ -99,7 +101,7 @@
         
         .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; padding: 0 15px; }
         
-        /* 📊 대시보드 및 AI 요약 레이아웃 */
+        /* 📊 대시보드 카드 */
         .rit-dashboard-card {
           background: #ffffff;
           border: 1px solid #eaeaea;
@@ -119,36 +121,12 @@
           }
         }
 
-        .rit-dash-left {
-          display: flex;
-          flex-direction: column;
-          gap: 15px;
-          flex: 1;
-        }
-
-        .rit-dash-score-box {
-          display: flex;
-          align-items: center;
-          gap: 18px;
-        }
-        .rit-dash-big-score {
-          font-size: 42px;
-          font-weight: 800;
-          color: #111;
-          line-height: 1;
-          letter-spacing: -1px;
-        }
-        .rit-dash-score-info {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .rit-dash-stars {
-          display: flex;
-          gap: 2px;
-        }
+        .rit-dash-left { display: flex; flex-direction: column; gap: 15px; flex: 1; }
+        .rit-dash-score-box { display: flex; align-items: center; gap: 18px; }
+        .rit-dash-big-score { font-size: 42px; font-weight: 800; color: #111; line-height: 1; letter-spacing: -1px; }
+        .rit-dash-score-info { display: flex; flex-direction: column; gap: 4px; }
+        .rit-dash-stars { display: flex; gap: 2px; }
         
-        /* 💡 [범용 별 색상 보정] 황동 프리미엄 골드 필터 강제 고정 */
         .rit-universal-star {
           height: 16px !important;
           filter: invert(72%) sepia(53%) saturate(950%) hue-rotate(359deg) brightness(98%) contrast(92%) !important;
@@ -157,39 +135,9 @@
         .rit-dash-count-text { font-size: 13px; color: #666; font-weight: 500; }
         .rit-dash-satisfaction { font-size: 12px; color: #b38a58; font-weight: 700; }
 
-        /* 🤖 AI 요약 박스 스타일 */
-        .rit-ai-summary-box {
-          background: #f9fbfd;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          padding: 12px 16px;
-          font-size: 12px;
-          color: #334155;
-          line-height: 1.5;
-          word-break: keep-all;
-        }
-        .rit-ai-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-weight: 800;
-          font-size: 11px;
-          color: #2563eb;
-          margin-bottom: 4px;
-        }
-
-        .rit-dash-gauge-box {
-          flex: 1;
-          max-width: 420px;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
+        .rit-dash-gauge-box { flex: 1; max-width: 420px; display: flex; flex-direction: column; gap: 6px; }
         @media (min-width: 1024px) {
-          .rit-dash-gauge-box {
-            border-left: 1px solid #f0f0f0;
-            padding-left: 32px;
-          }
+          .rit-dash-gauge-box { border-left: 1px solid #f0f0f0; padding-left: 32px; }
         }
         .rit-gauge-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #888; }
         .rit-gauge-label { width: 28px; font-weight: 600; }
@@ -197,12 +145,37 @@
         .rit-gauge-fill { height: 100%; background: #222; border-radius: 3px; transition: width 0.6s ease; }
         .rit-gauge-percent { width: 32px; text-align: right; font-weight: 500; }
 
-        /* 맨선리 격자 카드의 별점 도 범용 필터 처리 */
         .rit-card-star {
           height: 12px !important;
           filter: invert(72%) sepia(53%) saturate(950%) hue-rotate(359deg) brightness(98%) contrast(92%) !important;
         }
 
+        /* 🛍️ 쇼퍼블 버튼 스타일링 */
+        .rit-shoppable-wrap {
+          margin-top: 25px;
+          padding-top: 20px;
+          border-top: 1px dashed #e2e8f0;
+        }
+        .rit-btn-shoppable {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          background: #111111 !important;
+          color: #ffffff !important;
+          text-decoration: none !important;
+          padding: 14px 20px !important;
+          border-radius: 10px !important;
+          font-size: 13px !important;
+          font-weight: 700 !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+          transition: transform 0.2s ease, background 0.2s ease !important;
+        }
+        .rit-btn-shoppable:hover {
+          background: #333333 !important;
+          transform: translateY(-2px) !important;
+        }
+
+        /* 🖼️ 진성 맨선리 격자 레이아웃 */
         .rit-masonry-grid { column-count: 2; column-gap: 12px; }
         @media (min-width: 768px) { .rit-masonry-grid { column-count: 3; column-gap: 18px; } }
         @media (min-width: 1024px) { .rit-masonry-grid { column-count: 4; column-gap: 20px; } }
@@ -266,9 +239,6 @@
       const satisfiedRatio = Math.round(((starCounts[5] + starCounts[4]) / totalCount) * 100);
       const getPercent = (count) => Math.round((count / totalCount) * 100);
 
-      // 🤖 샘플 AI 요약 텍스트 (추후 백엔드 크론 연동 시 r.ai_summary 로 실시간 교체)
-      const aiSummaryText = `고객들은 감성적인 디자인과 직관적인 어드민 관리 기능에 깊은 만족감을 나타내고 있습니다. 특히 한 줄의 코드로 간편하게 설치할 수 있어 쇼핑몰 적용 만족도가 98%에 달합니다.`;
-
       dashArea.innerHTML = `
         <div class="rit-dashboard-card">
           <div class="rit-dash-left">
@@ -281,12 +251,6 @@
                 <div class="rit-dash-count-text">총 <strong>${totalCount.toLocaleString()}개</strong>의 생생한 구매 후기</div>
                 <div class="rit-dash-satisfaction">구매 고객의 ${satisfiedRatio}%가 만족했습니다</div>
               </div>
-            </div>
-
-            <!-- 🤖 AI 리뷰 요약 박스 컴포넌트 -->
-            <div class="rit-ai-summary-box">
-              <div class="rit-ai-badge">✨ REVIEW-IT AI 총평</div>
-              <div>"${aiSummaryText}"</div>
             </div>
           </div>
 
@@ -308,15 +272,47 @@
       `;
     },
 
+    // 🛍️ [핵심] 모달을 열 때 작성자명 교체 및 쇼퍼블 구매 바로가기 버튼 강제 주입
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
         const origRender = window.ReviewApp.renderDetail;
         window.ReviewApp.renderDetail = async function(id) {
           await origRender.call(this, id);
+          
+          // 1. 작성자 이름 몰 이름으로 교체
           const authorEl = document.querySelector('#ritMetaArea .rit-author');
           if (authorEl) {
              authorEl.innerText = CONFIG.mallName;
+          }
+
+          // 2. 쇼퍼블 버튼 주입
+          const d = window.ReviewApp.data[id];
+          const contentSide = document.getElementById('ritContent');
+          
+          if (d && contentSide) {
+            const productNo = d.product_no;
+            const productUrl = productNo ? `/product/detail.html?product_no=${productNo}` : null;
+            
+            // 기존에 추가된 쇼퍼블 버튼이 없다면 추가
+            if (!contentSide.querySelector('.rit-shoppable-wrap')) {
+              const shoppableBtnHtml = productUrl ? `
+                <div class="rit-shoppable-wrap">
+                  <a href="${productUrl}" class="rit-btn-shoppable" target="_blank">
+                    <span>🛍️ 리뷰 속 상품 바로가기</span>
+                    <span>→</span>
+                  </a>
+                </div>
+              ` : `
+                <div class="rit-shoppable-wrap">
+                  <a href="/product/list.html" class="rit-btn-shoppable">
+                    <span>🛍️ 추천 상품 전체보기</span>
+                    <span>→</span>
+                  </a>
+                </div>
+              `;
+              contentSide.insertAdjacentHTML('beforeend', shoppableBtnHtml);
+            }
           }
         };
       }
