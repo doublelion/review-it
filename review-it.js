@@ -67,6 +67,8 @@
     injectCSS() {
       const style = document.createElement('style');
       style.innerHTML = `
+        /* [신규 픽스] 메인 롤링 위젯 원천 차단 */
+        #review-it-widget, #rit-widget-container { display: none !important; }
         .rit-list-container { width: 100%; max-width: 1200px; margin: 40px auto; padding: 0 15px; }
         .rit-masonry-grid { column-count: 2; column-gap: 10px; }
         @media (min-width: 768px) { .rit-masonry-grid { column-count: 3; column-gap: 15px; } }
@@ -250,6 +252,8 @@
       document.body.style.overflow = '';
     }
   };
+
+  window.ReviewListApp = ReviewListApp;
 
   if (document.readyState === 'complete') ReviewListApp.init();
   else window.addEventListener('DOMContentLoaded', () => ReviewListApp.init());
