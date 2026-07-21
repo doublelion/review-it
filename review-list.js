@@ -1,6 +1,6 @@
 /**
  * @Project: Review-It Universal Board List Engine
- * @Update: 더미 DOM 완벽 삭제, 그리드 뷰 복구, 모달 작성자 몰이름 강제 교정
+ * @Update: 그리드 뷰 빈 화면 픽스 및 중복 렌더링 초정밀 디버깅 툴 탑재
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -17,7 +17,6 @@
     }
     let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
 
-    // 💡 몰 이름 추출 로직
     let mallName = "REVIEW-IT";
     const ogSiteName = document.querySelector('meta[property="og:site_name"]');
     if (ogSiteName && ogSiteName.content) mallName = ogSiteName.content.trim();
@@ -33,8 +32,8 @@
 
   const currentPath = decodeURIComponent(window.location.pathname);
   const currentSearch = window.location.search;
-  const isReviewBoardPage = 
-    currentPath.includes('/board/product/list') || 
+  const isReviewBoardPage =
+    currentPath.includes('/board/product/list') ||
     currentPath.includes('상품-사용후기') ||
     (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
@@ -45,7 +44,7 @@
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     mallId: env.mallId,
     mallName: env.mallName,
-    limit: 15, 
+    limit: 15,
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating'
   };
@@ -57,14 +56,14 @@
     renderedIds: new Set(),
 
     init() {
-      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (더미 데이터 초기화 및 모달 교정 모드)");
+      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (디버깅 모드)");
       this.hideConflicts();
-      this.injectGridCSS(); 
-      this.createLayout(); // 여기서 과거 하드코딩된 좀비 데이터 완벽 삭제
-      
+      this.injectGridCSS();
+      this.createLayout();
+
       if (window.ReviewApp && typeof window.ReviewApp.initModal === 'function') {
         window.ReviewApp.initModal();
-        this.hijackModal(); // 💡 위젯 소스 수정 없이 작성자 이름 '몰 이름'으로 강제 교체
+        this.hijackModal();
       }
 
       this.fetchReviews();
@@ -102,17 +101,14 @@
         .rit-masonry-subject { font-size: 13px; color: #222; font-weight: 600; line-height: 1.4; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .rit-masonry-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #888; }
         
-        /* 다중 이미지 스와이퍼 깨짐 교정 */
         .rit-modal-swiper .swiper-wrapper { display: flex !important; }
         .rit-modal-swiper .swiper-slide { width: 100% !important; flex-shrink: 0 !important; }
 
-        /* 🛑 [핵심 픽스] 상단 헤더, 그리드 뷰 버튼, 몰 이름 완벽 복구 */
         .rit-modal-window { overflow: visible !important; }
         .rit-modal-header { display: flex !important; z-index: 99999 !important; visibility: visible !important; opacity: 1 !important; }
-        .btn-rit-grid { display: flex !important; visibility: visible !important; } /* 버튼 부활 */
+        .btn-rit-grid { display: flex !important; visibility: visible !important; }
         .rit-logo-text { font-size: 13px !important; color: #fff !important; opacity: 1 !important; text-shadow: 0 2px 4px rgba(0,0,0,0.6); font-weight: 800; }
         
-        /* 🛑 [핵심 픽스] 그리드 뷰 화면 깨짐 복구 (z-index 및 배경색 강제 지정) */
         #ritGridView { z-index: 100005 !important; background: #fff !important; }
         #ritGridView:not(.rit-hidden) { display: block !important; }
       `;
@@ -120,10 +116,9 @@
     },
 
     createLayout() {
-      // 🛑 [결정적 픽스] HTML 스킨에 하드코딩된 과거 더미 컨테이너가 있다면 무조건 파괴하고 새로 만듭니다.
       const existingContainer = document.querySelector('.rit-list-container');
       if (existingContainer) {
-        existingContainer.remove(); // 과거 좀비 HTML 완벽 박멸
+        existingContainer.remove();
       }
 
       const wrapper = document.querySelector('#contents') || document.body;
@@ -136,19 +131,16 @@
       wrapper.appendChild(container);
     },
 
-    // 💡 위젯 소스 수정 없이 모달 작성자 이름을 '몰 이름'으로 강제로 덮어씌우는 해킹 함수
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
         const origRender = window.ReviewApp.renderDetail;
-        window.ReviewApp.renderDetail = async function(id) {
-          // 1. 위젯의 원래 모달 오픈 로직 실행
+        window.ReviewApp.renderDetail = async function (id) {
           await origRender.call(this, id);
-          
-          // 2. 그려진 즉시 작성자명 텍스트를 몰 이름(CONFIG.mallName)으로 강제 교체
+
           const authorEl = document.querySelector('#ritMetaArea .rit-author');
           if (authorEl) {
-             authorEl.innerText = CONFIG.mallName;
+            authorEl.innerText = CONFIG.mallName;
           }
         };
       }
@@ -159,24 +151,33 @@
       this.isLoading = true;
       const offset = this.page * CONFIG.limit;
 
+      console.log(`\n========== [DEBUG LOG] ==========`);
+      console.log(`▶ API 통신 시작: 페이지 ${this.page}, 불러올 범위 ${offset} ~ ${offset + CONFIG.limit - 1}`);
+
       try {
         const res = await fetch(`${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&is_visible=eq.true&order=created_at.desc`, {
           headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}`, 'Range': `${offset}-${offset + CONFIG.limit - 1}` }
         });
         const data = await res.json();
-        
+
+        console.log(`▶ API 응답 데이터 개수: ${data.length}개`);
+        console.table(data.map(d => ({ ID: d.id, Article_No: d.article_no, Subject: d.subject.substring(0, 10) })));
+
         if (data.length < CONFIG.limit) {
           this.hasMore = false;
           const anchor = document.getElementById('rit-scroll-anchor');
-          if(anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
+          if (anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
         }
 
         if (window.ReviewApp) {
           data.forEach(r => {
             if (!window.ReviewApp.data[r.id]) {
               r.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
-              r.is_parsed = false; 
+              r.is_parsed = false;
               window.ReviewApp.data[r.id] = r;
+
+              // 🛑 [핵심 픽스: GRID VIEW 부활] 모달에서 그리드 뷰를 그릴 때 필요한 장부에 데이터를 넣어줍니다.
+              window.ReviewApp.listOrder.push(r.id);
             }
           });
         }
@@ -196,13 +197,19 @@
 
       const uniqueReviews = [];
       reviews.forEach(r => {
-        if (!this.renderedIds.has(r.article_no)) {
-          this.renderedIds.add(r.article_no);
+        const checkKey = r.article_no || r.id; // article_no가 없을 경우에 대비한 방어 코드
+        if (!this.renderedIds.has(checkKey)) {
+          this.renderedIds.add(checkKey);
           uniqueReviews.push(r);
+        } else {
+          console.warn(`▶ [DEBUG] 중복 데이터 렌더링 차단됨! (Article No: ${checkKey})`);
         }
       });
 
-      if (uniqueReviews.length === 0) return; 
+      console.log(`▶ 화면에 그릴 고유 데이터 개수: ${uniqueReviews.length}개`);
+      console.log(`=================================\n`);
+
+      if (uniqueReviews.length === 0) return;
 
       const html = uniqueReviews.map(r => {
         const imgUrl = (r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg) ? r.image_urls[0] : CONFIG.defaultImg;
@@ -212,9 +219,14 @@
             <div class="rit-masonry-info">
               <div class="rit-masonry-subject">${r.subject}</div>
               <div class="rit-masonry-meta">
-                <span>${CONFIG.mallName}</span> <!-- 💡 갤러리 리스트 작성자 이름 강제 고정 -->
+                <span>${CONFIG.mallName}</span>
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" style="height:12px; filter: invert(1) drop-shadow(0 0 2px rgba(0, 0, 0, 0.5)); background: rgba(255, 255, 255, 0.2); padding: 2px 4px; border-radius: 4px;">
               </div>
+            </div>
+            <!-- 🛑 [디버깅 UI] 빨간색 식별표: 2개가 똑같은 번호인지 직관적으로 확인 가능 -->
+            <div style="background-color: red; color: white; padding: 5px; font-size: 10px; text-align: center; word-break: break-all;">
+              DB ID: ${r.id} <br>
+              Article No: ${r.article_no}
             </div>
           </div>
         `;
@@ -224,7 +236,7 @@
 
     initIntersectionObserver() {
       const anchor = document.getElementById('rit-scroll-anchor');
-      if(!anchor) return;
+      if (!anchor) return;
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && this.hasMore && !this.isLoading) {
           this.fetchReviews();
