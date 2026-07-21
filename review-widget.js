@@ -119,46 +119,26 @@
       if (container) return;
 
       const pathname = decodeURIComponent(window.location.pathname);
-      const search = window.location.search;
-
       const isMainPage = pathname === '/' || pathname === '/index.html';
       const isProductPage = !!CONFIG.PRODUCT_NO;
 
-      // 💡 [신규 픽스] 리뷰 게시판 페이지 감지 로직 추가
-      const isReviewBoardPage =
-        pathname.includes('/board/product/list') ||
-        pathname.includes('상품-사용후기') ||
-        (pathname.includes('/board/') && (search.includes('board_no=4') || pathname.includes('/4/')));
-
-      // 메인, 상품페이지, 리뷰 게시판이 모두 아니면 안전하게 중단
-      if (!isMainPage && !isProductPage && !isReviewBoardPage) return;
+      // 🛑 [긴급 픽스] 메인페이지와 상품 상세페이지가 아니면 절대 위젯 뼈대를 만들지 않음! (서브페이지 노출 완벽 차단)
+      if (!isMainPage && !isProductPage) return;
 
       container = document.createElement('div');
       container.id = 'review-it-widget';
       container.style.marginTop = '80px';
       container.style.marginBottom = '80px';
 
-      // 1. 리뷰 게시판 페이지일 경우 삽입 위치
-      if (isReviewBoardPage) {
-        // 기존 게시판 숨김 함수가 있다면 여기서 호출하거나, 별도로 CSS로 숨김 처리
-        const boardWrap = document.querySelector('#contents') || document.querySelector('.xans-board-listpackage')?.parentNode || document.body;
-        boardWrap.appendChild(container);
-        if (document.getElementById('review-it-widget')) this.renderSkeleton(container);
-        return;
-      }
-
-      // 2. 상품 상세 페이지일 경우 삽입 위치
+      // 1. 상품 상세 페이지일 경우 삽입 위치
       if (isProductPage) {
         const detailArea = document.querySelector('.xans-product-additional') || document.querySelector('#prdDetail') || document.querySelector('#detailArea');
         if (detailArea) {
           detailArea.appendChild(container);
-          if (document.getElementById('review-it-widget')) this.renderSkeleton(container);
-          return;
         }
       }
-
-      // 3. 메인 페이지일 경우 삽입 위치
-      if (isMainPage) {
+      // 2. 메인 페이지일 경우 삽입 위치
+      else if (isMainPage) {
         const mainContent = document.querySelector('#contents') || document.querySelector('.xans-product-listmain') || document.querySelector('#wrap');
         const footer = document.querySelector('#footer');
 
