@@ -24,7 +24,7 @@
     }
   }
 
-
+  
   const getDynamicConfig = () => {
     let cafe24MallId = null;
 
@@ -300,7 +300,7 @@
           // 카페24 썸네일을 원본 고해상도로 변환
           let finalSrc = src.replace(/\/(tiny|small|medium)\//gi, '/big/');
           finalSrc = finalSrc.startsWith('//') ? 'https:' + finalSrc : (finalSrc.startsWith('/') ? window.location.origin + finalSrc : finalSrc);
-
+          
           if (!uniqueSet.has(finalSrc)) {
             uniqueSet.add(finalSrc);
             extractedImages.push(finalSrc);
@@ -313,7 +313,7 @@
         if (contentArea) {
           // 패턴 A: 일반 img 태그
           contentArea.querySelectorAll('img').forEach(img => processImage(img.getAttribute('src'), img));
-
+          
           // 패턴 B: 에디봇 등에서 div 배경으로 삽입한 이미지
           contentArea.querySelectorAll('div[style*="background-image"]').forEach(div => {
             const match = div.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
@@ -333,16 +333,16 @@
         // 본문 텍스트가 텅 비는 것을 방지
         let cleanText = contentArea ? contentArea.innerHTML.trim() : "";
         if (cleanText === "" && extractedImages.length > 0) {
-          cleanText = "포토 리뷰입니다.";
+            cleanText = "포토 리뷰입니다.";
         }
 
-        return {
-          images: extractedImages,
-          text: cleanText,
-          star: extractedStar,
-          subject: extractedSubject,
-          date: extractedDate,
-          writer: extractedWriter
+        return { 
+          images: extractedImages, 
+          text: cleanText, 
+          star: extractedStar, 
+          subject: extractedSubject, 
+          date: extractedDate, 
+          writer: extractedWriter 
         };
       } catch (e) {
         return null;
