@@ -98,25 +98,46 @@
       let container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (container) return;
 
-      const pathname = window.location.pathname;
+      const pathname = decodeURIComponent(window.location.pathname);
+      const search = window.location.search;
+
       const isMainPage = pathname === '/' || pathname === '/index.html';
       const isProductPage = !!CONFIG.PRODUCT_NO;
 
-      if (!isMainPage && !isProductPage) return;
+      // 💡 [신규 픽스] 리뷰 게시판 페이지 감지 로직 추가
+      const isReviewBoardPage =
+        pathname.includes('/board/product/list') ||
+        pathname.includes('상품-사용후기') ||
+        (pathname.includes('/board/') && (search.includes('board_no=4') || pathname.includes('/4/')));
+
+      // 메인, 상품페이지, 리뷰 게시판이 모두 아니면 안전하게 중단
+      if (!isMainPage && !isProductPage && !isReviewBoardPage) return;
 
       container = document.createElement('div');
       container.id = 'review-it-widget';
       container.style.marginTop = '80px';
       container.style.marginBottom = '80px';
 
+      // 1. 리뷰 게시판 페이지일 경우 삽입 위치
+      if (isReviewBoardPage) {
+        // 기존 게시판 숨김 함수가 있다면 여기서 호출하거나, 별도로 CSS로 숨김 처리
+        const boardWrap = document.querySelector('#contents') || document.querySelector('.xans-board-listpackage')?.parentNode || document.body;
+        boardWrap.appendChild(container);
+        if (document.getElementById('review-it-widget')) this.renderSkeleton(container);
+        return;
+      }
+
+      // 2. 상품 상세 페이지일 경우 삽입 위치
       if (isProductPage) {
         const detailArea = document.querySelector('.xans-product-additional') || document.querySelector('#prdDetail') || document.querySelector('#detailArea');
         if (detailArea) {
           detailArea.appendChild(container);
+          if (document.getElementById('review-it-widget')) this.renderSkeleton(container);
           return;
         }
       }
 
+      // 3. 메인 페이지일 경우 삽입 위치
       if (isMainPage) {
         const mainContent = document.querySelector('#contents') || document.querySelector('.xans-product-listmain') || document.querySelector('#wrap');
         const footer = document.querySelector('#footer');
@@ -129,12 +150,13 @@
           document.body.appendChild(container);
         }
       }
+
       if (document.getElementById('review-it-widget')) this.renderSkeleton(container);
     },
 
     async init() {
       this.autoCreateContainer();
-      
+
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
 
       // 💡 [긴급 픽스] 위젯 컨테이너가 없는 페이지(글쓰기, 게시판 등)라면 여기서 즉시 스크립트 실행을 중단합니다.
