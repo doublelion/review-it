@@ -1,6 +1,6 @@
 /**
  * @Project: Review-It Universal Board List Engine
- * @Update: DB 단위 중복 렌더링 100% 차단 (article_no 기준), 모달 헤더 복구, 작성자 몰이름 강제 고정
+ * @Update: DB 내부 중복 데이터(article_no 기준) 원천 차단, 모달 내 작성자명/헤더 강제 교정
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -17,7 +17,7 @@
     }
     let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
 
-    // 💡 몰 이름 추출 (작성자 표기용)
+    // 💡 몰 이름 자동 추출 로직
     let mallName = "REVIEW-IT";
     const ogSiteName = document.querySelector('meta[property="og:site_name"]');
     if (ogSiteName && ogSiteName.content) mallName = ogSiteName.content.trim();
@@ -54,16 +54,17 @@
     page: 0,
     isLoading: false,
     hasMore: true,
-    renderedIds: new Set(), // 🛑 [핵심 픽스] DB 내부 ID가 아닌 '게시글 번호(article_no)' 장부
+    renderedIds: new Set(), // 🛑 [강력 픽스] 무조건 'article_no(게시글 번호)'만 기록하는 장부
 
     init() {
-      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (중복 차단 모드)");
+      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (중복 데이터 박멸 모드)");
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
 
       if (window.ReviewApp && typeof window.ReviewApp.initModal === 'function') {
         window.ReviewApp.initModal();
+        this.hijackModal(); // 💡 위젯 소스 수정 없이 작성자 이름만 몰 이름으로 가로채기
       }
 
       this.fetchReviews();
@@ -73,9 +74,6 @@
     hideConflicts() {
       const selectors = ['.xans-board-listpackage', '.boardSort', '.xans-board-empty', '#prdReview', '.xans-product-review', '.review_list_item', 'div[id^="ec-product-review"]', '.board-list-wrap'];
       document.querySelectorAll(selectors.join(', ')).forEach(el => el.style.setProperty('display', 'none', 'important'));
-
-      const mainWidget = document.getElementById('review-it-widget');
-      if (mainWidget) mainWidget.style.setProperty('display', 'none', 'important');
     },
 
     injectGridCSS() {
@@ -107,9 +105,11 @@
         .rit-modal-swiper .swiper-wrapper { display: flex !important; }
         .rit-modal-swiper .swiper-slide { width: 100% !important; flex-shrink: 0 !important; }
 
-        /* 🛑 [핵심 픽스] 잘려나갔던 모달 상단 헤더(버튼, 몰 이름) 완벽 복구 */
+        /* 🛑 모달 헤더 교정: 불필요한 그리드 뷰 버튼 삭제 및 몰 이름 강조 */
         .rit-modal-window { overflow: visible !important; }
         .rit-modal-header { display: flex !important; z-index: 99999 !important; visibility: visible !important; opacity: 1 !important; }
+        .btn-rit-grid { display: none !important; } /* 그리드 뷰 버튼 완벽 삭제 */
+        .rit-logo-text { font-size: 13px !important; color: #fff !important; opacity: 1 !important; text-shadow: 0 2px 4px rgba(0,0,0,0.6); font-weight: 800; }
       `;
       document.head.appendChild(style);
     },
@@ -124,6 +124,24 @@
         <div id="rit-scroll-anchor" style="text-align:center; padding:30px; color:#999; font-size:13px;">리뷰를 불러오는 중입니다...</div>
       `;
       wrapper.appendChild(container);
+    },
+
+    // 💡 위젯 소스 수정 없이 모달 내 작성자 이름을 강제로 덮어씌우는 해킹 로직
+    hijackModal() {
+      if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
+        window.ReviewApp._list_hijacked = true;
+        const origRender = window.ReviewApp.renderDetail;
+        window.ReviewApp.renderDetail = async function (id) {
+          // 1. 기존 위젯의 모달 그리는 로직 실행
+          await origRender.call(this, id);
+
+          // 2. 그려진 직후 모달 우측 상단의 작성자 이름을 몰 이름으로 강제 교체
+          const authorEl = document.querySelector('#ritMetaArea .rit-author');
+          if (authorEl) {
+            authorEl.innerText = CONFIG.mallName;
+          }
+        };
+      }
     },
 
     async fetchReviews() {
@@ -166,7 +184,7 @@
       const grid = document.getElementById('rit-masonry-grid');
       if (!grid) return;
 
-      // 🛑 [핵심 픽스] r.id 가 아니라 r.article_no(게시글 번호)를 장부에 기록! (DB 내 중복 원천 제거)
+      // 🛑 [강력 픽스] 수파베이스에 쌓인 쌍둥이 데이터(동일 게시글)를 무조건 article_no 로 필터링!!
       const uniqueReviews = [];
       reviews.forEach(r => {
         if (!this.renderedIds.has(r.article_no)) {
@@ -185,7 +203,7 @@
             <div class="rit-masonry-info">
               <div class="rit-masonry-subject">${r.subject}</div>
               <div class="rit-masonry-meta">
-                <span>${CONFIG.mallName}</span> <!-- 💡 작성자 이름 강제 고정 -->
+                <span>${CONFIG.mallName}</span> <!-- 💡 작성자 이름 몰 이름으로 강제 고정 -->
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" style="height:12px; filter: invert(1) drop-shadow(0 0 2px rgba(0, 0, 0, 0.5)); background: rgba(255, 255, 255, 0.2); padding: 2px 4px; border-radius: 4px;">
               </div>
             </div>
