@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Universal Board List Engine (Production Ready)
- * @Update: 별점 톤앤매너 컬러 보정, 스마트 쇼퍼블 분기 로직(미연동 시 숨김), 미니멀 버튼 UI
+ * @Project: Review-It Universal Board List Engine (Product Tagging Enabled)
+ * @Update: 미니멀 상품 정보 태그(상품 썸네일+상품명) 연동 컴포넌트 탑재
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -35,13 +35,13 @@
 
   const env = getDynamicConfig();
 
-  // 🔒 [테스트 안전장치] ykinas 몰 전용 유지
+  // 🔒 [테스트 안전장치] ykinas 몰 전용
   if (env.mallId !== 'ykinas') return;
 
   const currentPath = decodeURIComponent(window.location.pathname);
   const currentSearch = window.location.search;
-  const isReviewBoardPage = 
-    currentPath.includes('/board/product/list') || 
+  const isReviewBoardPage =
+    currentPath.includes('/board/product/list') ||
     currentPath.includes('상품-사용후기') ||
     (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
@@ -52,7 +52,7 @@
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     mallId: env.mallId,
     mallName: env.mallName,
-    limit: 15, 
+    limit: 15,
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating'
   };
@@ -65,14 +65,14 @@
     allFetchedReviews: [],
 
     init() {
-      console.log("▶ [REVIEW-IT] 고도화 톤앤매너 리스트 엔진 가동");
+      console.log("▶ [REVIEW-IT] 상품 정보 연동 미니멀 리스트 가동");
       this.hideConflicts();
-      this.injectGridCSS(); 
+      this.injectGridCSS();
       this.createLayout();
-      
+
       if (window.ReviewApp && typeof window.ReviewApp.initModal === 'function') {
         window.ReviewApp.initModal();
-        this.hijackModal(); 
+        this.hijackModal();
       }
 
       this.fetchReviews();
@@ -98,7 +98,6 @@
       style.id = 'rit-list-grid-css';
       style.innerHTML = `
         #review-it-widget, #rit-widget-container { display: none !important; }
-        
         .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; padding: 0 15px; }
         
         /* 📊 대시보드 카드 */
@@ -114,11 +113,7 @@
           gap: 24px;
         }
         @media (min-width: 1024px) {
-          .rit-dashboard-card {
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
-          }
+          .rit-dashboard-card { flex-direction: row; align-items: center; justify-content: space-between; }
         }
 
         .rit-dash-left { display: flex; flex-direction: column; gap: 15px; flex: 1; }
@@ -126,15 +121,9 @@
         .rit-dash-big-score { font-size: 44px; font-weight: 800; color: #111; line-height: 1; letter-spacing: -1px; }
         .rit-dash-score-info { display: flex; flex-direction: column; gap: 4px; }
         .rit-dash-stars { display: flex; gap: 2px; }
-        
-        /* 💡 별점 매정하지 않고 세련된 골드 보정 */
-        .rit-universal-star {
-          height: 16px !important;
-          filter: drop-shadow(0 1px 1px rgba(0,0,0,0.05)) !important;
-        }
+        .rit-universal-star { height: 16px !important; }
 
         .rit-dash-count-text { font-size: 13px; color: #666; font-weight: 500; }
-        /* 💡 갈색 텍스트 보정 -> 세련된 미디엄 그레이 */
         .rit-dash-satisfaction { font-size: 12px; color: #71717a; font-weight: 600; }
 
         .rit-dash-gauge-box { flex: 1; max-width: 420px; display: flex; flex-direction: column; gap: 6px; }
@@ -147,18 +136,36 @@
         .rit-gauge-fill { height: 100%; background: #18181b; border-radius: 3px; transition: width 0.6s ease; }
         .rit-gauge-percent { width: 32px; text-align: right; font-weight: 500; color: #71717a; }
 
-        /* 💡 별점 컴포넌트 프리미엄 브랜딩 골드 */
-        .rit-card-star {
-          height: 12px !important;
-          filter: brightness(0.95) saturate(1.2) !important;
+        .rit-card-star { height: 12px !important; }
+
+        /* 🛍️ 미니멀 상품 정보 태그 칩 */
+        .rit-product-chip {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: #f8fafc;
+          border: 1px solid #f1f5f9;
+          padding: 6px 10px;
+          border-radius: 6px;
+          margin-bottom: 10px;
+        }
+        .rit-product-chip-img {
+          width: 20px;
+          height: 20px;
+          border-radius: 4px;
+          object-fit: cover;
+        }
+        .rit-product-chip-name {
+          font-size: 11px;
+          color: #475569;
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
-        /* 🛍️ 쇼퍼블 버튼 디자인 톤앤매너 재정의 */
-        .rit-shoppable-wrap {
-          margin-top: 25px;
-          padding-top: 20px;
-          border-top: 1px solid #f4f4f5;
-        }
+        /* 🛍️ 쇼퍼블 버튼 스타일 */
+        .rit-shoppable-wrap { margin-top: 25px; padding-top: 20px; border-top: 1px solid #f4f4f5; }
         .rit-btn-shoppable {
           display: flex !important;
           align-items: center !important;
@@ -191,7 +198,7 @@
         .rit-masonry-img { width: 100%; height: auto; display: block; object-fit: cover; } 
         .rit-masonry-info { padding: 15px; }
         .rit-masonry-subject { font-size: 13px; color: #18181b; font-weight: 700; line-height: 1.4; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-        .rit-masonry-desc { font-size: 12px; color: #52525b; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: keep-all; }
+        .rit-masonry-desc { font-size: 12px; color: #52525b; line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: keep-all; }
         .rit-masonry-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #a1a1aa; border-top: 1px solid #f4f4f5; padding-top: 10px; }
         
         .rit-modal-swiper .swiper-wrapper { display: flex !important; }
@@ -262,8 +269,8 @@
 
           <div class="rit-dash-gauge-box">
             ${[5, 4, 3, 2, 1].map(star => {
-              const pct = getPercent(starCounts[star]);
-              return `
+        const pct = getPercent(starCounts[star]);
+        return `
                 <div class="rit-gauge-row">
                   <span class="rit-gauge-label">${star}점</span>
                   <div class="rit-gauge-bg">
@@ -272,44 +279,40 @@
                   <span class="rit-gauge-percent">${pct}%</span>
                 </div>
               `;
-            }).join('')}
+      }).join('')}
           </div>
         </div>
       `;
     },
 
-    // 🛍️ [스마트 분기 로직] 실제 구매 상품 연동 시만 쇼퍼블 버튼 노출
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
         const origRender = window.ReviewApp.renderDetail;
-        window.ReviewApp.renderDetail = async function(id) {
+        window.ReviewApp.renderDetail = async function (id) {
           await origRender.call(this, id);
-          
-          // 1. 작성자 이름 몰 이름으로 교체
+
           const authorEl = document.querySelector('#ritMetaArea .rit-author');
           if (authorEl) {
-             authorEl.innerText = CONFIG.mallName;
+            authorEl.innerText = CONFIG.mallName;
           }
 
-          // 2. 쇼퍼블 분기 로직 (product_no 유무 정밀 체크)
           const d = window.ReviewApp.data[id];
           const contentSide = document.getElementById('ritContent');
-          
+
           if (d && contentSide) {
-            // 이전 주입 버튼 제거
             const oldWrap = contentSide.querySelector('.rit-shoppable-wrap');
             if (oldWrap) oldWrap.remove();
 
             const productNo = d.product_no || d.product_id;
-            
-            // 🛑 [핵심 분기] 관리자글/공지글처럼 product_no가 없거나 유효하지 않으면 아예 출력 안함!
+
+            // 🛑 [쇼퍼블 스마트 분기] 실제 상품 연동 데이터일 때만 고품격 라인 버튼 출력
             if (productNo && String(productNo).trim() !== '' && String(productNo) !== 'null') {
               const productUrl = `/product/detail.html?product_no=${productNo}`;
               const shoppableBtnHtml = `
                 <div class="rit-shoppable-wrap">
                   <a href="${productUrl}" class="rit-btn-shoppable" target="_blank">
-                    <span>🛍️ 리뷰 속 상품 바로가기</span>
+                    <span>🛍️ 리뷰 속 상품 보러가기</span>
                     <span>→</span>
                   </a>
                 </div>
@@ -335,11 +338,11 @@
           headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}`, 'Range': `${offset}-${offset + CONFIG.limit - 1}` }
         });
         const data = await res.json();
-        
+
         if (data.length < CONFIG.limit) {
           this.hasMore = false;
           const anchor = document.getElementById('rit-scroll-anchor');
-          if(anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
+          if (anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
         }
 
         const enrichedData = await Promise.all(data.map(async (r) => {
@@ -348,9 +351,9 @@
               window.ReviewApp.data[r.id] = r;
               window.ReviewApp.listOrder.push(r.id);
             }
-            
+
             let widgetData = window.ReviewApp.data[r.id];
-            
+
             if (!widgetData.is_parsed && typeof window.ReviewApp._fetchAndSeparateContent === 'function') {
               const scraped = await window.ReviewApp._fetchAndSeparateContent(r.article_no, r.board_no);
               if (scraped) {
@@ -365,14 +368,14 @@
             }
             return widgetData;
           }
-          
+
           r.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
           r.clean_text_body = stripHtml(r.content || '');
           return r;
         }));
 
         this.allFetchedReviews = [...this.allFetchedReviews, ...enrichedData];
-        this.renderDashboard(this.allFetchedReviews); 
+        this.renderDashboard(this.allFetchedReviews);
 
         this.renderItems(enrichedData);
         this.page++;
@@ -389,18 +392,28 @@
 
       const uniqueReviews = [];
       reviews.forEach(r => {
-        const checkKey = r.article_no || r.id; 
+        const checkKey = r.article_no || r.id;
         if (!this.renderedIds.has(checkKey)) {
           this.renderedIds.add(checkKey);
           uniqueReviews.push(r);
         }
       });
 
-      if (uniqueReviews.length === 0) return; 
+      if (uniqueReviews.length === 0) return;
 
       const html = uniqueReviews.map(r => {
         const imgUrl = (r.all_images && r.all_images.length > 0 && r.all_images[0] !== CONFIG.defaultImg) ? r.all_images[0] : CONFIG.defaultImg;
         const cleanContent = r.clean_text_body || '내용이 없습니다.';
+
+        // 💡 [샘플 상품 연동 태그] 상품 정보가 있을 경우 노출되는 미니 칩 컴포넌트
+        const productName = r.product_name || "리뷰 연결 상품";
+        const productImg = r.product_img || imgUrl;
+        const productChipHtml = (r.product_no || r.product_id) ? `
+          <div class="rit-product-chip">
+            <img src="${productImg}" class="rit-product-chip-img" alt="product">
+            <span class="rit-product-chip-name">${productName}</span>
+          </div>
+        ` : '';
 
         return `
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
@@ -408,6 +421,7 @@
             <div class="rit-masonry-info">
               <div class="rit-masonry-subject">${r.subject}</div>
               <div class="rit-masonry-desc">${cleanContent}</div>
+              ${productChipHtml}
               <div class="rit-masonry-meta">
                 <span style="font-weight:600; color:#52525b;">${CONFIG.mallName}</span>
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" class="rit-card-star" alt="star">
@@ -418,7 +432,7 @@
       }).join('');
 
       if (this.page === 0) {
-        grid.innerHTML = html; 
+        grid.innerHTML = html;
       } else {
         grid.insertAdjacentHTML('beforeend', html);
       }
@@ -426,7 +440,7 @@
 
     initIntersectionObserver() {
       const anchor = document.getElementById('rit-scroll-anchor');
-      if(!anchor) return;
+      if (!anchor) return;
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && this.hasMore && !this.isLoading) {
           this.fetchReviews();
