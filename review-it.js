@@ -1,13 +1,10 @@
 /**
- * @Project: Review-It Universal Collector Engine
- * @Version: v1.0.6 (Option A - Background Fetch Applied)
- * @Update: 독립 도메인 대응 강화, 작성자 몰아이디 매핑, 제목 본문 혼입 방지 정교화, 백그라운드 게시판 스크래핑 추가
+ * @Project: Review-It Universal Board List Engine
+ * @Update: 위젯 중복 노출 제거, 맨선리 무한 스크롤, 실시간 모달 팝업 및 본문 이미지 파싱 적용
  */
 (function (window) {
   const getDynamicConfig = () => {
-    // 💡 [핵심 해결] CAFE24API 전역 객체에서 MALL_ID를 최우선으로 추출합니다.
     let cafe24MallId = null;
-
     if (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) {
       cafe24MallId = window.CAFE24API.MALL_ID;
     } else if (typeof window.SHOP_ID !== 'undefined' && window.SHOP_ID) {
@@ -15,198 +12,246 @@
     } else if (typeof EC_SHOP_ID !== 'undefined' && EC_SHOP_ID) {
       cafe24MallId = EC_SHOP_ID;
     }
-
-    // 전역 변수가 모두 없을 경우를 대비한 최후의 호스트네임 파싱 백업 로직
-    let host = window.location.hostname;
-    let fallbackMallId = host.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
-
-    const finalMallId = cafe24MallId || fallbackMallId || 'default_mall';
-
-    console.log("▶ [REVIEW-IT] 현재 완벽히 인식된 Mall ID:", finalMallId); // 디버깅용
-
-    return {
-      sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
-      sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
-      mallId: finalMallId,
-      targetBoardNo: '4',
-      defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg'
-    };
+    let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
+    return cafe24MallId || fallbackMallId || 'default_mall';
   };
 
-  const CONFIG = getDynamicConfig();
+  const currentMallId = getDynamicConfig();
+  if (currentMallId !== 'ykinas') return;
 
-  async function sync() {
-    const lastSync = localStorage.getItem('rit_last_sync');
-    const now = new Date().getTime();
-    const COOLDOWN_MS = 1000 * 60 * 60; // 1시간 쿨타임
+  const currentPath = decodeURIComponent(window.location.pathname);
+  const currentSearch = window.location.search;
+  const isReviewBoardPage =
+    currentPath.includes('/board/product/list') ||
+    currentPath.includes('상품-사용후기') ||
+    (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
-    if (lastSync && (now - parseInt(lastSync) < COOLDOWN_MS)) {
-      console.log(`⏳ [REVIEW-IT] 동기화 쿨타임 대기 중입니다.`);
-      return;
-    }
+  if (!isReviewBoardPage) return;
 
-    const payload = [];
-    let items; // forEach에서 사용할 수 있도록 외부에서 변수 선언
+  const CONFIG = {
+    sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
+    sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
+    mallId: currentMallId,
+    limit: 15,
+    defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
+    starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating'
+  };
 
-    // [추가된 로직] 백그라운드에서 게시판 HTML을 강제로 가져옵니다.
-    try {
-      // targetBoardNo를 이용해 리뷰 게시판 1페이지 URL 생성
-      const boardUrl = `/board/product/list.html?board_no=${CONFIG.targetBoardNo}`;
-      const response = await fetch(boardUrl);
-      const htmlText = await response.text();
+  const ReviewListApp = {
+    page: 0,
+    isLoading: false,
+    hasMore: true,
+    data: {}, // 리뷰 상세 데이터 임시 저장소
 
-      // 가져온 HTML을 임시 DOM으로 파싱
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlText, 'text/html');
+    init() {
+      this.hideConflicts();
+      this.injectCSS();
+      this.createLayout();
+      this.fetchReviews();
+      this.initIntersectionObserver();
+      this.initModal();
+    },
 
-      // 현재 페이지(document)가 아닌, 백그라운드로 가져온 게시판 페이지(doc)에서 리뷰 요소 찾기
-      items = doc.querySelectorAll(`
-          .xans-board-listpackage .xans-record-, 
-          .xans-product-review .xans-record-,
-          tr[id^="record"], 
-          .boardList tr, 
-          .border-b.group,
-          li.review_list_item
-      `);
+    // 💡 위젯 및 기존 게시판 충돌 방지
+    hideConflicts() {
+      // 1. 기존 게시판 숨김
+      const selectors = ['.xans-board-listpackage', '.boardSort', '.xans-board-empty', '#prdReview', '.xans-product-review', '.review_list_item', 'div[id^="ec-product-review"]', '.board-list-wrap'];
+      document.querySelectorAll(selectors.join(', ')).forEach(el => el.style.setProperty('display', 'none', 'important'));
 
-      console.log(`✅ [REVIEW-IT] 백그라운드 게시판 로드 성공! (${items.length}개 요소 발견)`);
-    } catch (error) {
-      console.error("❌ [REVIEW-IT] 백그라운드 게시판 로드 실패:", error);
-      return; // 실패하면 여기서 스크립트 중단
-    }
+      // 2. 메인 롤링 위젯이 리스트 페이지에 떴다면 강제 삭제 (상단 중복 노출 해결)
+      const mainWidget = document.getElementById('review-it-widget');
+      if (mainWidget) mainWidget.style.setProperty('display', 'none', 'important');
+    },
 
-    // HTML을 성공적으로 가져왔을 때만 아래 forEach 실행
-    items.forEach(el => {
-      const link = el.querySelector('a[href*="article_no="], a[href*="/article/"], a[href*="no="]');
-      if (!link) return;
+    // 1. 인스타그램 피드형 무한 스크롤 (Visual First)
+    injectCSS() {
+      const style = document.createElement('style');
+      style.innerHTML = `
+        .rit-list-container { width: 100%; max-width: 1200px; margin: 40px auto; padding: 0 15px; }
+        .rit-masonry-grid { column-count: 2; column-gap: 10px; }
+        @media (min-width: 768px) { .rit-masonry-grid { column-count: 3; column-gap: 15px; } }
+        @media (min-width: 1024px) { .rit-masonry-grid { column-count: 4; column-gap: 20px; } }
+        .rit-masonry-item { break-inside: avoid; margin-bottom: 10px; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.2s; border: 1px solid #eee; }
+        .rit-masonry-item:hover { transform: translateY(-3px); }
+        .rit-masonry-img { width: 100%; display: block; object-fit: cover; aspect-ratio: 1/1; }
+        .rit-masonry-info { padding: 12px; }
+        .rit-masonry-subject { font-size: 13px; color: #222; font-weight: 500; line-height: 1.4; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .rit-masonry-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #888; }
+        
+        /* 모달 CSS */
+        .rit-modal-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99999; display: flex; align-items: center; justify-content: center; }
+        .rit-modal-bg { position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); }
+        .rit-modal-window { position: relative; width: 90%; max-width: 900px; height: 80vh; background: #fff; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; z-index: 2; }
+        .rit-modal-header { height: 60px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-weight: bold; }
+        .rit-modal-body { display: flex; flex: 1; overflow: hidden; flex-direction: column; }
+        @media (min-width: 768px) { .rit-modal-body { flex-direction: row; } }
+        .rit-img-side { flex: 1; background: #f9f9f9; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        .rit-txt-side { flex: 1; padding: 30px; overflow-y: auto; }
+        .btn-rit-close { background: none; border: none; font-size: 20px; cursor: pointer; }
+      `;
+      document.head.appendChild(style);
+    },
 
-      const href = link.getAttribute('href');
-      const articleNoMatch = href.match(/article_no=(\d+)/) || href.match(/\/(\d+)\/?$/) || href.match(/\/(\d+)\/($|\?)/);
-      const articleNo = articleNoMatch ? articleNoMatch[1] : null;
-      if (!articleNo) return;
+    createLayout() {
+      const wrapper = document.querySelector('#contents') || document.body;
+      const container = document.createElement('div');
+      container.className = 'rit-list-container';
+      container.innerHTML = `
+        <div class="rit-masonry-grid" id="rit-masonry-grid"></div>
+        <div id="rit-scroll-anchor" style="text-align:center; padding:30px; color:#999; font-size:13px;">리뷰를 불러오는 중입니다...</div>
+      `;
+      wrapper.appendChild(container);
+    },
 
-      // ❌ 기존 코드: 작성자를 파싱하지 않고 mallId로 덮어씌움
-      // let cleanWriter = CONFIG.mallId || "customer";
+    async fetchReviews() {
+      if (this.isLoading || !this.hasMore) return;
+      this.isLoading = true;
+      const offset = this.page * CONFIG.limit;
 
-      // ✅ 수정된 코드: 카페24 스킨 DOM에서 실제 작성자 이름을 스크래핑
-      let authorNameEl = el.querySelector('.writer, .name, td.name, span.name, td:nth-child(3)');
-      let cleanWriter = "고객";
-      if (authorNameEl) {
-        // 복제본을 만들어 displaynone 클래스(ip 정보 등)를 제거 후 텍스트 추출
-        let clone = authorNameEl.cloneNode(true);
-        let hidden = clone.querySelector('.displaynone');
-        if (hidden) hidden.remove();
-
-        let tempName = clone.innerText.replace(/\(ip:.*\)/gi, '').trim();
-        if (tempName) cleanWriter = tempName;
-      }
-
-      // 썸네일 및 별점 추출
-      let thumbUrl = CONFIG.defaultImg;
-
-      // 1순위: 소비자가 직접 올린 실제 후기 이미지
-      let reviewImg = el.querySelector('img[src*="/board/"]:not([src*="icon"])');
-
-      // 2순위: 현재 행(el) 내부에 존재하는 상품 이미지 영역 매칭
-      let productImg = el.querySelector('.typeProduct img, td.thumb img, .product-img img, img[src*="/product/"]:not([src*="icon"])');
-
-      // 3순위: 행 내부에는 없지만 상/하단 상품 정보 박스가 떠 있는 경우 
-      // (주의: 백그라운드 로드시에는 document가 아닌 doc에서 찾아야 함)
-      if (!reviewImg && !productImg) {
-        productImg = document.querySelector('.typeProduct img, .xans-board-product img, .xans-board-product-4 img');
-      }
-
-      // 우선순위에 따라 이미지 주소 확정
-      if (reviewImg && reviewImg.getAttribute('src')) {
-        // 1순위: 소비자가 직접 올린 실제 후기 이미지
-        thumbUrl = reviewImg.getAttribute('src');
-      } else if (productImg && productImg.getAttribute('src')) {
-        // 2순위: 상품 썸네일을 가져왔을 경우 (강제 치환 로직 제거, 원본 그대로 수집)
-        thumbUrl = productImg.getAttribute('src');
-      }
-
-      // 깨진 이미지 및 기본 아이콘 필터링
-      if (thumbUrl.match(/star|icon|btn|logo|dummy|ec2-common|echosting|thumb\/75x75|rating|댓글/i)) {
-        thumbUrl = CONFIG.defaultImg;
-      }
-
-      // URL 주소 절대경로 표준화 처리
-      if (thumbUrl.startsWith('//')) {
-        thumbUrl = 'https:' + thumbUrl;
-      } else if (thumbUrl.startsWith('/')) {
-        thumbUrl = window.location.origin + thumbUrl;
-      }
-
-      let extractedStar = 5;
-      const starImg = el.querySelector('img[src*="icon-star-rating"]');
-      if (starImg) {
-        const match = starImg.getAttribute('src').match(/icon-star-rating(\d+)/);
-        if (match && match[1]) extractedStar = parseInt(match[1], 10);
-      }
-
-      let subjectEl = el.querySelector('.subject, .title, .board_title, .td_subject');
-      let targetText = link ? link.innerText : (subjectEl ? subjectEl.innerText : "");
-      let cleanSubject = "포토 리뷰입니다.";
-
-      if (targetText) {
-        let temp = targetText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
-        temp = temp.replace(/\s+/g, ' ').trim();
-
-        if (temp.length > 0) {
-          cleanSubject = temp;
-          if (cleanSubject.length > 25) {
-            cleanSubject = cleanSubject.substring(0, 25) + '...';
-          }
+      try {
+        const res = await fetch(`${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&is_visible=eq.true&order=created_at.desc`, {
+          headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}`, 'Range': `${offset}-${offset + CONFIG.limit - 1}` }
+        });
+        const data = await res.json();
+        if (data.length < CONFIG.limit) {
+          this.hasMore = false;
+          document.getElementById('rit-scroll-anchor').innerHTML = '모든 리뷰를 불러왔습니다.';
         }
+
+        data.forEach(r => this.data[r.id] = r); // 데이터 저장
+        this.renderItems(data);
+        this.page++;
+      } catch (error) {
+        console.error("❌ [REVIEW-IT] 리스트 로드 실패:", error);
+      } finally {
+        this.isLoading = false;
       }
+    },
 
-      payload.push({
-        mall_id: CONFIG.mallId,
-        article_no: String(articleNo),
-        board_no: CONFIG.targetBoardNo,
-        subject: cleanSubject,
-        content: "본문을 불러오는 중입니다...",
-        writer: cleanWriter,
-        stars: extractedStar,
-        image_urls: thumbUrl ? [thumbUrl] : [],
-        is_visible: true
-      });
-    });
+    renderItems(reviews) {
+      const grid = document.getElementById('rit-masonry-grid');
+      const html = reviews.map(r => {
+        const imgUrl = (r.image_urls && r.image_urls.length > 0) ? r.image_urls[0] : CONFIG.defaultImg;
+        return `
+          <div class="rit-masonry-item" onclick="ReviewListApp.openModal('${r.id}')">
+            <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
+            <div class="rit-masonry-info">
+              <div class="rit-masonry-subject">${r.subject}</div>
+              <div class="rit-masonry-meta">
+                <span>${r.writer || '고객'}</span>
+                <img src="${CONFIG.starPath}${r.stars || 5}.svg" style="height:12px;">
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      grid.insertAdjacentHTML('beforeend', html);
+    },
 
-    if (payload.length === 0) return;
+    initIntersectionObserver() {
+      const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && this.hasMore && !this.isLoading) this.fetchReviews();
+      }, { rootMargin: '200px' });
+      observer.observe(document.getElementById('rit-scroll-anchor'));
+    },
 
-    // 중복 제거
-    const uniqueMap = new Map();
-    payload.forEach(item => {
-      if (!uniqueMap.has(item.article_no)) uniqueMap.set(item.article_no, item);
-    });
-    const limitedPayload = Array.from(uniqueMap.values()).slice(0, 20);
+    // 2. 끊김 없는 팝업(Modal) 경험 (Zero Friction)
+    initModal() {
+      const modal = document.createElement('div');
+      modal.id = 'ritListModal';
+      modal.className = 'rit-modal-container';
+      modal.style.display = 'none';
+      modal.innerHTML = `
+        <div class="rit-modal-bg" onclick="ReviewListApp.closeModal()"></div>
+        <div class="rit-modal-window">
+          <div class="rit-modal-header">
+            <span>REVIEW-IT 상세뷰</span>
+            <button onclick="ReviewListApp.closeModal()" class="btn-rit-close">✕</button>
+          </div>
+          <div class="rit-modal-body">
+            <div id="ritModalImgArea" class="rit-img-side"></div>
+            <div class="rit-txt-side">
+              <div id="ritModalMeta" style="margin-bottom:15px; font-size:12px; color:#888;"></div>
+              <h3 id="ritModalSubject" style="margin-top:0; font-size:18px; line-height:1.4;"></h3>
+              <div id="ritModalContent" style="font-size:14px; color:#444; line-height:1.6; margin-top:20px;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    },
 
-    if (limitedPayload.length === 0) return;
+    async openModal(id) {
+      const d = this.data[id];
+      if (!d) return;
 
-    // Supabase 전송
-    try {
-      const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
-        method: 'POST',
-        headers: {
-          'apikey': CONFIG.sbKey,
-          'Authorization': `Bearer ${CONFIG.sbKey}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify(limitedPayload)
-      });
+      document.getElementById('ritListModal').style.display = 'flex';
+      document.body.style.overflow = 'hidden'; // 뒤 배경 스크롤 방지
 
-      if (res.ok) {
-        console.log(`✅ [REVIEW-IT] 동기화 완료 (${limitedPayload.length}건)`);
-        localStorage.setItem('rit_last_sync', new Date().getTime().toString());
-      } else {
-        console.error("❌ 데이터 전송 실패:", await res.text());
+      document.getElementById('ritModalSubject').innerText = d.subject;
+      document.getElementById('ritModalMeta').innerHTML = `<span>${d.writer || '고객'}</span> | <img src="${CONFIG.starPath}${d.stars || 5}.svg" style="height:12px; vertical-align:middle;">`;
+      document.getElementById('ritModalContent').innerHTML = "본문 데이터를 불러오는 중입니다...";
+      document.getElementById('ritModalImgArea').innerHTML = `<img src="${(d.image_urls && d.image_urls.length > 0) ? d.image_urls[0] : CONFIG.defaultImg}" style="max-width:100%; max-height:100%; object-fit:contain;">`;
+
+      // 💡 [핵심] 게시글 본문 파싱 (관리자가 작성한 글 내의 이미지/텍스트 추출)
+      try {
+        const res = await fetch(`/board/product/read.html?board_no=${d.board_no}&no=${d.article_no}`);
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail');
+        if (contentArea) {
+          const imgs = contentArea.querySelectorAll('img');
+          const extractedImages = [];
+
+          imgs.forEach(img => {
+            let src = img.getAttribute('src');
+            if (src && !src.match(/star|icon|btn|logo|dummy|ec2-common|rating|clear/i)) {
+              src = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
+              extractedImages.push(src);
+            }
+            img.remove(); // 텍스트 영역에서 이미지는 제거 (좌측 스와이퍼로 넘기기 위함)
+          });
+
+          document.getElementById('ritModalContent').innerHTML = contentArea.innerHTML.trim();
+
+          // 💡 스와이퍼 적용 (추출된 이미지가 있을 경우)
+          if (extractedImages.length > 0) {
+            document.getElementById('ritModalImgArea').innerHTML = `
+              <div class="swiper rit-list-modal-swiper" style="width:100%; height:100%;">
+                <div class="swiper-wrapper">
+                  ${extractedImages.map(img => `
+                    <div class="swiper-slide" style="display:flex; align-items:center; justify-content:center; background:#000;">
+                      <img src="${img}" style="max-width:100%; max-height:100%; object-fit:contain;">
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="swiper-button-next" style="color:#fff;"></div>
+                <div class="swiper-button-prev" style="color:#fff;"></div>
+              </div>
+            `;
+            if (window.Swiper) {
+              new Swiper('.rit-list-modal-swiper', {
+                navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+                loop: extractedImages.length > 1
+              });
+            }
+          }
+        } else {
+          document.getElementById('ritModalContent').innerHTML = "본문을 확인할 수 없습니다.";
+        }
+      } catch (e) {
+        console.error("본문 로딩 실패", e);
       }
-    } catch (e) {
-      console.error(e);
+    },
+
+    closeModal() {
+      document.getElementById('ritListModal').style.display = 'none';
+      document.body.style.overflow = '';
     }
-  }
+  };
 
-  setTimeout(sync, 2000);
+  if (document.readyState === 'complete') ReviewListApp.init();
+  else window.addEventListener('DOMContentLoaded', () => ReviewListApp.init());
+
 })(window);
