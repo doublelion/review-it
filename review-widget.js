@@ -5,6 +5,26 @@
 (function (window) {
   console.log("▶ [REVIEW-IT] 프론트엔드 스크립트 로드 완료!");
 
+  // 💡 [신규] 현재 페이지가 리뷰 게시판인지 확인 후 review-list.js 동적 호출
+  const currentPath = decodeURIComponent(window.location.pathname);
+  const currentSearch = window.location.search;
+  const isReviewBoardPage =
+    currentPath.includes('/board/product/list') ||
+    currentPath.includes('상품-사용후기') ||
+    (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
+
+  if (isReviewBoardPage) {
+    if (!document.getElementById('rit-list-script')) {
+      console.log("▶ [REVIEW-IT] 게시판 감지! review-list.js를 동적으로 호출합니다.");
+      const script = document.createElement('script');
+      script.id = 'rit-list-script';
+      script.src = 'https://review-it-tau.vercel.app/review-list.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+  }
+
+  
   const getDynamicConfig = () => {
     let cafe24MallId = null;
 
