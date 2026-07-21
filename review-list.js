@@ -24,8 +24,8 @@
 
   const currentPath = decodeURIComponent(window.location.pathname);
   const currentSearch = window.location.search;
-  const isReviewBoardPage =
-    currentPath.includes('/board/product/list') ||
+  const isReviewBoardPage = 
+    currentPath.includes('/board/product/list') || 
     currentPath.includes('상품-사용후기') ||
     (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
@@ -35,7 +35,7 @@
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     mallId: currentMallId,
-    limit: 15,
+    limit: 15, 
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating'
   };
@@ -49,9 +49,9 @@
     init() {
       console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (독립 구동 모드)");
       this.hideConflicts();
-      this.injectGridCSS();
+      this.injectGridCSS(); 
       this.createLayout();
-
+      
       // 💡 [핵심] 위젯 UI는 생성되지 않지만, 모달 창 뼈대는 리스트 뷰를 위해 강제 생성
       if (window.ReviewApp && typeof window.ReviewApp.initModal === 'function') {
         window.ReviewApp.initModal();
@@ -110,11 +110,11 @@
           headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}`, 'Range': `${offset}-${offset + CONFIG.limit - 1}` }
         });
         const data = await res.json();
-
+        
         if (data.length < CONFIG.limit) {
           this.hasMore = false;
           const anchor = document.getElementById('rit-scroll-anchor');
-          if (anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
+          if(anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
         }
 
         // 💡 [속도 개선] 스크래핑 대기 없이 즉시 DB 데이터만 모달 장부에 저장
@@ -144,7 +144,7 @@
       const uniqueReviews = reviews.filter(r => !this.renderedIds.has(r.id));
       uniqueReviews.forEach(r => this.renderedIds.add(r.id));
 
-      if (uniqueReviews.length === 0) return;
+      if (uniqueReviews.length === 0) return; 
 
       const html = uniqueReviews.map(r => {
         const imgUrl = (r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg) ? r.image_urls[0] : CONFIG.defaultImg;
@@ -166,7 +166,7 @@
 
     initIntersectionObserver() {
       const anchor = document.getElementById('rit-scroll-anchor');
-      if (!anchor) return;
+      if(!anchor) return;
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && this.hasMore && !this.isLoading) {
           this.fetchReviews();
