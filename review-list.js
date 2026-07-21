@@ -1,12 +1,12 @@
 /**
  * @Project: Review-It Universal Board List Engine
- * @Update: 로딩 중복 제거, 진성 맨선리 뷰(본문 2줄 노출), 모달 레이아웃 100% 위젯 동기화
+ * @Update: 썸네일 및 본문 누락 완벽 해결 (스크래핑 엔진 리스트 뷰 동기화)
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
   window.RIT_LIST_LOADED = true;
 
-  // HTML 태그를 벗겨내고 순수 텍스트만 추출하는 헬퍼 함수
+  // 💡 HTML 태그를 벗겨내고 순수 텍스트만 추출하는 함수
   const stripHtml = (html) => {
     let tmp = document.createElement("DIV");
     tmp.innerHTML = html || '';
@@ -63,7 +63,7 @@
     renderedIds: new Set(),
 
     init() {
-      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (프리미엄 맨선리 뷰 적용)");
+      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (썸네일/본문 파싱 동기화 모드)");
       this.hideConflicts();
       this.injectGridCSS(); 
       this.createLayout();
@@ -102,25 +102,22 @@
         @media (min-width: 768px) { .rit-masonry-grid { column-count: 3; column-gap: 15px; } }
         @media (min-width: 1024px) { .rit-masonry-grid { column-count: 4; column-gap: 20px; } }
         
-        /* 🛑 [핵심 픽스] 역동적인 맨선리를 위해 이미지 고정 비율 삭제 및 본문 영역 2줄 세팅 */
         .rit-masonry-item { break-inside: avoid; margin-bottom: 15px; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.2s; border: 1px solid #eee; }
         .rit-masonry-item:hover { transform: translateY(-3px); }
-        .rit-masonry-img { width: 100%; height: auto; display: block; object-fit: cover; } /* aspect-ratio 삭제 -> 진성 맨선리 */
+        .rit-masonry-img { width: 100%; height: auto; display: block; object-fit: cover; } 
         .rit-masonry-info { padding: 15px; }
         .rit-masonry-subject { font-size: 13px; color: #222; font-weight: 700; line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
         .rit-masonry-desc { font-size: 12px; color: #666; line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: keep-all; }
         .rit-masonry-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #888; border-top: 1px solid #f5f5f5; padding-top: 10px; }
         
-        /* 🛑 [핵심 픽스] 모달 좌측 꼴보기 싫은 흰선 박멸, 완벽한 블랙 강제 고정 */
         .rit-modal-swiper .swiper-wrapper { display: flex !important; }
         .rit-modal-swiper .swiper-slide { width: 100% !important; flex-shrink: 0 !important; background: #000 !important; }
         .rit-img-side { background: #000 !important; }
         
-        /* 🛑 [핵심 픽스] 모달 상단 헤더, 위젯(PC 뷰)처럼 완벽히 밖으로 띄우고 투명화 */
         @media (min-width: 768px) {
           .rit-modal-window { overflow: visible !important; }
           .rit-modal-header { position: absolute !important; top: -60px !important; left: 0; right: 0; background: transparent !important; padding: 0 !important; display: flex !important; z-index: 99999 !important; border: none !important; }
-          .btn-rit-grid { display: flex !important; visibility: visible !important; color: #fff !important; background: transparent !important; }
+          .btn-rit-grid { display: none !important; } /* 그리드 뷰 버튼 완벽 제거 */
           .rit-logo-text { font-size: 13px !important; color: #fff !important; opacity: 1 !important; text-shadow: 0 2px 4px rgba(0,0,0,0.6); font-weight: 800; border-left: 1px solid rgba(255,255,255,0.4); padding-left: 10px; margin-left: 5px; }
           .btn-rit-close { color: #fff !important; }
         }
@@ -132,7 +129,6 @@
     },
 
     createLayout() {
-      // 🛑 [결정적 픽스] 이중 로딩 텍스트 및 좀비 더미 컨테이너 모조리 색출 후 폭파
       document.querySelectorAll('.rit-list-container, #rit-scroll-anchor').forEach(el => el.remove());
 
       const wrapper = document.querySelector('#contents') || document.body;
@@ -159,10 +155,6 @@
       }
     },
 
-    openModal(id) {
-      if (window.ReviewApp) window.ReviewApp.openModal(id);
-    },
-
     async fetchReviews() {
       if (this.isLoading || !this.hasMore) return;
       this.isLoading = true;
@@ -180,23 +172,40 @@
           if(anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
         }
 
-        // 💡 [본문 출력 픽스] 데이터를 넘길 때 본문(clean_text_body)을 미리 세팅하여 "본문이 없습니다" 출력 방어
-        if (window.ReviewApp) {
-          data.forEach(r => {
+        // 🛑 [초강력 픽스] DB 데이터만으론 사진/본문이 부족하므로, 
+        // 위젯의 스크래퍼를 100% 가동하여 "완성된 데이터"를 만든 후 리스트를 그립니다.
+        const enrichedData = await Promise.all(data.map(async (r) => {
+          if (window.ReviewApp) {
             if (!window.ReviewApp.data[r.id]) {
-              r.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
-              r.is_parsed = false; 
-              r.clean_text_body = stripHtml(r.content || ''); // 본문 태그 제거 후 주입
               window.ReviewApp.data[r.id] = r;
               window.ReviewApp.listOrder.push(r.id);
             }
-          });
-        }
+            
+            let widgetData = window.ReviewApp.data[r.id];
+            
+            // 아직 파싱이 안 된 데이터라면 스크래핑 함수를 실행하여 고화질 이미지와 텍스트를 추출
+            if (!widgetData.is_parsed && typeof window.ReviewApp._fetchAndSeparateContent === 'function') {
+              const scraped = await window.ReviewApp._fetchAndSeparateContent(r.article_no, r.board_no);
+              if (scraped) {
+                widgetData.all_images = (scraped.images && scraped.images.length > 0) ? scraped.images : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg]);
+                widgetData.clean_text_body = stripHtml(scraped.text || r.content || '');
+                if (scraped.subject) widgetData.subject = scraped.subject;
+              } else {
+                widgetData.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
+                widgetData.clean_text_body = stripHtml(r.content || '');
+              }
+              widgetData.is_parsed = true;
+            }
+            return widgetData;
+          }
+          
+          // 위젯이 로드되지 않았을 경우 최후의 방어
+          r.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
+          r.clean_text_body = stripHtml(r.content || '');
+          return r;
+        }));
 
-        // 혹시 카페24 스킨에 하드코딩된 '모든 리뷰를 불러왔습니다.' 텍스트가 있다면 지워달라고 콘솔에 안내
-        console.log("▶ [안내] 카페24 게시판 HTML 소스에 하드코딩된 텍스트가 있다면 지워주셔야 화면이 가장 깔끔합니다.");
-
-        this.renderItems(data);
+        this.renderItems(enrichedData);
         this.page++;
       } catch (error) {
         console.error("❌ [REVIEW-IT] 리스트 로드 실패:", error);
@@ -221,9 +230,9 @@
       if (uniqueReviews.length === 0) return; 
 
       const html = uniqueReviews.map(r => {
-        const imgUrl = (r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg) ? r.image_urls[0] : CONFIG.defaultImg;
-        // 💡 [모바일 퍼스트 픽스] 본문 내용 순수 텍스트 추출
-        const cleanContent = stripHtml(r.content || '');
+        // 💡 [핵심] 스크래핑된 완벽한 데이터(all_images, clean_text_body)를 우선적으로 사용합니다!
+        const imgUrl = (r.all_images && r.all_images.length > 0 && r.all_images[0] !== CONFIG.defaultImg) ? r.all_images[0] : CONFIG.defaultImg;
+        const cleanContent = r.clean_text_body || '내용이 없습니다.';
 
         return `
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
