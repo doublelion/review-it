@@ -1,6 +1,6 @@
 /**
  * @Project: Review-It Universal Board List Engine
- * @Update: 하드코딩 좀비 DOM 강제 박멸 및 프로덕션(상용) 모드 전환
+ * @Update: 하드코딩 더미 데이터 100% 덮어쓰기 및 구형 클릭 이벤트 완벽 방어
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -56,7 +56,7 @@
     renderedIds: new Set(),
 
     init() {
-      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (프로덕션 모드)");
+      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (클린 앤 덮어쓰기 모드)");
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
@@ -116,17 +116,17 @@
     },
 
     createLayout() {
-      // 🛑 [초강력 픽스] HTML에 하드코딩된 과거의 컨테이너와 아이템들을 모조리 찾아내서 폭파시킵니다.
-      document.querySelectorAll('.rit-list-container, .rit-masonry-item').forEach(el => el.remove());
-
-      const wrapper = document.querySelector('#contents') || document.body;
-      const container = document.createElement('div');
-      container.className = 'rit-list-container';
-      container.innerHTML = `
-        <div class="rit-masonry-grid" id="rit-masonry-grid"></div>
-        <div id="rit-scroll-anchor" style="text-align:center; padding:30px; color:#999; font-size:13px;">리뷰를 불러오는 중입니다...</div>
-      `;
-      wrapper.appendChild(container);
+      // 카페24 스킨에 하드코딩된 요소가 있을 경우를 대비해 DOM이 없으면 새로 생성합니다.
+      if (!document.querySelector('.rit-list-container')) {
+        const wrapper = document.querySelector('#contents') || document.body;
+        const container = document.createElement('div');
+        container.className = 'rit-list-container';
+        container.innerHTML = `
+          <div class="rit-masonry-grid" id="rit-masonry-grid"></div>
+          <div id="rit-scroll-anchor" style="text-align:center; padding:30px; color:#999; font-size:13px;">리뷰를 불러오는 중입니다...</div>
+        `;
+        wrapper.appendChild(container);
+      }
     },
 
     hijackModal() {
@@ -135,12 +135,18 @@
         const origRender = window.ReviewApp.renderDetail;
         window.ReviewApp.renderDetail = async function (id) {
           await origRender.call(this, id);
-
           const authorEl = document.querySelector('#ritMetaArea .rit-author');
           if (authorEl) {
             authorEl.innerText = CONFIG.mallName;
           }
         };
+      }
+    },
+
+    // 🛑 [철통 방어] 혹시라도 옛날 하드코딩 코드를 클릭했을 때 에러를 뱉지 않게 하는 우회 함수
+    openModal(id) {
+      if (window.ReviewApp) {
+        window.ReviewApp.openModal(id);
       }
     },
 
@@ -196,7 +202,6 @@
 
       if (uniqueReviews.length === 0) return;
 
-      // 🛑 빨간색 디버그 태그를 모두 제거하고, 순정 프리미엄 뷰로 복귀했습니다.
       const html = uniqueReviews.map(r => {
         const imgUrl = (r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg) ? r.image_urls[0] : CONFIG.defaultImg;
         return `
@@ -212,7 +217,14 @@
           </div>
         `;
       }).join('');
-      grid.insertAdjacentHTML('beforeend', html);
+
+      // 🛑 [결정적 픽스] 첫 페이지(0) 데이터를 그릴 때는 무조건 덮어쓰기! 
+      // 카페24 스킨에 남아있던 과거의 지저분한 하드코딩 코드들이 한 방에 소멸됩니다.
+      if (this.page === 0) {
+        grid.innerHTML = html;
+      } else {
+        grid.insertAdjacentHTML('beforeend', html);
+      }
     },
 
     initIntersectionObserver() {
@@ -227,6 +239,7 @@
     }
   };
 
+  // 🛑 글로벌 전역 개체 할당 (옛날 HTML 요소 클릭 시에도 에러 방어)
   window.ReviewListApp = ReviewListApp;
 
   if (document.readyState === 'complete') ReviewListApp.init();
