@@ -1,6 +1,6 @@
 /**
  * @Project: Review-It Universal Board List Engine
- * @Update: 그리드 뷰 빈 화면 픽스 및 중복 렌더링 초정밀 디버깅 툴 탑재
+ * @Update: 하드코딩 좀비 DOM 강제 박멸 및 프로덕션(상용) 모드 전환
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -56,7 +56,7 @@
     renderedIds: new Set(),
 
     init() {
-      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (디버깅 모드)");
+      console.log("▶ [REVIEW-IT] 리스트 엔진 가동 (프로덕션 모드)");
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
@@ -116,10 +116,8 @@
     },
 
     createLayout() {
-      const existingContainer = document.querySelector('.rit-list-container');
-      if (existingContainer) {
-        existingContainer.remove();
-      }
+      // 🛑 [초강력 픽스] HTML에 하드코딩된 과거의 컨테이너와 아이템들을 모조리 찾아내서 폭파시킵니다.
+      document.querySelectorAll('.rit-list-container, .rit-masonry-item').forEach(el => el.remove());
 
       const wrapper = document.querySelector('#contents') || document.body;
       const container = document.createElement('div');
@@ -151,17 +149,11 @@
       this.isLoading = true;
       const offset = this.page * CONFIG.limit;
 
-      console.log(`\n========== [DEBUG LOG] ==========`);
-      console.log(`▶ API 통신 시작: 페이지 ${this.page}, 불러올 범위 ${offset} ~ ${offset + CONFIG.limit - 1}`);
-
       try {
         const res = await fetch(`${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&is_visible=eq.true&order=created_at.desc`, {
           headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}`, 'Range': `${offset}-${offset + CONFIG.limit - 1}` }
         });
         const data = await res.json();
-
-        console.log(`▶ API 응답 데이터 개수: ${data.length}개`);
-        console.table(data.map(d => ({ ID: d.id, Article_No: d.article_no, Subject: d.subject.substring(0, 10) })));
 
         if (data.length < CONFIG.limit) {
           this.hasMore = false;
@@ -175,8 +167,6 @@
               r.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
               r.is_parsed = false;
               window.ReviewApp.data[r.id] = r;
-
-              // 🛑 [핵심 픽스: GRID VIEW 부활] 모달에서 그리드 뷰를 그릴 때 필요한 장부에 데이터를 넣어줍니다.
               window.ReviewApp.listOrder.push(r.id);
             }
           });
@@ -197,20 +187,16 @@
 
       const uniqueReviews = [];
       reviews.forEach(r => {
-        const checkKey = r.article_no || r.id; // article_no가 없을 경우에 대비한 방어 코드
+        const checkKey = r.article_no || r.id;
         if (!this.renderedIds.has(checkKey)) {
           this.renderedIds.add(checkKey);
           uniqueReviews.push(r);
-        } else {
-          console.warn(`▶ [DEBUG] 중복 데이터 렌더링 차단됨! (Article No: ${checkKey})`);
         }
       });
 
-      console.log(`▶ 화면에 그릴 고유 데이터 개수: ${uniqueReviews.length}개`);
-      console.log(`=================================\n`);
-
       if (uniqueReviews.length === 0) return;
 
+      // 🛑 빨간색 디버그 태그를 모두 제거하고, 순정 프리미엄 뷰로 복귀했습니다.
       const html = uniqueReviews.map(r => {
         const imgUrl = (r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg) ? r.image_urls[0] : CONFIG.defaultImg;
         return `
@@ -222,11 +208,6 @@
                 <span>${CONFIG.mallName}</span>
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" style="height:12px; filter: invert(1) drop-shadow(0 0 2px rgba(0, 0, 0, 0.5)); background: rgba(255, 255, 255, 0.2); padding: 2px 4px; border-radius: 4px;">
               </div>
-            </div>
-            <!-- 🛑 [디버깅 UI] 빨간색 식별표: 2개가 똑같은 번호인지 직관적으로 확인 가능 -->
-            <div style="background-color: red; color: white; padding: 5px; font-size: 10px; text-align: center; word-break: break-all;">
-              DB ID: ${r.id} <br>
-              Article No: ${r.article_no}
             </div>
           </div>
         `;
