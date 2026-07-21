@@ -1,7 +1,7 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.3 (Production Ready)
- * @Role: Cafe24 Review SaaS Lead Developer & PO
- * @Update: 상세보기 페이지(read.html) 감지 예외 처리 (리스트 중복 노출 차단)
+ * @Project: Review-It Universal Board List Engine v1.0.1
+ * @Role: Cafe24 Review SaaS Lead Developer
+ * @Update: 임시 상품 태그 칩 시현 연동, 별점 비어있는 영역 톤앤매너 보정, 모달 쇼퍼블 스마트 연동
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -41,14 +41,8 @@
 
   const currentPath = decodeURIComponent(window.location.pathname);
   const currentSearch = window.location.search;
-
-  // 🛑 [핵심 픽스] read.html (상세보기), write.html, modify.html 페이지 예외 처리
-  const isDetailPage = currentPath.includes('/read.html') || currentPath.includes('/write.html') || currentPath.includes('/modify.html') || currentSearch.includes('no=');
-  if (isDetailPage) return; // 상세 페이지에서는 리스트 스크립트 실행 차단!
-
-  // 목록 페이지 전용 감지
-  const isReviewBoardPage = 
-    currentPath.includes('/board/product/list') || 
+  const isReviewBoardPage =
+    currentPath.includes('/board/product/list') ||
     currentPath.includes('상품-사용후기') ||
     (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
@@ -59,7 +53,7 @@
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     mallId: env.mallId,
     mallName: env.mallName,
-    limit: 15, 
+    limit: 15,
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating'
   };
@@ -72,14 +66,14 @@
     allFetchedReviews: [],
 
     init() {
-      console.log("▶ [REVIEW-IT] 게시판 리스트 전용 엔진 가동");
+      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동");
       this.hideConflicts();
-      this.injectGridCSS(); 
+      this.injectGridCSS();
       this.createLayout();
-      
+
       if (window.ReviewApp && typeof window.ReviewApp.initModal === 'function') {
         window.ReviewApp.initModal();
-        this.hijackModal(); 
+        this.hijackModal();
       }
 
       this.fetchReviews();
@@ -87,19 +81,7 @@
     },
 
     hideConflicts() {
-      const selectors = [
-        '.xans-board-listpackage', 
-        '.boardSort', 
-        '.xans-board-empty', 
-        '#prdReview', 
-        '.xans-product-review', 
-        '.review_list_item', 
-        'div[id^="ec-product-review"]', 
-        '.board-list-wrap',
-        '.xans-board-paging',
-        '.ec-base-paginate',
-        'div[class*="paginate"]'
-      ];
+      const selectors = ['.xans-board-listpackage', '.boardSort', '.xans-board-empty', '#prdReview', '.xans-product-review', '.review_list_item', 'div[id^="ec-product-review"]', '.board-list-wrap'];
       document.querySelectorAll(selectors.join(', ')).forEach(el => el.style.setProperty('display', 'none', 'important'));
     },
 
@@ -117,12 +99,9 @@
       style.id = 'rit-list-grid-css';
       style.innerHTML = `
         #review-it-widget, #rit-widget-container { display: none !important; }
+        .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; padding: 0 15px; }
         
-        .xans-board-paging, .ec-base-paginate, div[class*="paginate"] { display: none !important; }
-
-        .rit-list-container { width: 100%; max-width: 1200px; margin: 20px auto 60px; padding: 0 15px; }
-        
-        /* 📊 대시보드 카드 */
+        /* 📊 상단 소셜 프루프 대시보드 카드 */
         .rit-dashboard-card {
           background: #ffffff;
           border: 1px solid #f0f0f0;
@@ -158,7 +137,7 @@
         .rit-gauge-fill { height: 100%; background: #18181b; border-radius: 3px; transition: width 0.6s ease; }
         .rit-gauge-percent { width: 32px; text-align: right; font-weight: 500; color: #71717a; }
 
-        /* 🛍️ 미니멀 상품 정보 태그 칩 */
+        /* 🛍️ 미니멀 상품 정보 태그 칩 스타일 */
         .rit-product-chip {
           display: flex;
           align-items: center;
@@ -168,9 +147,49 @@
           padding: 6px 10px;
           border-radius: 6px;
           margin-bottom: 12px;
+          transition: background 0.2s;
         }
-        .rit-product-chip-img { width: 22px; height: 22px; border-radius: 4px; object-fit: cover; }
-        .rit-product-chip-name { font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rit-product-chip:hover {
+          background: #f1f5f9;
+        }
+        .rit-product-chip-img {
+          width: 22px;
+          height: 22px;
+          border-radius: 4px;
+          object-fit: cover;
+        }
+        .rit-product-chip-name {
+          font-size: 11px;
+          color: #475569;
+          font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        /* 🛍️ 미니멀 라인 쇼퍼블 버튼 */
+        .rit-shoppable-wrap { margin-top: 25px; padding-top: 20px; border-top: 1px solid #f4f4f5; }
+        .rit-btn-shoppable {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          background: #fafafa !important;
+          color: #18181b !important;
+          border: 1px solid #e4e4e7 !important;
+          text-decoration: none !important;
+          padding: 13px 18px !important;
+          border-radius: 10px !important;
+          font-size: 12.5px !important;
+          font-weight: 700 !important;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        .rit-btn-shoppable:hover {
+          background: #18181b !important;
+          color: #ffffff !important;
+          border-color: #18181b !important;
+          transform: translateY(-1px) !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+        }
 
         /* 🖼️ 진성 맨선리 레이아웃 */
         .rit-masonry-grid { column-count: 2; column-gap: 12px; }
@@ -205,7 +224,6 @@
     },
 
     createLayout() {
-      this.hideConflicts();
       document.querySelectorAll('.rit-list-container, #rit-scroll-anchor').forEach(el => el.remove());
 
       const wrapper = document.querySelector('#contents') || document.body;
@@ -255,8 +273,8 @@
 
           <div class="rit-dash-gauge-box">
             ${[5, 4, 3, 2, 1].map(star => {
-              const pct = getPercent(starCounts[star]);
-              return `
+        const pct = getPercent(starCounts[star]);
+        return `
                 <div class="rit-gauge-row">
                   <span class="rit-gauge-label">${star}점</span>
                   <div class="rit-gauge-bg">
@@ -265,7 +283,7 @@
                   <span class="rit-gauge-percent">${pct}%</span>
                 </div>
               `;
-            }).join('')}
+      }).join('')}
           </div>
         </div>
       `;
@@ -275,33 +293,36 @@
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
         const origRender = window.ReviewApp.renderDetail;
-        window.ReviewApp.renderDetail = async function(id) {
+        window.ReviewApp.renderDetail = async function (id) {
           await origRender.call(this, id);
-          
+
           const authorEl = document.querySelector('#ritMetaArea .rit-author');
           if (authorEl) {
-             authorEl.innerText = CONFIG.mallName;
+            authorEl.innerText = CONFIG.mallName;
           }
 
           const d = window.ReviewApp.data[id];
           const contentSide = document.getElementById('ritContent');
-          
-          if (contentSide) {
+
+          if (d && contentSide) {
             const oldWrap = contentSide.querySelector('.rit-shoppable-wrap');
             if (oldWrap) oldWrap.remove();
-          }
 
-          const commHead = document.querySelector('.rit-comm-head');
-          if (commHead && d) {
-            const targetProductNo = d.product_no || d.product_id || '11';
+            const productNo = d.product_no || d.product_id;
+
+            // 💡 실제 상품 번호가 있거나 테스트 상태일 때 쇼퍼블 버튼 출력
+            const targetProductNo = productNo || '11'; // 시현용 기본 상품 ID
             const productUrl = `/product/detail.html?product_no=${targetProductNo}`;
-            
-            commHead.innerHTML = `
-              <h4 style="font-size:11px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#111; margin:0;">Comments</h4>
-              <a href="${productUrl}" target="_self" style="font-size:11px; font-weight:700; color:#18181b; background:#f4f4f5; padding:4px 10px; border-radius:6px; text-decoration:none; border:1px solid #e4e4e7; transition:all 0.2s;">
-                🛍️ 상품 보러가기 →
-              </a>
+
+            const shoppableBtnHtml = `
+              <div class="rit-shoppable-wrap">
+                <a href="${productUrl}" class="rit-btn-shoppable" target="_blank">
+                  <span>🛍️ 리뷰 속 상품 보러가기</span>
+                  <span>→</span>
+                </a>
+              </div>
             `;
+            contentSide.insertAdjacentHTML('beforeend', shoppableBtnHtml);
           }
         };
       }
@@ -321,11 +342,11 @@
           headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}`, 'Range': `${offset}-${offset + CONFIG.limit - 1}` }
         });
         const data = await res.json();
-        
+
         if (data.length < CONFIG.limit) {
           this.hasMore = false;
           const anchor = document.getElementById('rit-scroll-anchor');
-          if(anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
+          if (anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
         }
 
         const enrichedData = await Promise.all(data.map(async (r) => {
@@ -334,9 +355,9 @@
               window.ReviewApp.data[r.id] = r;
               window.ReviewApp.listOrder.push(r.id);
             }
-            
+
             let widgetData = window.ReviewApp.data[r.id];
-            
+
             if (!widgetData.is_parsed && typeof window.ReviewApp._fetchAndSeparateContent === 'function') {
               const scraped = await window.ReviewApp._fetchAndSeparateContent(r.article_no, r.board_no);
               if (scraped) {
@@ -351,14 +372,14 @@
             }
             return widgetData;
           }
-          
+
           r.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
           r.clean_text_body = stripHtml(r.content || '');
           return r;
         }));
 
         this.allFetchedReviews = [...this.allFetchedReviews, ...enrichedData];
-        this.renderDashboard(this.allFetchedReviews); 
+        this.renderDashboard(this.allFetchedReviews);
 
         this.renderItems(enrichedData);
         this.page++;
@@ -375,22 +396,23 @@
 
       const uniqueReviews = [];
       reviews.forEach(r => {
-        const checkKey = r.article_no || r.id; 
+        const checkKey = r.article_no || r.id;
         if (!this.renderedIds.has(checkKey)) {
           this.renderedIds.add(checkKey);
           uniqueReviews.push(r);
         }
       });
 
-      if (uniqueReviews.length === 0) return; 
+      if (uniqueReviews.length === 0) return;
 
       const html = uniqueReviews.map(r => {
         const imgUrl = (r.all_images && r.all_images.length > 0 && r.all_images[0] !== CONFIG.defaultImg) ? r.all_images[0] : CONFIG.defaultImg;
         const cleanContent = r.clean_text_body || '내용이 없습니다.';
-        
+
+        // 💡 [핵심 연동] 시현용 임시 상품 칩 주입 (대표님이 요청하신 크리마/넥젠 스타일의 미니멀 칩)
         const sampleProductName = r.product_name || "REVIEW-IT 프리미엄 솔루션";
         const sampleProductImg = r.product_img || imgUrl;
-        
+
         const productChipHtml = `
           <div class="rit-product-chip">
             <img src="${sampleProductImg}" class="rit-product-chip-img" alt="product">
@@ -404,7 +426,7 @@
             <div class="rit-masonry-info">
               <div class="rit-masonry-subject">${r.subject}</div>
               <div class="rit-masonry-desc">${cleanContent}</div>
-              ${productChipHtml}
+              ${productChipHtml} <!-- 💡 카드 내 상품 태그 칩 노출 -->
               <div class="rit-masonry-meta">
                 <span style="font-weight:600; color:#52525b;">${CONFIG.mallName}</span>
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" class="rit-card-star" alt="star">
@@ -415,7 +437,7 @@
       }).join('');
 
       if (this.page === 0) {
-        grid.innerHTML = html; 
+        grid.innerHTML = html;
       } else {
         grid.insertAdjacentHTML('beforeend', html);
       }
@@ -423,7 +445,7 @@
 
     initIntersectionObserver() {
       const anchor = document.getElementById('rit-scroll-anchor');
-      if(!anchor) return;
+      if (!anchor) return;
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && this.hasMore && !this.isLoading) {
           this.fetchReviews();
