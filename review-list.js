@@ -1,7 +1,7 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.2
+ * @Project: Review-It Universal Board List Engine v1.0.3 (Production Ready)
  * @Role: Cafe24 Review SaaS Lead Developer & PO
- * @Update: 1. 기존 페이지네이션(< 1 >) 강제 차단, 2. 모달 내 상품 버튼 미니멀화 및 현재창 이동 적용
+ * @Update: 상세보기 페이지(read.html) 감지 예외 처리 (리스트 중복 노출 차단)
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -41,6 +41,12 @@
 
   const currentPath = decodeURIComponent(window.location.pathname);
   const currentSearch = window.location.search;
+
+  // 🛑 [핵심 픽스] read.html (상세보기), write.html, modify.html 페이지 예외 처리
+  const isDetailPage = currentPath.includes('/read.html') || currentPath.includes('/write.html') || currentPath.includes('/modify.html') || currentSearch.includes('no=');
+  if (isDetailPage) return; // 상세 페이지에서는 리스트 스크립트 실행 차단!
+
+  // 목록 페이지 전용 감지
   const isReviewBoardPage =
     currentPath.includes('/board/product/list') ||
     currentPath.includes('상품-사용후기') ||
@@ -66,7 +72,7 @@
     allFetchedReviews: [],
 
     init() {
-      console.log("▶ [REVIEW-IT] 고도화 UI/UX 적용 리스트 엔진 가동");
+      console.log("▶ [REVIEW-IT] 게시판 리스트 전용 엔진 가동");
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
@@ -81,7 +87,6 @@
     },
 
     hideConflicts() {
-      // 🛑 [결정적 픽스] 카페24 기존 게시판 요소 및 상단 페이지네이션(< 1 >) 완벽 숨김
       const selectors = [
         '.xans-board-listpackage',
         '.boardSort',
@@ -113,7 +118,6 @@
       style.innerHTML = `
         #review-it-widget, #rit-widget-container { display: none !important; }
         
-        /* 🛑 기존 카페24 페이지네이션 UI 강제 숨김 */
         .xans-board-paging, .ec-base-paginate, div[class*="paginate"] { display: none !important; }
 
         .rit-list-container { width: 100%; max-width: 1200px; margin: 20px auto 60px; padding: 0 15px; }
@@ -267,7 +271,6 @@
       `;
     },
 
-    // 🛑 [핵심 수정] 미니멀 상품 이동 버튼을 COMMENTS 상단으로 우아하게 이동 (현재창 이동)
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
@@ -283,19 +286,16 @@
           const d = window.ReviewApp.data[id];
           const contentSide = document.getElementById('ritContent');
 
-          // 모달 중간에 있던 과거의 투박한 큰 버튼 제거
           if (contentSide) {
             const oldWrap = contentSide.querySelector('.rit-shoppable-wrap');
             if (oldWrap) oldWrap.remove();
           }
 
-          // 댓글 헤더 오른쪽의 '리뷰 원문보기' 자리를 '상품 보러가기' 미니 버튼으로 교체
           const commHead = document.querySelector('.rit-comm-head');
           if (commHead && d) {
             const targetProductNo = d.product_no || d.product_id || '11';
             const productUrl = `/product/detail.html?product_no=${targetProductNo}`;
 
-            // 기존 텍스트 '리뷰 원문보기' 제거하고 미니멀 버튼 삽입 (target="_self" 현재창 이동)
             commHead.innerHTML = `
               <h4 style="font-size:11px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#111; margin:0;">Comments</h4>
               <a href="${productUrl}" target="_self" style="font-size:11px; font-weight:700; color:#18181b; background:#f4f4f5; padding:4px 10px; border-radius:6px; text-decoration:none; border:1px solid #e4e4e7; transition:all 0.2s;">
