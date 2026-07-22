@@ -45,12 +45,17 @@
 
   const currentPath = decodeURIComponent(window.location.pathname);
   const currentSearch = window.location.search;
+
+  const isReadPage = currentPath.includes('/read.html') || currentSearch.includes('no=');
+  if (isReadPage) return; // 상세 페이지에서는 리스트 엔진 작동 중단
+
   const isReviewBoardPage =
     currentPath.includes('/board/product/list') ||
     currentPath.includes('상품-사용후기') ||
     (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
   if (!isReviewBoardPage) return;
+
 
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
@@ -277,7 +282,7 @@
 
             // 💡 모달 내 쇼퍼블 버튼 슬림화 및 썸네일 이미지 적용
             const shoppableBtnHtml = `
-              <div class="rit-shoppable-wrap" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #f4f4f5;">
+              <div class="rit-shoppable-wrap" style="border-top: 1px solid #f4f4f5;">
                 <a href="${productUrl}" class="rit-btn-shoppable" target="_blank" style="
                   display: flex; align-items: center; justify-content: space-between; 
                   background: #fafafa; color: #18181b; border: 1px solid #e4e4e7; 
