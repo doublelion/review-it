@@ -143,33 +143,32 @@
     },
 
     autoCreateContainer() {
-      // 🛑 게시판 페이지(상세 read.html 포함)라면 어떠한 경우에도 컨테이너 뼈대를 생성하지 않음!
-      if (isBoardPage) return;
+      // 🛑 차단 대상 페이지라면 어떠한 경우에도 뼈대를 생성하지 않음!
+      if (typeof isBlockedPage !== 'undefined' && isBlockedPage) return;
 
       let container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (container) return;
 
       const pathname = decodeURIComponent(window.location.pathname);
       const isMainPage = pathname === '/' || pathname === '/index.html';
-      const isProductPage = !!CONFIG.PRODUCT_NO;
 
-      if (!isMainPage && !isProductPage) return;
+      // 💡 [핵심] 오직 메인 페이지에서만 위젯 뼈대를 자동 생성 (Zero Setup)
+      if (!isMainPage) return;
 
       container = document.createElement('div');
       container.id = 'review-it-widget';
       container.style.marginTop = '80px';
       container.style.marginBottom = '80px';
 
-      if (isProductPage) {
-        const detailArea = document.querySelector('.xans-product-additional') || document.querySelector('#prdDetail') || document.querySelector('#detailArea');
-        if (detailArea) detailArea.appendChild(container);
-      } else if (isMainPage) {
-        const mainContent = document.querySelector('#contents') || document.querySelector('.xans-product-listmain') || document.querySelector('#wrap');
-        const footer = document.querySelector('#footer');
+      const mainContent = document.querySelector('#contents') || document.querySelector('.xans-product-listmain') || document.querySelector('#wrap');
+      const footer = document.querySelector('#footer');
 
-        if (mainContent) mainContent.appendChild(container);
-        else if (footer) document.body.insertBefore(container, footer);
-        else document.body.appendChild(container);
+      if (mainContent) {
+        mainContent.appendChild(container);
+      } else if (footer) {
+        document.body.insertBefore(container, footer);
+      } else {
+        document.body.appendChild(container);
       }
 
       if (document.getElementById('review-it-widget')) this.renderSkeleton(container);
