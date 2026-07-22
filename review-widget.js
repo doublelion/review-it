@@ -157,14 +157,23 @@
     },
 
     async init() {
-      // 게시판이 아닐 때만 컨테이너 생성 시도
-      if (!isBoardPage) {
-        this.autoCreateContainer();
+      // 🚨 [초강력 철벽 방어] 몰 운영자가 카페24 공통 레이아웃(footer 등)에 위젯 뼈대를 하드코딩해둔 경우 원천 차단
+      if (isBoardPage) {
+        const hardcodedContainer = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+        if (hardcodedContainer) {
+          hardcodedContainer.style.setProperty('display', 'none', 'important'); // 화면에서 강제 삭제
+          hardcodedContainer.innerHTML = ''; // 혹시 모를 내부 렌더링 잔재 제거
+        }
+        console.log("▶ [REVIEW-IT Widget] 게시판 내 공통 레이아웃 위젯 뼈대 강제 숨김 및 렌더링 완벽 차단");
+        return; // ⭐️ 여기서 실행을 종료하여 API 호출 및 추가 렌더링을 100% 막습니다. (모달 기능 등 엔진은 살아있음)
       }
+
+      // 게시판이 아닐 때만 컨테이너 생성 시도
+      this.autoCreateContainer();
 
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
 
-      // 🛑 컨테이너가 없으면(게시판 포함) 위젯 렌더링 관련 로직(API 호출 등)을 안전하게 즉시 중단
+      // 🛑 컨테이너가 없으면 위젯 렌더링 관련 로직(API 호출 등)을 안전하게 즉시 중단
       if (!container) {
         console.log("▶ [REVIEW-IT] 위젯 노출 대상 페이지가 아니므로 위젯 생성을 안전하게 스킵합니다.");
         return;
@@ -180,8 +189,6 @@
       }
       this.renderWidget();
     },
-
-
 
     async loadWidgetSettings() {
       try {
