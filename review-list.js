@@ -1,6 +1,11 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.3
- * @Update: 타 몰 적용을 위한 락 해제 및 상세/작성 페이지 내 하드코딩 뼈대 강제 파괴 로직 추가
+ * @Project: Review-It Universal Board List Engine v1.0.2
+ * @Role: Cafe24 Review SaaS Lead Developer
+ * @Update: 
+ *  1. 기존 카페24 게시판(텍스트 리스트) 완벽 숨김 처리
+ *  2. 데스크탑 그리드 뷰 버튼 노출 보정
+ *  3. 모달 내 쇼퍼블 버튼 슬림화 및 실제 썸네일 이미지 적용
+ *  4. 모바일 좌측 여백 밸런스 교정
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -35,13 +40,13 @@
 
   const env = getDynamicConfig();
 
-  // 🚨 [긴급 픽스 1] 타 몰 배포를 위해 ykinas 전용 락 삭제 완료
-  // if (env.mallId !== 'ykinas') return; 
+  // 🔒 [테스트 안전장치] ykinas 몰 전용 유지
+  if (env.mallId !== 'ykinas') return;
 
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
 
-  // 💡 [긴급 픽스 2] 초강력 차단: 스크립트 중단을 넘어, 화면에 하드코딩된 유령 뼈대까지 강제 파괴
+  // 💡 [초강력 차단] 상세(read), 작성(write), 수정(modify) 페이지 및 글 번호 파라미터 감지 시 즉시 종료
   if (
     currentPath.includes('/read.html') ||
     currentPath.includes('/write.html') ||
@@ -49,20 +54,7 @@
     currentSearch.includes('no=') ||
     currentSearch.includes('article_no=')
   ) {
-    console.log("▶ [REVIEW-IT] 게시판 상세/작성 페이지 감지 -> 렌더링 차단 및 뼈대 강제 삭제");
-    
-    // 화면에 존재하는 모든 REVIEW-IT 관련 뼈대를 찾아내어 즉시 투명화 및 내용 삭제
-    const destroyGhosts = () => {
-      document.querySelectorAll('.rit-list-container, #review-it-widget, #rit-widget-container').forEach(el => {
-        el.style.setProperty('display', 'none', 'important');
-        el.innerHTML = '';
-      });
-    };
-
-    destroyGhosts(); // 즉시 1차 파괴
-    window.addEventListener('DOMContentLoaded', destroyGhosts); // DOM 로드 후 2차 파괴
-    setTimeout(destroyGhosts, 1000); // 비동기로 늦게 불려오는 위젯 방어를 위한 3차 파괴
-    
+    console.log("▶ [REVIEW-IT] 게시판 상세/작성 페이지 감지 -> 리스트 엔진 렌더링 안전 차단");
     return;
   }
 
