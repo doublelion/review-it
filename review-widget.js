@@ -570,9 +570,12 @@
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
-      // 💡 리뷰 수와 평점 데이터 (DB 연동 전 시뮬레이션 폴백 포함)
+      // 🚨 [긴급 픽스] 랜덤 시뮬레이션 숫자(Math.random) 로직 완전 제거
       const avgScore = d.product_avg_score || d.stars || 5;
-      const revCount = d.product_review_count || Math.floor(Math.random() * 40) + 12;
+      const revCount = d.product_review_count; // 실제 데이터가 없으면 undefined
+
+      // 리뷰 수가 존재할 때만 파이프(|)와 숫자를 노출합니다.
+      const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount}</span>` : '';
 
       return `
       <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff;">
@@ -582,12 +585,10 @@
               style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
         </div>
         <div class="rit-card-info" style="position: relative; z-index: 3; background: #fff; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
-          <!-- 💡 경쟁사 벤치마킹: 평점 및 리뷰 수 삽입 -->
           <div style="display:flex; align-items:center; gap:5px; margin-bottom:8px; font-size:11px; font-weight:700; color:#52525b;">
              <span style="color:#fbbf24;">★</span>
              <span>${Number(avgScore).toFixed(1)}</span>
-             <span style="color:#e4e4e7; margin:0 2px;">|</span>
-             <span style="font-weight:500; color:#71717a;">리뷰 ${revCount}</span>
+             ${reviewCountHtml}
           </div>
           <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; color: #222; margin-bottom: 10px; font-weight: 500;">${d.subject}</div>
           <div class="rit-card-meta" style="display: flex; justify-content: space-between; align-items: center;">
@@ -747,19 +748,26 @@
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
-      // 💡 현재 리뷰의 상품 정보 추출
-      const productNo = currentReviewData?.product_no || currentReviewData?.product_id || '11';
-      const productUrl = `/product/detail.html?product_no=${productNo}`;
-      const productImg = currentReviewData?.product_img || (currentReviewData?.all_images && currentReviewData.all_images[0]) || CONFIG.DEFAULT_IMG;
+      // 🚨 [긴급 픽스] 임의의 11번 매핑 완전 제거. 실제 상품 번호가 있을 때만 버튼 렌더링
+      const productNo = currentReviewData?.product_no || currentReviewData?.product_id;
+      let shoppableBtnHtml = '';
 
-      // 💡 원문보기 삭제 -> 미니멀 상품 버튼으로 교체
-      const headerHtml = `
-        <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
-          <h4 style="font-size:11px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#111; margin:0;">Comments <span style="color:#999; font-weight:normal;">(${comments.length})</span></h4>
+      if (productNo && productNo !== '11') { // (기존 11번 캐싱 데이터 방어)
+        const productUrl = `/product/detail.html?product_no=${productNo}`;
+        const productImg = currentReviewData?.product_img || (currentReviewData?.all_images && currentReviewData.all_images[0]) || CONFIG.DEFAULT_IMG;
+        
+        shoppableBtnHtml = `
           <a href="${productUrl}" target="_blank" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:5px 12px; border-radius:6px; border:1px solid #f1f5f9; text-decoration:none; transition:all 0.2s;">
              <img src="${productImg}" style="width:16px; height:16px; border-radius:3px; object-fit:cover;">
              <span style="font-size:10.5px; font-weight:700; color:#475569;">상품 보기 〉</span>
           </a>
+        `;
+      }
+
+      const headerHtml = `
+        <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+          <h4 style="font-size:11px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#111; margin:0;">Comments <span style="color:#999; font-weight:normal;">(${comments.length})</span></h4>
+          ${shoppableBtnHtml}
         </div>
       `;
 
