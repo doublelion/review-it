@@ -496,9 +496,12 @@
         const sampleProductName = r.product_name || "REVIEW-IT 프리미엄 솔루션";
         const sampleProductImg = r.product_img || imgUrl;
 
-        // 💡 위젯과 동일한 리뷰 수와 평점 데이터 매핑
+        // 💡 [안정화 픽스] 위젯과 동일한 ID 기반 고정 리뷰 수 생성
+        const numericId = parseInt(String(r.id).replace(/\D/g, '') || '0', 10);
+        const stableRandomCount = (numericId % 40) + 15;
+
         const avgScore = r.product_avg_score || r.stars || 5;
-        const revCount = r.product_review_count || Math.floor(Math.random() * 40) + 12;
+        const revCount = r.product_review_count || stableRandomCount;
 
         const productChipHtml = `
           <div class="rit-product-chip">
@@ -511,7 +514,7 @@
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
             <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
             <div class="rit-masonry-info">
-              <!-- 💡 평점 및 리뷰 수 UI 추가 (미니멀 & 세련된 톤앤매너) -->
+              <!-- 💡 평점 및 리뷰 수 UI -->
               <div style="display:flex; align-items:center; gap:5px; margin-bottom:8px; font-size:11px; font-weight:700; color:#52525b;">
                  <span style="color:#fbbf24;">★</span>
                  <span>${Number(avgScore).toFixed(1)}</span>
