@@ -8,15 +8,16 @@
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
 
-  // 💡 [경로 추적 차단] 상품 상세, 게시판 상세, 작성/수정 페이지 완벽 차단
+// 💡 [수정] 상품 상세 페이지(detail.html) 및 게시판 상세/작성 페이지 완벽 차단
   const isProductDetailPage = currentPath.includes('/product/detail.html');
   const isBoardReadPage = currentPath.includes('/board/product/read.html') || currentSearch.includes('no=');
   const isWriteOrModify = currentPath.includes('write.html') || currentPath.includes('modify.html');
 
-  // 차단 대상 페이지일 때 전역 플래그 세팅
+  // 🚨 차단 대상 페이지 전역 플래그 세팅 (상세, 게시판, 글쓰기 모두 차단)
   const isBlockedPage = isProductDetailPage || isBoardReadPage || isWriteOrModify;
-  // 1. 게시판 구역 확인
+
   const isBoardPage = currentPath.includes('/board/') || currentPath.includes('상품-사용후기');
+  
   const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
 
   if (isBoardPage) {
@@ -175,22 +176,36 @@
     },
 
     async init() {
+      // 🚨 [강력 차단] 상품 상세 또는 게시판 상세 페이지 진입 시, 하드코딩된 태그가 있어도 숨기고 실행 종료!
+      if (typeof isBlockedPage !== 'undefined' && isBlockedPage) {
+        const hardcodedContainer = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+        if (hardcodedContainer) {
+          hardcodedContainer.style.setProperty('display', 'none', 'important');
+          hardcodedContainer.innerHTML = '';
+        }
+        console.log("▶ [REVIEW-IT Widget] 예외 페이지(/detail.html, /read.html 등) 진입 -> 위젯 강제 차단");
+        return;
+      }
+
+      // 💡 메인 페이지 자동 노출 로직 실행
+      this.autoCreateContainer();
+
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
 
-      // 🛑 뼈대를 자동으로 만들지 않습니다! 수동 설치된 뼈대가 없으면 조용히 종료합니다.
       if (!container) {
-        console.log("▶ [REVIEW-IT Widget] 설치된 위젯 뼈대(<div id='review-it-widget'>)가 없으므로 실행을 스킵합니다.");
+        console.log("▶ [REVIEW-IT] 메인 페이지가 아니거나 뼈대가 없으므로 위젯 생성을 안전하게 스킵합니다.");
         return;
       }
 
       this.injectCSS();
-      this.renderSkeleton(container);
+      // 뼈대가 갓 생성되어 비어있다면 스켈레톤 먼저 렌더링
+      if (container.innerHTML.trim() === '') this.renderSkeleton(container);
       
       await this.loadWidgetSettings();
       const hasReviews = await this.loadReviews();
 
       if (!hasReviews) {
-        container.style.display = 'none';
+        if (container) container.style.display = 'none';
         return;
       }
       this.renderWidget();
