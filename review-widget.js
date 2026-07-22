@@ -753,7 +753,7 @@
         const productImg = currentReviewData?.product_img || (currentReviewData?.all_images && currentReviewData.all_images[0]) || CONFIG.DEFAULT_IMG;
         
         shoppableBtnHtml = `
-          <a href="${productUrl}" target="_blank" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:5px 12px; border-radius:6px; border:1px solid #f1f5f9; text-decoration:none; transition:all 0.2s;">
+          <a href="${productUrl}" target="_self" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:5px 12px; border-radius:6px; border:1px solid #f1f5f9; text-decoration:none; transition:all 0.2s;">
              <img src="${productImg}" style="width:16px; height:16px; border-radius:3px; object-fit:cover;">
              <span style="font-size:10.5px; font-weight:700; color:#475569;">상품 보기 〉</span>
           </a>

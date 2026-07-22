@@ -393,7 +393,7 @@
             // 💡 모달 내 쇼퍼블 버튼 슬림화 및 썸네일 이미지 적용
             const shoppableBtnHtml = `
               <div class="rit-shoppable-wrap" style="border-top: 1px solid #f4f4f5;">
-                <a href="${productUrl}" class="rit-btn-shoppable" target="_blank" style="
+                <a href="${productUrl}" class="rit-btn-shoppable" target="_self" style="
                   display: flex; align-items: center; justify-content: space-between; 
                   background: #fafafa; color: #18181b; border: 1px solid #e4e4e7; 
                   text-decoration: none; padding: 10px 14px; border-radius: 8px; 
