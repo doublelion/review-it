@@ -128,6 +128,17 @@
       grid_rows_mobile: 2
     },
 
+    // 💡 [추가됨] 렌더링 직전 찌꺼기 코드를 박멸하는 프론트엔드 정제 필터
+    cleanEditorText(text) {
+      if (!text) return "";
+      return String(text)
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // style 태그 및 내부 CSS 완전 삭제
+        .replace(/p\.p1\s*\{[^}]*\}/gi, '')             // 텍스트로 노출된 p.p1 CSS 삭제
+        .replace(/span\.s1\s*\{[^}]*\}/gi, '')          // span.s1 CSS 삭제
+        .replace(/&nbsp;/gi, ' ')                       // 무의미한 공백 엔티티 치환
+        .trim();
+    },
+
     renderSkeleton(container) {
       const skeletonCards = Array(5).fill(0).map(() => `<div class="rit-skeleton-card"></div>`).join('');
       container.innerHTML = `
@@ -395,11 +406,10 @@
           const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
 
           if (separateData) {
-            r.clean_text_body = separateData.text || r.content;
+            r.clean_text_body = this.cleanEditorText(separateData.text || r.content);
             r.all_images = (separateData.images && separateData.images.length > 0)
               ? separateData.images
               : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.DEFAULT_IMG]);
-
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
             if (separateData.subject && separateData.subject.trim().length > 0) {
               r.subject = separateData.subject;
@@ -719,7 +729,7 @@
           </div>
         </div>`;
       document.getElementById('ritSubject').innerText = d.subject;
-      contentSide.innerHTML = d.clean_text_body || "본문이 없습니다.";
+      contentSide.innerHTML = this.cleanEditorText(d.clean_text_body || "본문이 없습니다.");
 
       this.loadComments(d.article_no, d.board_no, d);
     },
