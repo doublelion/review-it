@@ -1,10 +1,11 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.5
+ * @Project: Review-It Universal Board List Engine v1.0.7
  * @Role: Cafe24 Review SaaS Lead Developer
  * @Update: 
  *  1. [안전] ykinas 몰 전용 락(Lock) 유지 (타 몰 미노출)
  *  2. [클린업] hijackModal 내 중복 쇼퍼블 버튼 생성 및 11번 하드코딩 완전 삭제
  *  3. [UI] 리뷰 수 랜덤 페이크 삭제 및 실제 데이터 매핑 연동
+ *  4. [초강력 방어] 상품 상세 및 게시판 상세 페이지 뼈대 잔재 3초간 강제 파괴 로직 추가
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -54,8 +55,23 @@
   const isBlockedWritePage = currentPath.includes('/write.html') || currentPath.includes('/modify.html');
 
   if (isBlockedReadPage || isBlockedDetailPage || isBlockedWritePage) {
-    console.log("▶ [REVIEW-IT List] 예외 페이지(/read.html, /detail.html 등) 감지 -> 리스트 엔진 차단");
-    return;
+    console.log("▶ [REVIEW-IT List] 예외 페이지 감지 -> 리스트 엔진 차단 및 뼈대 강제 삭제 가동");
+
+    // 🚨 3초간 0.2초 간격으로 지연 렌더링된 뼈대까지 모조리 파괴하는 Ghost Killer
+    const killListGhosts = () => {
+      document.querySelectorAll('.rit-list-container, #review-it-widget, #rit-widget-container').forEach(el => {
+        el.style.setProperty('display', 'none', 'important');
+        el.innerHTML = '';
+      });
+    };
+
+    killListGhosts();
+    window.addEventListener('DOMContentLoaded', killListGhosts);
+
+    const ghostInterval = setInterval(killListGhosts, 200);
+    setTimeout(() => clearInterval(ghostInterval), 3000);
+
+    return; // 리스트 렌더링 로직 완전 종료
   }
 
   const isReviewBoardPage =
@@ -83,7 +99,7 @@
     allFetchedReviews: [],
 
     init() {
-      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.5");
+      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.7");
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
@@ -107,7 +123,7 @@
         '.xans-board-movement', '.boardAdmin', '.xans-board-admin',
         '#board_admin', '.xans-board-buttons', '.xans-board-button',
         '.xans-board-paging', '.ec-base-paginate', '.xans-board-4',
-        // 💡 [/product/detail.html 및 /read.html 하단 위젯/리스트 잔재 숨김 선택자 추가]
+        // 💡 하단에 숨어있는 위젯/리스트 뼈대 잔재까지 숨김 처리
         '#review-it-widget', '#rit-widget-container', '.rit-list-container'
       ];
 
@@ -327,7 +343,7 @@
         if (!scoreEl) return;
 
         let startTimestamp = null;
-        const duration = 1200; 
+        const duration = 1200;
 
         const step = (timestamp) => {
           if (!startTimestamp) startTimestamp = timestamp;
@@ -344,7 +360,7 @@
           }
         };
         window.requestAnimationFrame(step);
-      }, 1500); 
+      }, 1500);
     },
 
     hijackModal() {
@@ -359,8 +375,7 @@
             authorEl.innerText = CONFIG.mallName;
           }
 
-          // 🚨 [클린업] 이전에 있던 11번 강제 매핑 및 중복 버튼 생성 로직 완전 삭제!
-          // 위젯 파일(review-widget.js)의 renderComments 함수에서 아름다운 버튼을 대신 그려줍니다.
+          // 🚨 [클린업] 이전에 있던 11번 강제 매핑 및 중복 버튼 생성 로직 완전 삭제
         };
       }
     },
@@ -451,8 +466,8 @@
 
         // 💡 [완전 삭제 및 실제 데이터 연동] 가짜 폴백 로직 전면 제거
         const avgScore = r.product_avg_score || r.stars || 5;
-        const revCount = r.product_review_count; 
-        
+        const revCount = r.product_review_count;
+
         const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
         const productChipHtml = `
