@@ -5,7 +5,20 @@
  *  1. [핵심] 쇼퍼블 버튼 연동을 위한 product_no 추출 및 전송 로직 추가
  *  2. [버그 픽스] 백그라운드 이미지 파싱 시 document -> doc 오참조 버그 해결
  */
+
 (function (window) {
+  // 🧹 맥 에디터 쓰레기 태그 및 CSS 정제 함수
+  const cleanEditorText = (text) => {
+    if (!text) return "";
+    return text
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/p\.p1\s*\{[^}]*\}/gi, '')
+      .replace(/span\.s1\s*\{[^}]*\}/gi, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   const getDynamicConfig = () => {
     let cafe24MallId = null;
 
