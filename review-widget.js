@@ -603,9 +603,10 @@
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
 
-      // 💡 [수정] 작성자 이름 마스킹 적용
-      const rawName = d.author_name ? d.author_name : (d.writer || '고객');
-      const displayName = this.maskName(rawName);
+      // 💡 [수정] 쇼핑몰 이름과 일치하면 마스킹 예외 처리 (원래 이름 노출)
+      const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
+      const isMallOwner = CONFIG.MALL_NAME && (rawName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawName));
+      const displayName = isMallOwner ? rawName : this.maskName(rawName);
 
       // 💡 [완전 삭제 및 실제 데이터 연동] 가짜 폴백 로직(stableRandomCount) 전면 제거
       const avgScore = d.product_avg_score || d.stars || 5;
@@ -642,15 +643,17 @@
       await this.renderDetail(id);
     },
 
+    // 모달(MODAL)
     async renderDetail(id) {
       this.currentReviewId = id;
       const d = this.data[id];
       const imgSide = document.getElementById('ritModalImg');
       const contentSide = document.getElementById('ritContent');
 
-      // 💡 [수정] 모달 작성자 이름 마스킹 적용
-      const rawDisplayName = d.author_name ? d.author_name : (d.writer || '고객');
-      const updatedDisplayName = this.maskName(rawDisplayName);
+      // 이름 노출
+      const rawDisplayName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
+      const isMallOwner = CONFIG.MALL_NAME && (rawDisplayName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawDisplayName));
+      const updatedDisplayName = isMallOwner ? rawDisplayName : this.maskName(rawDisplayName);
 
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
