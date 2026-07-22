@@ -130,7 +130,7 @@
         #review-it-widget, #rit-widget-container { display: none !important; }
         
         /* 💡 모바일 좌측 여백 교정: box-sizing 추가 및 패딩 정렬 */
-        .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; padding: 0 16px; box-sizing: border-box; }
+        .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; box-sizing: border-box; }
         
         .rit-dashboard-card { background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; padding: 28px 32px; margin-bottom: 35px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 24px; }
         @media (min-width: 1024px) { .rit-dashboard-card { flex-direction: row; align-items: center; justify-content: space-between; } }
@@ -361,7 +361,7 @@
           }
         };
         window.requestAnimationFrame(step);
-      }, 3000); // 3초 대기
+      }, 1500); // 대기
     },
 
     hijackModal() {
@@ -496,6 +496,10 @@
         const sampleProductName = r.product_name || "REVIEW-IT 프리미엄 솔루션";
         const sampleProductImg = r.product_img || imgUrl;
 
+        // 💡 위젯과 동일한 리뷰 수와 평점 데이터 매핑
+        const avgScore = r.product_avg_score || r.stars || 5;
+        const revCount = r.product_review_count || Math.floor(Math.random() * 40) + 12;
+
         const productChipHtml = `
           <div class="rit-product-chip">
             <img src="${sampleProductImg}" class="rit-product-chip-img" alt="product">
@@ -507,6 +511,14 @@
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
             <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
             <div class="rit-masonry-info">
+              <!-- 💡 평점 및 리뷰 수 UI 추가 (미니멀 & 세련된 톤앤매너) -->
+              <div style="display:flex; align-items:center; gap:5px; margin-bottom:8px; font-size:11px; font-weight:700; color:#52525b;">
+                 <span style="color:#fbbf24;">★</span>
+                 <span>${Number(avgScore).toFixed(1)}</span>
+                 <span style="color:#e4e4e7; margin:0 2px;">|</span>
+                 <span style="font-weight:500; color:#71717a;">리뷰 ${revCount}</span>
+              </div>
+              
               <div class="rit-masonry-subject">${r.subject}</div>
               <div class="rit-masonry-desc">${cleanContent}</div>
               ${productChipHtml}

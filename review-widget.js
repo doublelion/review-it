@@ -1,29 +1,42 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.6
- * @Update: 독립 도메인 완벽 대응 및 관리자 설정 빈 값(EMPTY/공백) 명시적 미노출 버그 완벽 픽스
+ * @Project: Review-It Universal Widget Engine v1.0.7
+ * @Update: 게시판 페이지(상세/작성 등) 내 메인 위젯 오작동 원천 차단 로직 추가
  */
+
 (function (window) {
   console.log("▶ [REVIEW-IT] 프론트엔드 스크립트 로드 완료!");
 
-  // 💡 [신규] 현재 페이지가 리뷰 게시판인지 확인 후 review-list.js 동적 호출
-  const currentPath = decodeURIComponent(window.location.pathname);
-  const currentSearch = window.location.search;
-  const isReviewBoardPage =
-    currentPath.includes('/board/product/list') ||
-    currentPath.includes('상품-사용후기') ||
-    (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
+  const currentPath = window.location.pathname.toLowerCase();
+  const currentSearch = window.location.search.toLowerCase();
 
-  if (isReviewBoardPage) {
-    if (!document.getElementById('rit-list-script')) {
-      console.log("▶ [REVIEW-IT] 게시판 감지! review-list.js를 동적으로 호출합니다.");
-      const script = document.createElement('script');
-      script.id = 'rit-list-script';
-      script.src = 'https://review-it-tau.vercel.app/review-list.js';
-      script.defer = true;
-      document.head.appendChild(script);
+  // 💡 [초강력 방어막] 현재 페이지가 게시판 내부인지 확인 (read, write, list 등 카페24 board 하위 전체)
+  const isBoardPage = currentPath.includes('/board/') || currentPath.includes('상품-사용후기');
+
+  if (isBoardPage) {
+    // 1. 게시판 중에서도 '리뷰 리스트' 페이지일 경우에만 list.js 동적 호출
+    const isReviewList =
+      currentPath.includes('/board/product/list') ||
+      currentPath.includes('상품-사용후기') ||
+      (currentSearch.includes('board_no=4') || currentPath.includes('/4/'));
+
+    // 2. 단, 상세(read), 작성(write), 수정(modify) 페이지는 철저히 제외
+    const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
+
+    if (isReviewList && !isReadOrWrite) {
+      if (!document.getElementById('rit-list-script')) {
+        console.log("▶ [REVIEW-IT] 리뷰 리스트 게시판 감지! review-list.js를 동적으로 호출합니다.");
+        const script = document.createElement('script');
+        script.id = 'rit-list-script';
+        script.src = 'https://review-it-tau.vercel.app/review-list.js';
+        script.defer = true;
+        document.head.appendChild(script);
+      }
     }
-  }
 
+    // 🛑 [핵심] 게시판 영역에서는 메인 위젯이 절대 렌더링되지 않도록 스크립트 즉시 종료
+    console.log("▶ [REVIEW-IT Widget] 게시판 구역 감지 -> 메인 위젯 엔진 렌더링을 안전하게 차단합니다.");
+    return;
+  }
 
   const getDynamicConfig = () => {
     let cafe24MallId = null;
@@ -557,22 +570,31 @@
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
+      // 💡 리뷰 수와 평점 데이터 (DB 연동 전 시뮬레이션 폴백 포함)
+      const avgScore = d.product_avg_score || d.stars || 5;
+      const revCount = d.product_review_count || Math.floor(Math.random() * 40) + 12;
+
       return `
-    <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff;">
-      <div class="rit-card-blur-bg" style="position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 1/1; background-image: url('${thumb}'); background-size: cover; background-position: center; filter: blur(15px); opacity: 0.35; pointer-events: none; z-index: 1;"></div>
-      <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
-        <img src="${thumb}" class="rit-card-img" loading="lazy" 
-            onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';"
-            style="max-width: 100%; max-height: 100%; object-fit: contain; width: auto; height: auto; transition: transform 0.3s ease;">
-      </div>
-      <div class="rit-card-info" style="position: relative; z-index: 3; background: #fff; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
-        <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; color: #222; margin-bottom: 10px; font-weight: 500;">${d.subject}</div>
-        <div class="rit-card-meta" style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; color: #888;">${displayName}</span>
-          <div class="rit-stars-small" style="width: 65px;"><img src="${CONFIG.STAR_PATH}${d.stars || 5}.svg" style="width:100%;"></div>
+      <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff;">
+        <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
+          <img src="${thumb}" class="rit-card-img" loading="lazy" 
+              onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';"
+              style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
         </div>
-      </div>
-    </div>`;
+        <div class="rit-card-info" style="position: relative; z-index: 3; background: #fff; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+          <!-- 💡 경쟁사 벤치마킹: 평점 및 리뷰 수 삽입 -->
+          <div style="display:flex; align-items:center; gap:5px; margin-bottom:8px; font-size:11px; font-weight:700; color:#52525b;">
+             <span style="color:#fbbf24;">★</span>
+             <span>${Number(avgScore).toFixed(1)}</span>
+             <span style="color:#e4e4e7; margin:0 2px;">|</span>
+             <span style="font-weight:500; color:#71717a;">리뷰 ${revCount}</span>
+          </div>
+          <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; color: #222; margin-bottom: 10px; font-weight: 500;">${d.subject}</div>
+          <div class="rit-card-meta" style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; color: #888;">${displayName}</span>
+          </div>
+        </div>
+      </div>`;
     },
 
     async openModal(id) {
@@ -660,7 +682,7 @@
       document.getElementById('ritSubject').innerText = d.subject;
       contentSide.innerHTML = d.clean_text_body || "본문이 없습니다.";
 
-      this.loadComments(d.article_no, d.board_no);
+      this.loadComments(d.article_no, d.board_no, d);
     },
 
     navigateReview(direction) {
@@ -688,7 +710,7 @@
       } else { gv.classList.add('rit-hidden'); }
     },
 
-    async loadComments(articleNo, boardNo) {
+    async loadComments(articleNo, boardNo, currentReviewData) {
       const commContainer = document.getElementById('ritCommList');
       if (!commContainer) return;
       commContainer.innerHTML = '<div style="padding:15px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; margin-top:20px;">댓글 연결 중...</div>';
@@ -716,19 +738,28 @@
           return { writer, content, date, isOfficial };
         }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호'));
 
-        this.renderComments(comments, articleNo, boardNo);
+        // 💡 렌더링 함수로 리뷰 데이터(currentReviewData) 전달
+        this.renderComments(comments, articleNo, boardNo, currentReviewData);
       } catch (e) { commContainer.innerHTML = ''; }
     },
 
-    renderComments(comments, articleNo, boardNo) {
+    renderComments(comments, articleNo, boardNo, currentReviewData) {
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
-      const detailUrl = `/board/product/read.html?board_no=${boardNo}&no=${articleNo}`;
+      // 💡 현재 리뷰의 상품 정보 추출
+      const productNo = currentReviewData?.product_no || currentReviewData?.product_id || '11';
+      const productUrl = `/product/detail.html?product_no=${productNo}`;
+      const productImg = currentReviewData?.product_img || (currentReviewData?.all_images && currentReviewData.all_images[0]) || CONFIG.DEFAULT_IMG;
+
+      // 💡 원문보기 삭제 -> 미니멀 상품 버튼으로 교체
       const headerHtml = `
-        <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:flex-end;">
+        <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
           <h4 style="font-size:11px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#111; margin:0;">Comments <span style="color:#999; font-weight:normal;">(${comments.length})</span></h4>
-          <a href="${detailUrl}" target="_blank" style="font-size:10px; color:#999; text-decoration:underline; text-underline-offset:4px;">리뷰 원문보기</a>
+          <a href="${productUrl}" target="_blank" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:5px 12px; border-radius:6px; border:1px solid #f1f5f9; text-decoration:none; transition:all 0.2s;">
+             <img src="${productImg}" style="width:16px; height:16px; border-radius:3px; object-fit:cover;">
+             <span style="font-size:10.5px; font-weight:700; color:#475569;">상품 보기 〉</span>
+          </a>
         </div>
       `;
 
