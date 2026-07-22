@@ -1,23 +1,26 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.8
- * @Update: 리스트 엔진 종속성(ReviewApp) 유지를 위한 return 차단 해제 및 고정 폴백 리뷰 수 적용
+ * @Project: Review-It Universal Widget Engine v1.0.9
+ * @Update: 
+ *  1. 강제 자동 생성(autoCreateContainer) 완벽 삭제 -> 수동 태그 삽입 시에만 위젯 노출
+ *  2. 게시판(상세/작성 등) 내 위젯 노출 절대 차단 (하드코딩 태그 존재 시에도 파괴)
  */
+
 (function (window) {
   console.log("▶ [REVIEW-IT] 프론트엔드 스크립트 로드 완료!");
 
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
 
+  // 💡 [초강력 방어막] 현재 페이지가 게시판 내부인지 확인 (read, write, list 등 카페24 board 하위 전체)
   const isBoardPage = currentPath.includes('/board/') || currentPath.includes('상품-사용후기');
+  const isReviewList =
+    currentPath.includes('/board/product/list') ||
+    currentPath.includes('상품-사용후기') ||
+    (currentSearch.includes('board_no=4') || currentPath.includes('/4/'));
+  const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
 
   if (isBoardPage) {
-    const isReviewList =
-      currentPath.includes('/board/product/list') ||
-      currentPath.includes('상품-사용후기') ||
-      (currentSearch.includes('board_no=4') || currentPath.includes('/4/'));
-
-    const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
-
+    // 1. 게시판 중에서도 '리뷰 리스트' 페이지일 경우에만 list.js 동적 호출
     if (isReviewList && !isReadOrWrite) {
       if (!document.getElementById('rit-list-script')) {
         console.log("▶ [REVIEW-IT] 리뷰 리스트 게시판 감지! review-list.js를 동적으로 호출합니다.");
@@ -28,9 +31,6 @@
         document.head.appendChild(script);
       }
     }
-
-    // 🚨 [핵심 픽스] 기존에 있던 return; 삭제. 
-    // 리스트 엔진이 ReviewApp 객체를 참조해야 하므로 스크립트를 죽이지 않고 UI 렌더링만 차단하도록 통과시킵니다.
     console.log("▶ [REVIEW-IT Widget] 게시판 구역 감지 -> 위젯 UI 렌더링만 안전하게 차단합니다. (엔진 유지)");
   }
 
@@ -123,68 +123,36 @@
       `;
     },
 
-    autoCreateContainer() {
-      // 🛑 게시판 페이지(상세 read.html 포함)라면 어떠한 경우에도 컨테이너 뼈대를 생성하지 않음!
-      if (isBoardPage) return;
-
-      let container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
-      if (container) return;
-
-      const pathname = decodeURIComponent(window.location.pathname);
-      const isMainPage = pathname === '/' || pathname === '/index.html';
-      const isProductPage = !!CONFIG.PRODUCT_NO;
-
-      if (!isMainPage && !isProductPage) return;
-
-      container = document.createElement('div');
-      container.id = 'review-it-widget';
-      container.style.marginTop = '80px';
-      container.style.marginBottom = '80px';
-
-      if (isProductPage) {
-        const detailArea = document.querySelector('.xans-product-additional') || document.querySelector('#prdDetail') || document.querySelector('#detailArea');
-        if (detailArea) detailArea.appendChild(container);
-      } else if (isMainPage) {
-        const mainContent = document.querySelector('#contents') || document.querySelector('.xans-product-listmain') || document.querySelector('#wrap');
-        const footer = document.querySelector('#footer');
-
-        if (mainContent) mainContent.appendChild(container);
-        else if (footer) document.body.insertBefore(container, footer);
-        else document.body.appendChild(container);
-      }
-
-      if (document.getElementById('review-it-widget')) this.renderSkeleton(container);
-    },
+    // 🚨 뼈대를 강제로 만드는 autoCreateContainer 함수 완전 삭제
 
     async init() {
-      // 🚨 [초강력 철벽 방어] 몰 운영자가 카페24 공통 레이아웃(footer 등)에 위젯 뼈대를 하드코딩해둔 경우 원천 차단
+      // 1. 강제 렌더링 방지: 게시판 페이지면 무조건 위젯 렌더링 중지 및 숨김
       if (isBoardPage) {
         const hardcodedContainer = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
         if (hardcodedContainer) {
-          hardcodedContainer.style.setProperty('display', 'none', 'important'); // 화면에서 강제 삭제
-          hardcodedContainer.innerHTML = ''; // 혹시 모를 내부 렌더링 잔재 제거
+          hardcodedContainer.style.setProperty('display', 'none', 'important');
+          hardcodedContainer.innerHTML = '';
         }
-        console.log("▶ [REVIEW-IT Widget] 게시판 내 공통 레이아웃 위젯 뼈대 강제 숨김 및 렌더링 완벽 차단");
-        return; // ⭐️ 여기서 실행을 종료하여 API 호출 및 추가 렌더링을 100% 막습니다. (모달 기능 등 엔진은 살아있음)
-      }
-
-      // 게시판이 아닐 때만 컨테이너 생성 시도
-      this.autoCreateContainer();
-
-      const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
-
-      // 🛑 컨테이너가 없으면 위젯 렌더링 관련 로직(API 호출 등)을 안전하게 즉시 중단
-      if (!container) {
-        console.log("▶ [REVIEW-IT] 위젯 노출 대상 페이지가 아니므로 위젯 생성을 안전하게 스킵합니다.");
+        console.log("▶ [REVIEW-IT Widget] 게시판 구역이므로 메인 위젯을 강제 차단합니다.");
         return;
       }
 
+      // 2. 수동 설치 확인: 코드를 직접 넣지 않으면 절대 렌더링하지 않음!
+      const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
+      if (!container) {
+        console.log("▶ [REVIEW-IT Widget] 설치된 위젯 뼈대(<div id='review-it-widget'>)가 없으므로 실행을 스킵합니다.");
+        return;
+      }
+
+      // 3. 렌더링 로직 시작
       this.injectCSS();
+      this.renderSkeleton(container); // 스켈레톤 먼저 표시
+
       await this.loadWidgetSettings();
       const hasReviews = await this.loadReviews();
 
       if (!hasReviews) {
-        if (container) container.style.display = 'none';
+        container.style.display = 'none';
         return;
       }
       this.renderWidget();
@@ -204,7 +172,6 @@
                 this.settings[key] = s[key];
               } else {
                 let dbValue = String(s[key]).trim();
-                // 💡 [트윅 1] DB 값이 대문자 'EMPTY'이거나 실제 공백/빈 문자열이면 명시적 빈 값("")으로 세팅
                 if (dbValue === "" || dbValue === "EMPTY") {
                   this.settings[key] = "";
                 } else {
@@ -440,7 +407,6 @@
       }
     </style>
 
-    <!-- 💡 [트윅 2] 과도한 연산자(||) 제거하여 DB에서 세팅한 명시적 빈 문자열을 온전히 렌더링하도록 처리 -->
     ${this.settings.is_header_enabled !== false
           ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
               ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">${this.settings.tagline}</div>` : ''}
@@ -470,19 +436,14 @@
             slidesPerView: isPc ? pcCols : moCols,
             spaceBetween: isPc ? 20 : 12,
             loop: true,
-            // 슬라이드 개수가 적을 때 루프가 멈추는 버그 방지 (선택 사항이나 권장)
             loopedSlides: isPc ? pcCols * 2 : moCols * 2,
-            speed: 4000, // 롤링 속도 (5000은 터치 후 복귀 시 다소 답답할 수 있어 4000 권장)
-
-            // freeMode는 delay:0 방식과 충돌을 일으키므로 false로 두는 것이 훨씬 자연스럽습니다.
+            speed: 4000,
             freeMode: false,
-
             autoplay: {
               delay: 0,
-              disableOnInteraction: false, // 드래그 후에도 계속 자동 재생
-              pauseOnMouseEnter: true // PC 환경에서 마우스 오버 시 멈춤 (사용성 증가)
+              disableOnInteraction: false,
+              pauseOnMouseEnter: true
             },
-
             allowTouchMove: true,
             grabCursor: true,
             observer: true,
@@ -503,13 +464,10 @@
           }
         });
 
-        // 백그라운드(다른 탭) 이동 후 돌아왔을 때 스와이퍼가 멈춰있는 버그 해결
         document.addEventListener("visibilitychange", () => {
           if (document.hidden) {
-            // 탭을 벗어나면 애니메이션 일시 정지 (리소스 절약 및 꼬임 방지)
             if (ritSwiper && ritSwiper.autoplay) ritSwiper.autoplay.stop();
           } else {
-            // 탭으로 돌아오면 재시작
             if (ritSwiper && ritSwiper.autoplay) ritSwiper.autoplay.start();
           }
         });
@@ -569,11 +527,9 @@
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
-      // 💡 [완전 삭제 및 실제 데이터 연동] 가짜 폴백 로직(stableRandomCount) 전면 제거
       const avgScore = d.product_avg_score || d.stars || 5;
-      const revCount = d.product_review_count; // 오직 DB의 실제 데이터만 받음
+      const revCount = d.product_review_count;
 
-      // 💡 실제 데이터가 없으면(|) 기호와 숫자 자체를 렌더링하지 않음
       const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
       return `
@@ -626,8 +582,6 @@
         d.is_parsed = true;
       }
 
-      // ... (renderDetail 상단 로직 유지) ...
-
       if (d.all_images && d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
         imgSide.innerHTML = `
       <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
@@ -646,19 +600,15 @@
       </div>`;
 
         if (window.Swiper) {
-          // 🛑 [긴급 픽스] 기존에 열려있던 좀비 스와이퍼 인스턴스 파괴 (충돌 방지)
           if (window.ritActiveModalSwiper) {
             window.ritActiveModalSwiper.destroy(true, true);
           }
-
-          // DOM이 완전히 그려질 틈을 주기 위한 미세 딜레이
           setTimeout(() => {
             window.ritActiveModalSwiper = new Swiper('.rit-modal-swiper', {
               pagination: { el: '.rit-fraction', type: 'fraction' },
               navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
               centeredSlides: true,
               loop: d.all_images.length > 1,
-              // 🛑 [긴급 픽스] 모달 창 내부에서 Swiper를 쓸 때 필수인 동적 감지 옵션
               observer: true,
               observeParents: true,
               resizeObserver: true
@@ -738,7 +688,6 @@
           return { writer, content, date, isOfficial };
         }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호'));
 
-        // 💡 렌더링 함수로 리뷰 데이터(currentReviewData) 전달
         this.renderComments(comments, articleNo, boardNo, currentReviewData);
       } catch (e) { commContainer.innerHTML = ''; }
     },
@@ -747,16 +696,15 @@
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
-      // 🚨 [긴급 픽스] 임의의 11번 매핑 완전 제거. 실제 상품 번호가 있을 때만 버튼 렌더링
       const productNo = currentReviewData?.product_no || currentReviewData?.product_id;
       let shoppableBtnHtml = '';
 
-      if (productNo && productNo !== '11') { // (기존 11번 캐싱 데이터 방어)
+      if (productNo && productNo !== '11') {
         const productUrl = `/product/detail.html?product_no=${productNo}`;
         const productImg = currentReviewData?.product_img || (currentReviewData?.all_images && currentReviewData.all_images[0]) || CONFIG.DEFAULT_IMG;
 
         shoppableBtnHtml = `
-          <a href="${productUrl}" target="_self" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:5px 12px; border-radius:6px; border:1px solid #f1f5f9; text-decoration:none; transition:all 0.2s;">
+          <a href="${productUrl}" target="_blank" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:5px 12px; border-radius:6px; border:1px solid #f1f5f9; text-decoration:none; transition:all 0.2s;">
              <img src="${productImg}" style="width:16px; height:16px; border-radius:3px; object-fit:cover;">
              <span style="font-size:10.5px; font-weight:700; color:#475569;">상품 보기 〉</span>
           </a>
