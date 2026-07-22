@@ -161,11 +161,19 @@
         .rit-dash-satisfaction { font-size: 12px; color: #71717a; font-weight: 600; }
         .rit-dash-gauge-box { flex: 1; max-width: 420px; display: flex; flex-direction: column; gap: 6px; }
         @media (min-width: 1024px) { .rit-dash-gauge-box { border-left: 1px solid #f3f3f3; padding-left: 32px; } }
-        .rit-gauge-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #888; }
-        .rit-gauge-label { width: 28px; font-weight: 600; color: #555; }
-        .rit-gauge-bg { flex: 1; height: 6px; background: #f2f2f2; border-radius: 3px; overflow: hidden; }
-        .rit-gauge-fill { height: 100%; background: #18181b; border-radius: 3px; transition: width 0.6s ease; }
-        .rit-gauge-percent { width: 32px; text-align: right; font-weight: 500; color: #71717a; }
+
+        /* 기존 CSS 교체: 게이지 바 디자인 개선 */
+        .rit-gauge-row { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #888; margin-bottom: 2px; }
+        .rit-gauge-label { width: 28px; font-weight: 600; color: #52525b; }
+        .rit-gauge-bg { flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+        .rit-gauge-fill { 
+          height: 100%; 
+          /* 💡 포인트: 칙칙한 검정색을 버리고, 별점과 어울리는 프리미엄 골드 그라데이션 적용 */
+          background: linear-gradient(90deg, #fde047 0%, #f59e0b 100%); 
+          border-radius: 4px; 
+          transition: width 1s cubic-bezier(0.25, 1, 0.5, 1); 
+        }
+        .rit-gauge-percent { width: 32px; text-align: right; font-weight: 600; color: #71717a; }
 
         .rit-product-chip { display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; }
         .rit-product-chip:hover { background: #f1f5f9; }
@@ -299,36 +307,37 @@
       const getPercent = (count) => Math.round((count / totalCount) * 100);
 
       dashArea.innerHTML = `
-    <div class="rit-dashboard-card">
-      <div class="rit-dash-left">
-        <div class="rit-dash-score-box">
-          <div class="rit-dash-big-score" id="rit-score-anim">0.0</div> 
-          <div class="rit-dash-score-info">
-            <div class="rit-dash-stars">
-              <img src="${CONFIG.starPath}5.svg" class="rit-universal-star" alt="star rating">
+        <div class="rit-dashboard-card">
+          <div class="rit-dash-left">
+            <div class="rit-dash-score-box">
+              <div class="rit-dash-big-score" id="rit-score-anim">0.0</div> 
+              <div class="rit-dash-score-info">
+                <div class="rit-dash-stars">
+                  <img src="${CONFIG.starPath}5.svg" class="rit-universal-star" alt="star rating">
+                </div>
+                <div class="rit-dash-count-text">총 <strong>${totalCount.toLocaleString()}개</strong>의 생생한 후기</div>
+                <!-- 💡 포인트: 만족도 퍼센트에 옐로우/골드 포인트 컬러 적용 -->
+                <div class="rit-dash-satisfaction">구매 고객의 <span style="color:#f59e0b; font-weight:800; font-size:13px;">${satisfiedRatio}%</span>가 만족했습니다</div>
+              </div>
             </div>
-            <div class="rit-dash-count-text">총 <strong>${totalCount.toLocaleString()}개</strong>의 생생한 후기</div>
-            <div class="rit-dash-satisfaction">구매 고객의 ${satisfiedRatio}%가 만족했습니다</div>
+          </div>
+
+          <div class="rit-dash-gauge-box">
+            ${[5, 4, 3, 2, 1].map(star => {
+            const pct = getPercent(starCounts[star]);
+            return `
+                <div class="rit-gauge-row">
+                  <span class="rit-gauge-label">${star}점</span>
+                  <div class="rit-gauge-bg">
+                    <div class="rit-gauge-fill" data-target="${pct}%" style="width: 0%;"></div>
+                  </div>
+                  <span class="rit-gauge-percent">${pct}%</span>
+                </div>
+              `;
+          }).join('')}
           </div>
         </div>
-      </div>
-
-      <div class="rit-dash-gauge-box">
-        ${[5, 4, 3, 2, 1].map(star => {
-        const pct = getPercent(starCounts[star]);
-        return `
-            <div class="rit-gauge-row">
-              <span class="rit-gauge-label">${star}점</span>
-              <div class="rit-gauge-bg">
-                <div class="rit-gauge-fill" data-target="${pct}%" style="width: 0%;"></div>
-              </div>
-              <span class="rit-gauge-percent">${pct}%</span>
-            </div>
-          `;
-      }).join('')}
-      </div>
-    </div>
-  `;
+      `;
 
       this.animateDashboard(parseFloat(avgScore));
     },
