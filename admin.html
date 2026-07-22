@@ -142,6 +142,24 @@
           </div>
           <p class="text-[10px] text-gray-400 mt-1">* 모바일은 최대 3개까지 권장합니다.</p>
         </div>
+        <!-- 위젯 노출 타입 설정 옆에 아래 코드를 추가하세요 -->
+        <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
+          <span class="rit-label mb-2">리스트 디자인 설정</span>
+          <div class="rit-switch-group w-full flex justify-between">
+            <label class="flex-1 text-center cursor-pointer">
+              <input type="radio" name="list_design" value="review_it" class="hidden peer" checked>
+              <div
+                class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
+                Review-It 뷰</div>
+            </label>
+            <label class="flex-1 text-center cursor-pointer">
+              <input type="radio" name="list_design" value="cafe24" class="hidden peer">
+              <div
+                class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
+                Cafe24 기본뷰</div>
+            </label>
+          </div>
+        </div>
 
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">최대 노출 개수 (최대 15개)</span>
@@ -314,11 +332,18 @@
           const isHeaderEnabled = s.is_header_enabled !== undefined ? s.is_header_enabled : true;
           document.getElementById('toggle-header').checked = isHeaderEnabled;
 
+          // 기존 설정 로드 로직 하단에 추가
           if (s.grid_rows_desktop) document.getElementById('select-grid-pc').value = s.grid_rows_desktop;
           if (s.grid_rows_mobile) document.getElementById('select-grid-mo').value = s.grid_rows_mobile;
           if (s.display_limit) document.getElementById('input-limit').value = s.display_limit;
 
           currentWidgetType = s.display_type || 'grid';
+
+          // 👇 [추가된 부분] 리스트 디자인 설정 라디오 버튼 체크 
+          const designType = s.list_design_type || 'review_it';
+          const radioBtn = document.querySelector(`input[name="list_design"][value="${designType}"]`);
+          if (radioBtn) radioBtn.checked = true;
+
         } else {
           document.getElementById('input-tagline').value = 'Verified Authenticity';
           document.getElementById('input-title').value = 'People Choice';
@@ -339,6 +364,7 @@
         const typeToSave = targetType || currentWidgetType;
         const isHeaderEnabled = document.getElementById('toggle-header').checked;
 
+        // 👇 [수정된 부분] payload 객체에 list_design_type 추가
         const payload = {
           mall_id: MALL_ID,
           display_type: typeToSave,
@@ -348,7 +374,8 @@
           tagline: document.getElementById('input-tagline').value,
           grid_rows_desktop: parseInt(document.getElementById('select-grid-pc').value),
           grid_rows_mobile: parseInt(document.getElementById('select-grid-mo').value),
-          display_limit: parseInt(document.getElementById('input-limit').value)
+          display_limit: parseInt(document.getElementById('input-limit').value),
+          list_design_type: document.querySelector('input[name="list_design"]:checked').value // 새로 추가된 라디오 값
         };
 
         const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {

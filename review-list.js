@@ -41,10 +41,10 @@
   const env = getDynamicConfig();
 
   // 🔒 [테스트 안전장치] 정식 릴리즈 전까지 ykinas 몰 전용 유지 (타 몰 오픈 방지)
-  if (env.mallId !== 'ykinas') {
-    console.log("▶ [REVIEW-IT List] 아직 오픈되지 않은 페이지입니다. (ykinas 전용 테스트 락 작동 중)");
-    return;
-  }
+  // if (env.mallId !== 'ykinas') {
+  //   console.log("▶ [REVIEW-IT List] 아직 오픈되지 않은 페이지입니다. (ykinas 전용 테스트 락 작동 중)");
+  //   return;
+  // }
 
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
@@ -98,8 +98,27 @@
     renderedIds: new Set(),
     allFetchedReviews: [],
 
-    init() {
+    // 👇 init()을 async로 변경하고 수파베이스 옵션 체크 로직을 최상단에 추가합니다.
+    async init() {
       console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.7");
+
+      // 💡 [신규 추가] DB에서 현재 쇼핑몰의 디자인 설정값을 가져옵니다.
+      try {
+        const res = await fetch(`${CONFIG.sbUrl}/widget_settings?mall_id=eq.${CONFIG.mallId}&select=list_design_type`, {
+          headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` }
+        });
+        const data = await res.json();
+
+        // 운영자가 'Cafe24 기본뷰'로 설정한 경우, 기존 요소들을 숨기지 않고 우리 엔진 로직을 종료합니다.
+        if (data && data.length > 0 && data[0].list_design_type === 'cafe24') {
+          console.log("▶ [REVIEW-IT] Cafe24 기본 디자인 사용 모드 - 리스트 덮어쓰기를 취소합니다.");
+          return;
+        }
+      } catch (e) {
+        console.warn("설정값 로드 실패. 기본 REVIEW-IT 뷰로 렌더링합니다.");
+      }
+
+      // 위 관문을 무사히 통과했다면 정상적으로 충돌 요소를 숨기고 위젯을 그립니다.
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
@@ -324,8 +343,8 @@
 
           <div class="rit-dash-gauge-box">
             ${[5, 4, 3, 2, 1].map(star => {
-            const pct = getPercent(starCounts[star]);
-            return `
+        const pct = getPercent(starCounts[star]);
+        return `
                 <div class="rit-gauge-row">
                   <span class="rit-gauge-label">${star}점</span>
                   <div class="rit-gauge-bg">
@@ -334,7 +353,7 @@
                   <span class="rit-gauge-percent">${pct}%</span>
                 </div>
               `;
-          }).join('')}
+      }).join('')}
           </div>
         </div>
       `;
