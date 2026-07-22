@@ -184,6 +184,44 @@
         
         #ritGridView { z-index: 100005 !important; background: #fff !important; }
         #ritGridView:not(.rit-hidden) { display: block !important; }
+        
+        /* =========================================
+          REVIEW-IT 스켈레톤 UI & 애니메이션
+        ========================================= */
+        /* 쉬머(Shimmer) 애니메이션 */
+        @keyframes rit-shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+
+        .rit-skeleton-box {
+          background-color: #f2f5f7;
+          border-radius: 6px;
+          position: relative;
+          overflow: hidden;
+        }
+        .rit-skeleton-box::after {
+          content: "";
+          position: absolute;
+          top: 0; right: 0; bottom: 0; left: 0;
+          background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%);
+          animation: rit-shimmer 1.5s infinite;
+        }
+
+        /* 스켈레톤 대시보드 전용 */
+        .rit-dash-skeleton { display: flex; flex-direction: column; gap: 24px; padding: 28px 32px; background: #fff; border: 1px solid #f0f0f0; border-radius: 16px; margin-bottom: 35px; }
+        @media (min-width: 1024px) { .rit-dash-skeleton { flex-direction: row; justify-content: space-between; } }
+        .rit-dash-skeleton-left { flex: 1; display: flex; align-items: center; gap: 18px; }
+        .rit-dash-skeleton-right { flex: 1; display: flex; flex-direction: column; gap: 10px; max-width: 420px; }
+
+        /* 게이지 바 차오르는 애니메이션 */
+        .rit-gauge-fill {
+          height: 100%;
+          background: #18181b;
+          border-radius: 3px;
+          width: 0%; /* 💡 초기값을 0으로 설정하여 JS로 채움 */
+          transition: width 1s cubic-bezier(0.25, 1, 0.5, 1); /* 부드럽고 텐션 있는 타이밍 함수 */
+        }
       `;
       document.head.appendChild(style);
     },
@@ -194,10 +232,29 @@
       const wrapper = document.querySelector('#contents') || document.body;
       const container = document.createElement('div');
       container.className = 'rit-list-container';
+
+      // 💡 데이터 로드 전 보여줄 스켈레톤 UI
       container.innerHTML = `
-        <div id="rit-dashboard-area"></div>
-        <div class="rit-masonry-grid" id="rit-masonry-grid"></div>
-        <div id="rit-scroll-anchor" style="text-align:center; padding:30px; color:#a1a1aa; font-size:13px; font-weight:500;">리뷰를 불러오는 중입니다...</div>
+        <div id="rit-dashboard-area">
+          <div class="rit-dash-skeleton">
+            <div class="rit-dash-skeleton-left">
+              <div class="rit-skeleton-box" style="width: 60px; height: 60px; border-radius: 12px;"></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="rit-skeleton-box" style="width: 100px; height: 16px;"></div>
+                <div class="rit-skeleton-box" style="width: 140px; height: 12px;"></div>
+              </div>
+            </div>
+            <div class="rit-dash-skeleton-right">
+              ${[1, 2, 3, 4, 5].map(() => `<div class="rit-skeleton-box" style="width: 100%; height: 12px;"></div>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="rit-masonry-grid" id="rit-masonry-grid">
+          ${[1, 2, 3, 4, 5, 6].map(() => `
+            <div class="rit-masonry-item rit-skeleton-box" style="height: 300px;"></div>
+          `).join('')}
+        </div>
+        <div id="rit-scroll-anchor" style="padding:30px; text-align:center;"></div>
       `;
       wrapper.appendChild(container);
     },
@@ -221,39 +278,77 @@
       const satisfiedRatio = Math.round(((starCounts[5] + starCounts[4]) / totalCount) * 100);
       const getPercent = (count) => Math.round((count / totalCount) * 100);
 
+      // 💡 초기 게이지는 0%로 세팅 (data-target 속성에 목표치 저장)
       dashArea.innerHTML = `
-        <div class="rit-dashboard-card">
-          <div class="rit-dash-left">
-            <div class="rit-dash-score-box">
-              <div class="rit-dash-big-score">${avgScore}</div>
-              <div class="rit-dash-score-info">
-                <div class="rit-dash-stars">
-                  <img src="${CONFIG.starPath}5.svg" class="rit-universal-star" alt="star rating">
-                </div>
-                <div class="rit-dash-count-text">총 <strong>${totalCount.toLocaleString()}개</strong>의 생생한 후기</div>
-                <div class="rit-dash-satisfaction">구매 고객의 ${satisfiedRatio}%가 만족했습니다</div>
-              </div>
+    <div class="rit-dashboard-card">
+      <div class="rit-dash-left">
+        <div class="rit-dash-score-box">
+          <div class="rit-dash-big-score" id="rit-score-anim">0.0</div> <!-- 💡 0.0부터 시작 -->
+          <div class="rit-dash-score-info">
+            <div class="rit-dash-stars">
+              <img src="${CONFIG.starPath}5.svg" class="rit-universal-star" alt="star rating">
             </div>
-          </div>
-
-          <div class="rit-dash-gauge-box">
-            ${[5, 4, 3, 2, 1].map(star => {
-        const pct = getPercent(starCounts[star]);
-        return `
-                <div class="rit-gauge-row">
-                  <span class="rit-gauge-label">${star}점</span>
-                  <div class="rit-gauge-bg">
-                    <div class="rit-gauge-fill" style="width: ${pct}%;"></div>
-                  </div>
-                  <span class="rit-gauge-percent">${pct}%</span>
-                </div>
-              `;
-      }).join('')}
+            <div class="rit-dash-count-text">총 <strong>${totalCount.toLocaleString()}개</strong>의 생생한 후기</div>
+            <div class="rit-dash-satisfaction">구매 고객의 ${satisfiedRatio}%가 만족했습니다</div>
           </div>
         </div>
-      `;
+      </div>
+
+      <div class="rit-dash-gauge-box">
+        ${[5, 4, 3, 2, 1].map(star => {
+        const pct = getPercent(starCounts[star]);
+        return `
+            <div class="rit-gauge-row">
+              <span class="rit-gauge-label">${star}점</span>
+              <div class="rit-gauge-bg">
+                <div class="rit-gauge-fill" data-target="${pct}%" style="width: 0%;"></div>
+              </div>
+              <span class="rit-gauge-percent">${pct}%</span>
+            </div>
+          `;
+      }).join('')}
+      </div>
+    </div>
+  `;
+
+      // 렌더링 직후 애니메이션 트리거
+      this.animateDashboard(parseFloat(avgScore));
     },
 
+    // 💡 새롭게 추가되는 애니메이션 메서드
+    animateDashboard(targetScore) {
+      // 1. 게이지 바 애니메이션
+      setTimeout(() => {
+        document.querySelectorAll('.rit-gauge-fill').forEach(bar => {
+          bar.style.width = bar.getAttribute('data-target');
+        });
+      }, 100);
+
+      // 2. 평점 숫자 카운트업 애니메이션
+      const scoreEl = document.getElementById('rit-score-anim');
+      if (!scoreEl) return;
+
+      let startTimestamp = null;
+      const duration = 1200; // 1.2초 동안 진행
+
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+
+        // easeOutQuad 타이밍 (끝날 때쯤 느려짐)
+        const easeOutProgress = 1 - (1 - progress) * (1 - progress);
+
+        const currentScore = (easeOutProgress * targetScore).toFixed(1);
+        scoreEl.innerHTML = currentScore;
+
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        } else {
+          scoreEl.innerHTML = targetScore.toFixed(1);
+        }
+      };
+      window.requestAnimationFrame(step);
+    },
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
