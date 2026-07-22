@@ -1,11 +1,10 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.2
+ * @Project: Review-It Universal Board List Engine v1.0.5
  * @Role: Cafe24 Review SaaS Lead Developer
  * @Update: 
- *  1. 기존 카페24 게시판(텍스트 리스트) 완벽 숨김 처리
- *  2. 데스크탑 그리드 뷰 버튼 노출 보정
- *  3. 모달 내 쇼퍼블 버튼 슬림화 및 실제 썸네일 이미지 적용
- *  4. 모바일 좌측 여백 밸런스 교정
+ *  1. [안전] ykinas 몰 전용 락(Lock) 유지 (타 몰 미노출)
+ *  2. [클린업] hijackModal 내 중복 쇼퍼블 버튼 생성 및 11번 하드코딩 완전 삭제
+ *  3. [UI] 리뷰 수 랜덤 페이크 삭제 및 실제 데이터 매핑 연동
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -40,8 +39,11 @@
 
   const env = getDynamicConfig();
 
-  // 🔒 [테스트 안전장치] ykinas 몰 전용 유지
-  if (env.mallId !== 'ykinas') return;
+  // 🔒 [테스트 안전장치] 정식 릴리즈 전까지 ykinas 몰 전용 유지 (타 몰 오픈 방지)
+  if (env.mallId !== 'ykinas') {
+    console.log("▶ [REVIEW-IT List] 아직 오픈되지 않은 페이지입니다. (ykinas 전용 테스트 락 작동 중)");
+    return;
+  }
 
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
@@ -83,7 +85,7 @@
     allFetchedReviews: [],
 
     init() {
-      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.2");
+      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.5");
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
@@ -129,7 +131,6 @@
       style.innerHTML = `
         #review-it-widget, #rit-widget-container { display: none !important; }
         
-        /* 💡 모바일 좌측 여백 교정: box-sizing 추가 및 패딩 정렬 */
         .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; box-sizing: border-box; }
         
         .rit-dashboard-card { background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; padding: 28px 32px; margin-bottom: 35px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 24px; }
@@ -150,13 +151,11 @@
         .rit-gauge-fill { height: 100%; background: #18181b; border-radius: 3px; transition: width 0.6s ease; }
         .rit-gauge-percent { width: 32px; text-align: right; font-weight: 500; color: #71717a; }
 
-        /* 🛍️ 리스트 내 상품 칩 스타일 */
         .rit-product-chip { display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; }
         .rit-product-chip:hover { background: #f1f5f9; }
         .rit-product-chip-img { width: 22px; height: 22px; border-radius: 4px; object-fit: cover; }
         .rit-product-chip-name { font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* 🖼️ 진성 맨선리 레이아웃 */
         .rit-masonry-grid { column-count: 2; column-gap: 12px; box-sizing: border-box; }
         @media (min-width: 768px) { .rit-masonry-grid { column-count: 3; column-gap: 18px; } }
         @media (min-width: 1024px) { .rit-masonry-grid { column-count: 4; column-gap: 20px; } }
@@ -177,7 +176,6 @@
           .rit-modal-window { overflow: visible !important; }
           .rit-modal-header { position: absolute !important; top: -60px !important; left: 0; right: 0; background: transparent !important; padding: 0 !important; display: flex !important; z-index: 99999 !important; border: none !important; }
           
-          /* 💡 데스크탑 그리드 뷰 버튼 숨김 해제 및 스타일 보정 */
           .btn-rit-grid { 
             display: flex !important; 
             align-items: center;
@@ -198,10 +196,6 @@
         #ritGridView { z-index: 100005 !important; background: #fff !important; }
         #ritGridView:not(.rit-hidden) { display: block !important; }
         
-        /* =========================================
-          REVIEW-IT 스켈레톤 UI & 애니메이션
-        ========================================= */
-        /* 쉬머(Shimmer) 애니메이션 */
         @keyframes rit-shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
@@ -221,19 +215,17 @@
           animation: rit-shimmer 1.5s infinite;
         }
 
-        /* 스켈레톤 대시보드 전용 */
         .rit-dash-skeleton { display: flex; flex-direction: column; gap: 24px; padding: 28px 32px; background: #fff; border: 1px solid #f0f0f0; border-radius: 16px; margin-bottom: 35px; }
         @media (min-width: 1024px) { .rit-dash-skeleton { flex-direction: row; justify-content: space-between; } }
         .rit-dash-skeleton-left { flex: 1; display: flex; align-items: center; gap: 18px; }
         .rit-dash-skeleton-right { flex: 1; display: flex; flex-direction: column; gap: 10px; max-width: 420px; }
 
-        /* 게이지 바 차오르는 애니메이션 */
         .rit-gauge-fill {
           height: 100%;
           background: #18181b;
           border-radius: 3px;
-          width: 0%; /* 💡 초기값을 0으로 설정하여 JS로 채움 */
-          transition: width 1s cubic-bezier(0.25, 1, 0.5, 1); /* 부드럽고 텐션 있는 타이밍 함수 */
+          width: 0%; 
+          transition: width 1s cubic-bezier(0.25, 1, 0.5, 1); 
         }
       `;
       document.head.appendChild(style);
@@ -246,7 +238,6 @@
       const container = document.createElement('div');
       container.className = 'rit-list-container';
 
-      // 💡 데이터 로드 전 보여줄 스켈레톤 UI
       container.innerHTML = `
         <div id="rit-dashboard-area">
           <div class="rit-dash-skeleton">
@@ -291,12 +282,11 @@
       const satisfiedRatio = Math.round(((starCounts[5] + starCounts[4]) / totalCount) * 100);
       const getPercent = (count) => Math.round((count / totalCount) * 100);
 
-      // 💡 초기 게이지는 0%로 세팅 (data-target 속성에 목표치 저장)
       dashArea.innerHTML = `
     <div class="rit-dashboard-card">
       <div class="rit-dash-left">
         <div class="rit-dash-score-box">
-          <div class="rit-dash-big-score" id="rit-score-anim">0.0</div> <!-- 💡 0.0부터 시작 -->
+          <div class="rit-dash-big-score" id="rit-score-anim">0.0</div> 
           <div class="rit-dash-score-info">
             <div class="rit-dash-stars">
               <img src="${CONFIG.starPath}5.svg" class="rit-universal-star" alt="star rating">
@@ -324,31 +314,24 @@
     </div>
   `;
 
-      // 렌더링 직후 애니메이션 트리거
       this.animateDashboard(parseFloat(avgScore));
     },
 
-    // 💡 새롭게 추가되는 애니메이션 메서드
     animateDashboard(targetScore) {
-      // 💡 페이지 로딩 후 렌더링 안정화를 위해 3초(3000ms) 딜레이 적용
       setTimeout(() => {
-        // 1. 게이지 바 애니메이션
         document.querySelectorAll('.rit-gauge-fill').forEach(bar => {
           bar.style.width = bar.getAttribute('data-target');
         });
 
-        // 2. 평점 숫자 카운트업 애니메이션
         const scoreEl = document.getElementById('rit-score-anim');
         if (!scoreEl) return;
 
         let startTimestamp = null;
-        const duration = 1200; // 1.2초 동안 진행
+        const duration = 1200; 
 
         const step = (timestamp) => {
           if (!startTimestamp) startTimestamp = timestamp;
           const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-
-          // easeOutQuad 타이밍
           const easeOutProgress = 1 - (1 - progress) * (1 - progress);
 
           const currentScore = (easeOutProgress * targetScore).toFixed(1);
@@ -361,7 +344,7 @@
           }
         };
         window.requestAnimationFrame(step);
-      }, 1500); // 대기
+      }, 1500); 
     },
 
     hijackModal() {
@@ -376,38 +359,8 @@
             authorEl.innerText = CONFIG.mallName;
           }
 
-          const d = window.ReviewApp.data[id];
-          const contentSide = document.getElementById('ritContent');
-
-          if (d && contentSide) {
-            const oldWrap = contentSide.querySelector('.rit-shoppable-wrap');
-            if (oldWrap) oldWrap.remove();
-
-            const productNo = d.product_no || d.product_id;
-            const targetProductNo = productNo || '11';
-            const productUrl = `/product/detail.html?product_no=${targetProductNo}`;
-
-            // 💡 썸네일 이미지 추출 (리스트용 이미지 또는 기본 이미지)
-            const targetProductImg = d.product_img || (d.all_images && d.all_images.length > 0 ? d.all_images[0] : CONFIG.defaultImg);
-
-            // 💡 모달 내 쇼퍼블 버튼 슬림화 및 썸네일 이미지 적용
-            const shoppableBtnHtml = `
-              <div class="rit-shoppable-wrap" style="border-top: 1px solid #f4f4f5;">
-                <a href="${productUrl}" class="rit-btn-shoppable" target="_self" style="
-                  display: flex; align-items: center; justify-content: space-between; 
-                  background: #fafafa; color: #18181b; border: 1px solid #e4e4e7; 
-                  text-decoration: none; padding: 10px 14px; border-radius: 8px; 
-                  font-size: 12px; font-weight: 700; transition: all 0.2s ease;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <img src="${targetProductImg}" alt="product thumbnail" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover;">
-                    <span>리뷰 속 상품 보러가기</span>
-                  </div>
-                  <span style="color: #a1a1aa; font-weight: 400;">→</span>
-                </a>
-              </div>
-            `;
-            contentSide.insertAdjacentHTML('beforeend', shoppableBtnHtml);
-          }
+          // 🚨 [클린업] 이전에 있던 11번 강제 매핑 및 중복 버튼 생성 로직 완전 삭제!
+          // 위젯 파일(review-widget.js)의 renderComments 함수에서 아름다운 버튼을 대신 그려줍니다.
         };
       }
     },
@@ -498,9 +451,8 @@
 
         // 💡 [완전 삭제 및 실제 데이터 연동] 가짜 폴백 로직 전면 제거
         const avgScore = r.product_avg_score || r.stars || 5;
-        const revCount = r.product_review_count; // 오직 DB의 실제 데이터만 받음
+        const revCount = r.product_review_count; 
         
-        // 💡 실제 데이터가 없으면 리뷰 수 렌더링 안 함
         const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
         const productChipHtml = `
