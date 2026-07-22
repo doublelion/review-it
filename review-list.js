@@ -1,20 +1,31 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.7
+ * @Project: Review-It Universal Board List Engine v1.0.8
  * @Role: Cafe24 Review SaaS Lead Developer
  * @Update: 
- *  1. [안전] ykinas 몰 전용 락(Lock) 유지 (타 몰 미노출)
- *  2. [클린업] hijackModal 내 중복 쇼퍼블 버튼 생성 및 11번 하드코딩 완전 삭제
+ *  1. [클린업] 맥 에디터 쓰레기 태그(p.p1, span.s1 등) 리스트 프리뷰 완벽 정제 로직 추가
+ *  2. [안전] ykinas 몰 전용 락(Lock) 주석 유지
  *  3. [UI] 리뷰 수 랜덤 페이크 삭제 및 실제 데이터 매핑 연동
- *  4. [초강력 방어] 상품 상세 및 게시판 상세 페이지 뼈대 잔재 3초간 강제 파괴 로직 추가
+ *  4. [초강력 방어] 상품 상세 및 게시판 상세 페이지 뼈대 잔재 3초간 강제 파괴 로직 유지
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
   window.RIT_LIST_LOADED = true;
 
+  // 💡 [핵심 업데이트] HTML을 텍스트로 바꾸기 전에 쓰레기 CSS(style, p.p1 등)를 먼저 박멸합니다.
   const stripHtml = (html) => {
+    if (!html) return "";
+    
+    // 1단계: 더러운 스타일 태그 및 인라인 CSS 텍스트 사전 제거
+    let cleanedHtml = String(html)
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // style 태그 내용물 전체 삭제
+      .replace(/p\.p1\s*\{[^}]*\}/gi, '')             // 텍스트로 노출되는 p.p1 삭제
+      .replace(/span\.s1\s*\{[^}]*\}/gi, '')          // span.s1 삭제
+      .replace(/&nbsp;/gi, ' ');                      // 무의미한 공백 제거
+
+    // 2단계: 순수 텍스트만 추출
     let tmp = document.createElement("DIV");
-    tmp.innerHTML = html || '';
-    return tmp.textContent || tmp.innerText || "";
+    tmp.innerHTML = cleanedHtml;
+    return (tmp.textContent || tmp.innerText || "").trim();
   };
 
   const getDynamicConfig = () => {
@@ -98,18 +109,15 @@
     renderedIds: new Set(),
     allFetchedReviews: [],
 
-    // 👇 init()을 async로 변경하고 수파베이스 옵션 체크 로직을 최상단에 추가합니다.
     async init() {
-      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.7");
+      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.8");
 
-      // 💡 [신규 추가] DB에서 현재 쇼핑몰의 디자인 설정값을 가져옵니다.
       try {
         const res = await fetch(`${CONFIG.sbUrl}/widget_settings?mall_id=eq.${CONFIG.mallId}&select=list_design_type`, {
           headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` }
         });
         const data = await res.json();
 
-        // 운영자가 'Cafe24 기본뷰'로 설정한 경우, 기존 요소들을 숨기지 않고 우리 엔진 로직을 종료합니다.
         if (data && data.length > 0 && data[0].list_design_type === 'cafe24') {
           console.log("▶ [REVIEW-IT] Cafe24 기본 디자인 사용 모드 - 리스트 덮어쓰기를 취소합니다.");
           return;
@@ -118,7 +126,6 @@
         console.warn("설정값 로드 실패. 기본 REVIEW-IT 뷰로 렌더링합니다.");
       }
 
-      // 위 관문을 무사히 통과했다면 정상적으로 충돌 요소를 숨기고 위젯을 그립니다.
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
@@ -142,7 +149,6 @@
         '.xans-board-movement', '.boardAdmin', '.xans-board-admin',
         '#board_admin', '.xans-board-buttons', '.xans-board-button',
         '.xans-board-paging', '.ec-base-paginate', '.xans-board-4',
-        // 💡 하단에 숨어있는 위젯/리스트 뼈대 잔재까지 숨김 처리
         '#review-it-widget', '#rit-widget-container', '.rit-list-container'
       ];
 
@@ -181,13 +187,11 @@
         .rit-dash-gauge-box { flex: 1; max-width: 420px; display: flex; flex-direction: column; gap: 6px; }
         @media (min-width: 1024px) { .rit-dash-gauge-box { border-left: 1px solid #f3f3f3; padding-left: 32px; } }
 
-        /* 기존 CSS 교체: 게이지 바 디자인 개선 */
         .rit-gauge-row { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #888; margin-bottom: 2px; }
         .rit-gauge-label { width: 28px; font-weight: 600; color: #52525b; }
         .rit-gauge-bg { flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
         .rit-gauge-fill { 
           height: 100%; 
-          /* 💡 포인트: 칙칙한 검정색을 버리고, 별점과 어울리는 프리미엄 골드 그라데이션 적용 */
           background: linear-gradient(90deg, #fde047 0%, #f59e0b 100%); 
           border-radius: 4px; 
           transition: width 1s cubic-bezier(0.25, 1, 0.5, 1); 
@@ -335,7 +339,6 @@
                   <img src="${CONFIG.starPath}5.svg" class="rit-universal-star" alt="star rating">
                 </div>
                 <div class="rit-dash-count-text">총 <strong>${totalCount.toLocaleString()}개</strong>의 생생한 후기</div>
-                <!-- 💡 포인트: 만족도 퍼센트에 옐로우/골드 포인트 컬러 적용 -->
                 <div class="rit-dash-satisfaction">구매 고객의 <span style="color:#f59e0b; font-weight:800; font-size:13px;">${satisfiedRatio}%</span>가 만족했습니다</div>
               </div>
             </div>
@@ -397,13 +400,10 @@
         const origRender = window.ReviewApp.renderDetail;
         window.ReviewApp.renderDetail = async function (id) {
           await origRender.call(this, id);
-
           const authorEl = document.querySelector('#ritMetaArea .rit-author');
           if (authorEl) {
             authorEl.innerText = CONFIG.mallName;
           }
-
-          // 🚨 [클린업] 이전에 있던 11번 강제 매핑 및 중복 버튼 생성 로직 완전 삭제
         };
       }
     },
@@ -492,7 +492,6 @@
         const sampleProductName = r.product_name || "REVIEW-IT 프리미엄 솔루션";
         const sampleProductImg = r.product_img || imgUrl;
 
-        // 💡 [완전 삭제 및 실제 데이터 연동] 가짜 폴백 로직 전면 제거
         const avgScore = r.product_avg_score || r.stars || 5;
         const revCount = r.product_review_count;
 
