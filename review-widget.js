@@ -9,28 +9,27 @@
   const currentSearch = window.location.search.toLowerCase();
 
   const isBoardPage = currentPath.includes('/board/') || currentPath.includes('상품-사용후기');
+  const isReviewList =
+    currentPath.includes('/board/product/list') ||
+    currentPath.includes('상품-사용후기') ||
+    (currentSearch.includes('board_no=4') || currentPath.includes('/4/'));
+  const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
 
   if (isBoardPage) {
-    const isReviewList =
-      currentPath.includes('/board/product/list') ||
-      currentPath.includes('상품-사용후기') ||
-      (currentSearch.includes('board_no=4') || currentPath.includes('/4/'));
-
-    const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
-
     if (isReviewList && !isReadOrWrite) {
       if (!document.getElementById('rit-list-script')) {
-        console.log("▶ [REVIEW-IT] 리뷰 리스트 게시판 감지! review-list.js를 동적으로 호출합니다.");
+        console.log("▶ [REVIEW-IT] 리뷰 리스트 게시판 감지! 최신 review-list.js를 동적으로 호출합니다.");
         const script = document.createElement('script');
         script.id = 'rit-list-script';
-        script.src = 'https://review-it-tau.vercel.app/review-list.js';
+        
+        // 🚨 [핵심 픽스] 캐시 무효화(Cache-buster): 브라우저가 무조건 최신 V1.0.5 리스트 엔진을 다운받도록 강제합니다.
+        const cacheBuster = new Date().getTime();
+        script.src = `https://review-it-tau.vercel.app/review-list.js?v=${cacheBuster}`;
+        
         script.defer = true;
         document.head.appendChild(script);
       }
     }
-
-    // 🚨 [핵심 픽스] 기존에 있던 return; 삭제. 
-    // 리스트 엔진이 ReviewApp 객체를 참조해야 하므로 스크립트를 죽이지 않고 UI 렌더링만 차단하도록 통과시킵니다.
     console.log("▶ [REVIEW-IT Widget] 게시판 구역 감지 -> 위젯 UI 렌더링만 안전하게 차단합니다. (엔진 유지)");
   }
 
