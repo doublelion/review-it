@@ -768,17 +768,32 @@
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
-      // 🚨 [긴급 픽스] 임의의 11번 매핑 완전 제거. 실제 상품 번호가 있을 때만 버튼 렌더링
-      const productNo = currentReviewData?.product_no || currentReviewData?.product_id;
+      // 💡 [정밀 보정 1] 상품 번호 추출 및 정제 (다양한 키값 대응 + 타입 변환)
+      const rawProductNo = 
+        currentReviewData?.product_no || 
+        currentReviewData?.product_id || 
+        currentReviewData?.prd_no || 
+        currentReviewData?.rel_product_no;
+
+      // 숫자 외 문자 제거 및 정수 파싱
+      const cleanProductNo = rawProductNo ? String(rawProductNo).replace(/\D/g, '').trim() : null;
+      const validProductNo = (cleanProductNo && cleanProductNo !== '0' && cleanProductNo !== '11') ? cleanProductNo : null;
+
       let shoppableBtnHtml = '';
 
-      if (productNo && productNo !== '11') { // (기존 11번 캐싱 데이터 방어)
-        const productUrl = `/product/detail.html?product_no=${productNo}`;
-        const productImg = currentReviewData?.product_img || (currentReviewData?.all_images && currentReviewData.all_images[0]) || CONFIG.DEFAULT_IMG;
+      // 💡 [정밀 보정 2] 유효한 상품 번호가 존재할 때만 버튼 생성
+      if (validProductNo) {
+        const productUrl = `/product/detail.html?product_no=${validProductNo}`;
+        
+        // 상품 전용 이미지를 최우선으로 탐색하고, 없을 때만 리뷰 이미지/기본 이미지 폴백
+        const productImg = 
+          currentReviewData?.product_img || 
+          currentReviewData?.product_thumb || 
+          (currentReviewData?.all_images && currentReviewData.all_images.length > 0 && currentReviewData.all_images[0] !== CONFIG.DEFAULT_IMG ? currentReviewData.all_images[0] : CONFIG.DEFAULT_IMG);
 
         shoppableBtnHtml = `
           <a href="${productUrl}" target="_self" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:5px 12px; border-radius:6px; border:1px solid #f1f5f9; text-decoration:none; transition:all 0.2s;">
-             <img src="${productImg}" style="width:16px; height:16px; border-radius:3px; object-fit:cover;">
+             <img src="${productImg}" onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';" style="width:16px; height:16px; border-radius:3px; object-fit:cover;">
              <span style="font-size:10.5px; font-weight:700; color:#475569;">상품 보기 〉</span>
           </a>
         `;
