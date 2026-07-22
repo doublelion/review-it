@@ -8,7 +8,7 @@
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
 
-// 💡 [수정] 상품 상세 페이지(detail.html) 및 게시판 상세/작성 페이지 완벽 차단
+  // 💡 [수정] 상품 상세 페이지(detail.html) 및 게시판 상세/작성 페이지 완벽 차단
   const isProductDetailPage = currentPath.includes('/product/detail.html');
   const isBoardReadPage = currentPath.includes('/board/product/read.html') || currentSearch.includes('no=');
   const isWriteOrModify = currentPath.includes('write.html') || currentPath.includes('modify.html');
@@ -17,7 +17,7 @@
   const isBlockedPage = isProductDetailPage || isBoardReadPage || isWriteOrModify;
 
   const isBoardPage = currentPath.includes('/board/') || currentPath.includes('상품-사용후기');
-  
+
   const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
 
   if (isBoardPage) {
@@ -200,7 +200,7 @@
       this.injectCSS();
       // 뼈대가 갓 생성되어 비어있다면 스켈레톤 먼저 렌더링
       if (container.innerHTML.trim() === '') this.renderSkeleton(container);
-      
+
       await this.loadWidgetSettings();
       const hasReviews = await this.loadReviews();
 
@@ -337,13 +337,22 @@
           cleanText = "포토 리뷰입니다.";
         }
 
+        // 💡 [추가된 로직] 카페24 본문에서 실제 상품 번호 강제 추출
+        let extractedProductNo = null;
+        const productLink = doc.querySelector('a[href*="/product/detail.html?product_no="], a[href*="product_no="]');
+        if (productLink) {
+          const match = productLink.getAttribute('href').match(/product_no=(\d+)/);
+          if (match && match[1]) extractedProductNo = match[1];
+        }
+
         return {
           images: extractedImages,
           text: cleanText,
           star: extractedStar,
           subject: extractedSubject,
           date: extractedDate,
-          writer: extractedWriter
+          writer: extractedWriter,
+          productNo: extractedProductNo // 💡 추가됨
         };
       } catch (e) {
         return null;
@@ -400,6 +409,11 @@
             }
             if (separateData.writer) {
               r.author_name = separateData.writer;
+            }
+
+            // 💡 [추가된 로직] DB값이 틀렸을 경우를 대비해 스크래핑한 상품 번호 덮어쓰기
+            if (separateData.productNo) {
+              r.scraped_product_no = separateData.productNo;
             }
           } else {
             r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
@@ -768,8 +782,9 @@
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
-      // 💡 [정밀 보정 1] 상품 번호 추출 및 정제 (다양한 키값 대응 + 타입 변환)
+      // 💡 [수정된 로직] scraped_product_no를 최우선 순위로 배치
       const rawProductNo = 
+        currentReviewData?.scraped_product_no || // 1순위: 방금 DOM에서 직접 긁어온 가장 정확한 번호
         currentReviewData?.product_no || 
         currentReviewData?.product_id || 
         currentReviewData?.prd_no || 
@@ -784,11 +799,11 @@
       // 💡 [정밀 보정 2] 유효한 상품 번호가 존재할 때만 버튼 생성
       if (validProductNo) {
         const productUrl = `/product/detail.html?product_no=${validProductNo}`;
-        
+
         // 상품 전용 이미지를 최우선으로 탐색하고, 없을 때만 리뷰 이미지/기본 이미지 폴백
-        const productImg = 
-          currentReviewData?.product_img || 
-          currentReviewData?.product_thumb || 
+        const productImg =
+          currentReviewData?.product_img ||
+          currentReviewData?.product_thumb ||
           (currentReviewData?.all_images && currentReviewData.all_images.length > 0 && currentReviewData.all_images[0] !== CONFIG.DEFAULT_IMG ? currentReviewData.all_images[0] : CONFIG.DEFAULT_IMG);
 
         shoppableBtnHtml = `
