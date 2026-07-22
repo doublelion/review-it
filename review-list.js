@@ -105,7 +105,9 @@
         '.xans-product-review', '.review_list_item',
         'div[id^="ec-product-review"]', '.board-list-wrap',
         '.xans-board-movement', '.boardAdmin', '.xans-board-admin',
-        '#board_admin', '.xans-board-buttons', '.xans-board-button'
+        '#board_admin', '.xans-board-buttons', '.xans-board-button',
+        // 👇 새롭게 추가된 페이징 모듈 차단 선택자
+        '.xans-board-paging', '.ec-base-paginate'
       ];
 
       document.querySelectorAll(selectors.join(', ')).forEach(el => {
@@ -329,38 +331,40 @@
 
     // 💡 새롭게 추가되는 애니메이션 메서드
     animateDashboard(targetScore) {
-      // 1. 게이지 바 애니메이션
+      // 💡 페이지 로딩 후 렌더링 안정화를 위해 3초(3000ms) 딜레이 적용
       setTimeout(() => {
+        // 1. 게이지 바 애니메이션
         document.querySelectorAll('.rit-gauge-fill').forEach(bar => {
           bar.style.width = bar.getAttribute('data-target');
         });
-      }, 100);
 
-      // 2. 평점 숫자 카운트업 애니메이션
-      const scoreEl = document.getElementById('rit-score-anim');
-      if (!scoreEl) return;
+        // 2. 평점 숫자 카운트업 애니메이션
+        const scoreEl = document.getElementById('rit-score-anim');
+        if (!scoreEl) return;
 
-      let startTimestamp = null;
-      const duration = 1200; // 1.2초 동안 진행
+        let startTimestamp = null;
+        const duration = 1200; // 1.2초 동안 진행
 
-      const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const step = (timestamp) => {
+          if (!startTimestamp) startTimestamp = timestamp;
+          const progress = Math.min((timestamp - startTimestamp) / duration, 1);
 
-        // easeOutQuad 타이밍 (끝날 때쯤 느려짐)
-        const easeOutProgress = 1 - (1 - progress) * (1 - progress);
+          // easeOutQuad 타이밍
+          const easeOutProgress = 1 - (1 - progress) * (1 - progress);
 
-        const currentScore = (easeOutProgress * targetScore).toFixed(1);
-        scoreEl.innerHTML = currentScore;
+          const currentScore = (easeOutProgress * targetScore).toFixed(1);
+          scoreEl.innerHTML = currentScore;
 
-        if (progress < 1) {
-          window.requestAnimationFrame(step);
-        } else {
-          scoreEl.innerHTML = targetScore.toFixed(1);
-        }
-      };
-      window.requestAnimationFrame(step);
+          if (progress < 1) {
+            window.requestAnimationFrame(step);
+          } else {
+            scoreEl.innerHTML = targetScore.toFixed(1);
+          }
+        };
+        window.requestAnimationFrame(step);
+      }, 3000); // 3초 대기
     },
+
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
