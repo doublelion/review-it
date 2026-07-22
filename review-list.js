@@ -106,8 +106,7 @@
         'div[id^="ec-product-review"]', '.board-list-wrap',
         '.xans-board-movement', '.boardAdmin', '.xans-board-admin',
         '#board_admin', '.xans-board-buttons', '.xans-board-button',
-        // 👇 새롭게 추가된 페이징 모듈 차단 선택자
-        '.xans-board-paging', '.ec-base-paginate'
+        '.xans-board-paging', '.ec-base-paginate', '.xans-board-4'
       ];
 
       document.querySelectorAll(selectors.join(', ')).forEach(el => {
