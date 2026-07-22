@@ -8,6 +8,14 @@
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
 
+  // 💡 [경로 추적 차단] 상품 상세, 게시판 상세, 작성/수정 페이지 완벽 차단
+  const isProductDetailPage = currentPath.includes('/product/detail.html');
+  const isBoardReadPage = currentPath.includes('/board/product/read.html') || currentSearch.includes('no=');
+  const isWriteOrModify = currentPath.includes('write.html') || currentPath.includes('modify.html');
+
+  // 차단 대상 페이지일 때 전역 플래그 세팅
+  const isBlockedPage = isProductDetailPage || isBoardReadPage || isWriteOrModify;
+
   const isBoardPage = currentPath.includes('/board/') || currentPath.includes('상품-사용후기');
   const isReviewList =
     currentPath.includes('/board/product/list') ||
@@ -16,16 +24,13 @@
   const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
 
   if (isBoardPage) {
-    if (isReviewList && !isReadOrWrite) {
+    if (isReviewList && !isBlockedPage) {
       if (!document.getElementById('rit-list-script')) {
-        console.log("▶ [REVIEW-IT] 리뷰 리스트 게시판 감지! 최신 review-list.js를 동적으로 호출합니다.");
+        console.log("▶ [REVIEW-IT] 리뷰 리스트 게시판 감지! review-list.js를 호출합니다.");
         const script = document.createElement('script');
         script.id = 'rit-list-script';
-        
-        // 🚨 [핵심 픽스] 캐시 무효화(Cache-buster): 브라우저가 무조건 최신 V1.0.5 리스트 엔진을 다운받도록 강제합니다.
         const cacheBuster = new Date().getTime();
         script.src = `https://review-it-tau.vercel.app/review-list.js?v=${cacheBuster}`;
-        
         script.defer = true;
         document.head.appendChild(script);
       }
@@ -156,23 +161,21 @@
     },
 
     async init() {
-      // 🚨 [초강력 철벽 방어] 몰 운영자가 카페24 공통 레이아웃(footer 등)에 위젯 뼈대를 하드코딩해둔 경우 원천 차단
-      if (isBoardPage) {
+      // 🚨 [2중 강력 차단] 차단 대상 페이지(상품상세/게시판상세 등) 진입 시 위젯 태그 숨김 및 실행 종료
+      if (typeof isBlockedPage !== 'undefined' && isBlockedPage) {
         const hardcodedContainer = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
         if (hardcodedContainer) {
-          hardcodedContainer.style.setProperty('display', 'none', 'important'); // 화면에서 강제 삭제
-          hardcodedContainer.innerHTML = ''; // 혹시 모를 내부 렌더링 잔재 제거
+          hardcodedContainer.style.setProperty('display', 'none', 'important');
+          hardcodedContainer.innerHTML = '';
         }
-        console.log("▶ [REVIEW-IT Widget] 게시판 내 공통 레이아웃 위젯 뼈대 강제 숨김 및 렌더링 완벽 차단");
-        return; // ⭐️ 여기서 실행을 종료하여 API 호출 및 추가 렌더링을 100% 막습니다. (모달 기능 등 엔진은 살아있음)
+        console.log("▶ [REVIEW-IT Widget] 지정된 예외 페이지(/product/detail.html 또는 /read.html) 진입 -> 위젯 강제 숨김");
+        return;
       }
 
-      // 게시판이 아닐 때만 컨테이너 생성 시도
       this.autoCreateContainer();
 
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
 
-      // 🛑 컨테이너가 없으면 위젯 렌더링 관련 로직(API 호출 등)을 안전하게 즉시 중단
       if (!container) {
         console.log("▶ [REVIEW-IT] 위젯 노출 대상 페이지가 아니므로 위젯 생성을 안전하게 스킵합니다.");
         return;
@@ -188,7 +191,7 @@
       }
       this.renderWidget();
     },
-
+    
     async loadWidgetSettings() {
       try {
         const res = await fetch(`${CONFIG.URL}/rest/v1/widget_settings?mall_id=eq.${CONFIG.MALL_ID}`, {

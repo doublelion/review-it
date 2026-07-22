@@ -48,15 +48,13 @@
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
 
-  // 💡 [초강력 차단] 상세(read), 작성(write), 수정(modify) 페이지 및 글 번호 파라미터 감지 시 즉시 종료
-  if (
-    currentPath.includes('/read.html') ||
-    currentPath.includes('/write.html') ||
-    currentPath.includes('/modify.html') ||
-    currentSearch.includes('no=') ||
-    currentSearch.includes('article_no=')
-  ) {
-    console.log("▶ [REVIEW-IT] 게시판 상세/작성 페이지 감지 -> 리스트 엔진 렌더링 안전 차단");
+  // 💡 [경로 추적 차단] /board/product/read.html 및 /product/detail.html 감지 시 즉시 종료
+  const isBlockedReadPage = currentPath.includes('/board/product/read.html') || currentSearch.includes('no=') || currentSearch.includes('article_no=');
+  const isBlockedDetailPage = currentPath.includes('/product/detail.html');
+  const isBlockedWritePage = currentPath.includes('/write.html') || currentPath.includes('/modify.html');
+
+  if (isBlockedReadPage || isBlockedDetailPage || isBlockedWritePage) {
+    console.log("▶ [REVIEW-IT List] 예외 페이지(/read.html, /detail.html 등) 감지 -> 리스트 엔진 차단");
     return;
   }
 
@@ -108,7 +106,9 @@
         'div[id^="ec-product-review"]', '.board-list-wrap',
         '.xans-board-movement', '.boardAdmin', '.xans-board-admin',
         '#board_admin', '.xans-board-buttons', '.xans-board-button',
-        '.xans-board-paging', '.ec-base-paginate', '.xans-board-4'
+        '.xans-board-paging', '.ec-base-paginate', '.xans-board-4',
+        // 💡 [/product/detail.html 및 /read.html 하단 위젯/리스트 잔재 숨김 선택자 추가]
+        '#review-it-widget', '#rit-widget-container', '.rit-list-container'
       ];
 
       document.querySelectorAll(selectors.join(', ')).forEach(el => {
