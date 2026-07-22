@@ -43,11 +43,20 @@
   // 🔒 [테스트 안전장치] ykinas 몰 전용 유지
   if (env.mallId !== 'ykinas') return;
 
-  const currentPath = decodeURIComponent(window.location.pathname);
-  const currentSearch = window.location.search;
+  const currentPath = window.location.pathname.toLowerCase();
+  const currentSearch = window.location.search.toLowerCase();
 
-  const isReadPage = currentPath.includes('/read.html') || currentSearch.includes('no=');
-  if (isReadPage) return; // 상세 페이지에서는 리스트 엔진 작동 중단
+  // 💡 [초강력 차단] 상세(read), 작성(write), 수정(modify) 페이지 및 글 번호 파라미터 감지 시 즉시 종료
+  if (
+    currentPath.includes('/read.html') ||
+    currentPath.includes('/write.html') ||
+    currentPath.includes('/modify.html') ||
+    currentSearch.includes('no=') ||
+    currentSearch.includes('article_no=')
+  ) {
+    console.log("▶ [REVIEW-IT] 게시판 상세/작성 페이지 감지 -> 리스트 엔진 렌더링 안전 차단");
+    return;
+  }
 
   const isReviewBoardPage =
     currentPath.includes('/board/product/list') ||
@@ -55,7 +64,6 @@
     (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
   if (!isReviewBoardPage) return;
-
 
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
@@ -90,15 +98,19 @@
     },
 
     hideConflicts() {
-      // 💡 3번째 이미지 이슈 해결: 기존 카페24 일반 텍스트 게시판 선택자 대거 추가
       const selectors = [
         '.xans-board-listpackage', '.xans-board-normalpackage',
         '.boardList', 'table.boardList', 'table.xans-board-list',
         '.boardSort', '.xans-board-empty', '#prdReview',
         '.xans-product-review', '.review_list_item',
-        'div[id^="ec-product-review"]', '.board-list-wrap'
+        'div[id^="ec-product-review"]', '.board-list-wrap',
+        '.xans-board-movement', '.boardAdmin', '.xans-board-admin',
+        '#board_admin', '.xans-board-buttons', '.xans-board-button'
       ];
-      document.querySelectorAll(selectors.join(', ')).forEach(el => el.style.setProperty('display', 'none', 'important'));
+
+      document.querySelectorAll(selectors.join(', ')).forEach(el => {
+        if (el) el.style.setProperty('display', 'none', 'important');
+      });
     },
 
     injectGridCSS() {
