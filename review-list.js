@@ -1,7 +1,11 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.1
+ * @Project: Review-It Universal Board List Engine v1.0.2
  * @Role: Cafe24 Review SaaS Lead Developer
- * @Update: 임시 상품 태그 칩 시현 연동, 별점 비어있는 영역 톤앤매너 보정, 모달 쇼퍼블 스마트 연동
+ * @Update: 
+ *  1. 기존 카페24 게시판(텍스트 리스트) 완벽 숨김 처리
+ *  2. 데스크탑 그리드 뷰 버튼 노출 보정
+ *  3. 모달 내 쇼퍼블 버튼 슬림화 및 실제 썸네일 이미지 적용
+ *  4. 모바일 좌측 여백 밸런스 교정
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -66,7 +70,7 @@
     allFetchedReviews: [],
 
     init() {
-      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동");
+      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.2");
       this.hideConflicts();
       this.injectGridCSS();
       this.createLayout();
@@ -81,7 +85,14 @@
     },
 
     hideConflicts() {
-      const selectors = ['.xans-board-listpackage', '.boardSort', '.xans-board-empty', '#prdReview', '.xans-product-review', '.review_list_item', 'div[id^="ec-product-review"]', '.board-list-wrap'];
+      // 💡 3번째 이미지 이슈 해결: 기존 카페24 일반 텍스트 게시판 선택자 대거 추가
+      const selectors = [
+        '.xans-board-listpackage', '.xans-board-normalpackage',
+        '.boardList', 'table.boardList', 'table.xans-board-list',
+        '.boardSort', '.xans-board-empty', '#prdReview',
+        '.xans-product-review', '.review_list_item',
+        'div[id^="ec-product-review"]', '.board-list-wrap'
+      ];
       document.querySelectorAll(selectors.join(', ')).forEach(el => el.style.setProperty('display', 'none', 'important'));
     },
 
@@ -99,103 +110,38 @@
       style.id = 'rit-list-grid-css';
       style.innerHTML = `
         #review-it-widget, #rit-widget-container { display: none !important; }
-        .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; padding: 0 15px; }
         
-        /* 📊 상단 소셜 프루프 대시보드 카드 */
-        .rit-dashboard-card {
-          background: #ffffff;
-          border: 1px solid #f0f0f0;
-          border-radius: 16px;
-          padding: 28px 32px;
-          margin-bottom: 35px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
-        @media (min-width: 1024px) {
-          .rit-dashboard-card { flex-direction: row; align-items: center; justify-content: space-between; }
-        }
-
+        /* 💡 모바일 좌측 여백 교정: box-sizing 추가 및 패딩 정렬 */
+        .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; padding: 0 16px; box-sizing: border-box; }
+        
+        .rit-dashboard-card { background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; padding: 28px 32px; margin-bottom: 35px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 24px; }
+        @media (min-width: 1024px) { .rit-dashboard-card { flex-direction: row; align-items: center; justify-content: space-between; } }
         .rit-dash-left { display: flex; flex-direction: column; gap: 15px; flex: 1; }
         .rit-dash-score-box { display: flex; align-items: center; gap: 18px; }
         .rit-dash-big-score { font-size: 44px; font-weight: 800; color: #111; line-height: 1; letter-spacing: -1px; }
         .rit-dash-score-info { display: flex; flex-direction: column; gap: 4px; }
         .rit-dash-stars { display: flex; gap: 2px; }
         .rit-universal-star { height: 16px !important; }
-
         .rit-dash-count-text { font-size: 13px; color: #666; font-weight: 500; }
         .rit-dash-satisfaction { font-size: 12px; color: #71717a; font-weight: 600; }
-
         .rit-dash-gauge-box { flex: 1; max-width: 420px; display: flex; flex-direction: column; gap: 6px; }
-        @media (min-width: 1024px) {
-          .rit-dash-gauge-box { border-left: 1px solid #f3f3f3; padding-left: 32px; }
-        }
+        @media (min-width: 1024px) { .rit-dash-gauge-box { border-left: 1px solid #f3f3f3; padding-left: 32px; } }
         .rit-gauge-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #888; }
         .rit-gauge-label { width: 28px; font-weight: 600; color: #555; }
         .rit-gauge-bg { flex: 1; height: 6px; background: #f2f2f2; border-radius: 3px; overflow: hidden; }
         .rit-gauge-fill { height: 100%; background: #18181b; border-radius: 3px; transition: width 0.6s ease; }
         .rit-gauge-percent { width: 32px; text-align: right; font-weight: 500; color: #71717a; }
 
-        /* 🛍️ 미니멀 상품 정보 태그 칩 스타일 */
-        .rit-product-chip {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: #f8fafc;
-          border: 1px solid #f1f5f9;
-          padding: 6px 10px;
-          border-radius: 6px;
-          margin-bottom: 12px;
-          transition: background 0.2s;
-        }
-        .rit-product-chip:hover {
-          background: #f1f5f9;
-        }
-        .rit-product-chip-img {
-          width: 22px;
-          height: 22px;
-          border-radius: 4px;
-          object-fit: cover;
-        }
-        .rit-product-chip-name {
-          font-size: 11px;
-          color: #475569;
-          font-weight: 600;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        /* 🛍️ 미니멀 라인 쇼퍼블 버튼 */
-        .rit-shoppable-wrap { margin-top: 25px; padding-top: 20px; border-top: 1px solid #f4f4f5; }
-        .rit-btn-shoppable {
-          display: flex !important;
-          align-items: center !important;
-          justify-content: space-between !important;
-          background: #fafafa !important;
-          color: #18181b !important;
-          border: 1px solid #e4e4e7 !important;
-          text-decoration: none !important;
-          padding: 13px 18px !important;
-          border-radius: 10px !important;
-          font-size: 12.5px !important;
-          font-weight: 700 !important;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-        }
-        .rit-btn-shoppable:hover {
-          background: #18181b !important;
-          color: #ffffff !important;
-          border-color: #18181b !important;
-          transform: translateY(-1px) !important;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
-        }
+        /* 🛍️ 리스트 내 상품 칩 스타일 */
+        .rit-product-chip { display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; }
+        .rit-product-chip:hover { background: #f1f5f9; }
+        .rit-product-chip-img { width: 22px; height: 22px; border-radius: 4px; object-fit: cover; }
+        .rit-product-chip-name { font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         /* 🖼️ 진성 맨선리 레이아웃 */
-        .rit-masonry-grid { column-count: 2; column-gap: 12px; }
+        .rit-masonry-grid { column-count: 2; column-gap: 12px; box-sizing: border-box; }
         @media (min-width: 768px) { .rit-masonry-grid { column-count: 3; column-gap: 18px; } }
         @media (min-width: 1024px) { .rit-masonry-grid { column-count: 4; column-gap: 20px; } }
-        
         .rit-masonry-item { break-inside: avoid; margin-bottom: 16px; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.04); cursor: pointer; transition: transform 0.2s; border: 1px solid #f0f0f0; }
         .rit-masonry-item:hover { transform: translateY(-3px); }
         .rit-masonry-img { width: 100%; height: auto; display: block; object-fit: cover; } 
@@ -212,7 +158,21 @@
         @media (min-width: 768px) {
           .rit-modal-window { overflow: visible !important; }
           .rit-modal-header { position: absolute !important; top: -60px !important; left: 0; right: 0; background: transparent !important; padding: 0 !important; display: flex !important; z-index: 99999 !important; border: none !important; }
-          .btn-rit-grid { display: none !important; } 
+          
+          /* 💡 데스크탑 그리드 뷰 버튼 숨김 해제 및 스타일 보정 */
+          .btn-rit-grid { 
+            display: flex !important; 
+            align-items: center;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(4px);
+            padding: 6px 14px;
+            border-radius: 20px;
+            margin-right: 15px;
+            transition: background 0.2s;
+          }
+          .btn-rit-grid:hover { background: rgba(255,255,255,0.25); }
+          
           .rit-logo-text { font-size: 13px !important; color: #fff !important; opacity: 1 !important; text-shadow: 0 2px 4px rgba(0,0,0,0.6); font-weight: 800; border-left: 1px solid rgba(255,255,255,0.4); padding-left: 10px; margin-left: 5px; }
           .btn-rit-close { color: #fff !important; }
         }
@@ -309,16 +269,25 @@
             if (oldWrap) oldWrap.remove();
 
             const productNo = d.product_no || d.product_id;
-
-            // 💡 실제 상품 번호가 있거나 테스트 상태일 때 쇼퍼블 버튼 출력
-            const targetProductNo = productNo || '11'; // 시현용 기본 상품 ID
+            const targetProductNo = productNo || '11';
             const productUrl = `/product/detail.html?product_no=${targetProductNo}`;
 
+            // 💡 썸네일 이미지 추출 (리스트용 이미지 또는 기본 이미지)
+            const targetProductImg = d.product_img || (d.all_images && d.all_images.length > 0 ? d.all_images[0] : CONFIG.defaultImg);
+
+            // 💡 모달 내 쇼퍼블 버튼 슬림화 및 썸네일 이미지 적용
             const shoppableBtnHtml = `
-              <div class="rit-shoppable-wrap">
-                <a href="${productUrl}" class="rit-btn-shoppable" target="_blank">
-                  <span>🛍️ 리뷰 속 상품 보러가기</span>
-                  <span>→</span>
+              <div class="rit-shoppable-wrap" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #f4f4f5;">
+                <a href="${productUrl}" class="rit-btn-shoppable" target="_blank" style="
+                  display: flex; align-items: center; justify-content: space-between; 
+                  background: #fafafa; color: #18181b; border: 1px solid #e4e4e7; 
+                  text-decoration: none; padding: 10px 14px; border-radius: 8px; 
+                  font-size: 12px; font-weight: 700; transition: all 0.2s ease;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <img src="${targetProductImg}" alt="product thumbnail" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover;">
+                    <span>리뷰 속 상품 보러가기</span>
+                  </div>
+                  <span style="color: #a1a1aa; font-weight: 400;">→</span>
                 </a>
               </div>
             `;
@@ -409,7 +378,6 @@
         const imgUrl = (r.all_images && r.all_images.length > 0 && r.all_images[0] !== CONFIG.defaultImg) ? r.all_images[0] : CONFIG.defaultImg;
         const cleanContent = r.clean_text_body || '내용이 없습니다.';
 
-        // 💡 [핵심 연동] 시현용 임시 상품 칩 주입 (대표님이 요청하신 크리마/넥젠 스타일의 미니멀 칩)
         const sampleProductName = r.product_name || "REVIEW-IT 프리미엄 솔루션";
         const sampleProductImg = r.product_img || imgUrl;
 
@@ -426,7 +394,7 @@
             <div class="rit-masonry-info">
               <div class="rit-masonry-subject">${r.subject}</div>
               <div class="rit-masonry-desc">${cleanContent}</div>
-              ${productChipHtml} <!-- 💡 카드 내 상품 태그 칩 노출 -->
+              ${productChipHtml}
               <div class="rit-masonry-meta">
                 <span style="font-weight:600; color:#52525b;">${CONFIG.mallName}</span>
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" class="rit-card-star" alt="star">
