@@ -602,7 +602,10 @@
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
-      const displayName = d.author_name ? d.author_name : (d.writer || '고객');
+
+      // 💡 [수정] 작성자 이름 마스킹 적용
+      const rawName = d.author_name ? d.author_name : (d.writer || '고객');
+      const displayName = this.maskName(rawName);
 
       // 💡 [완전 삭제 및 실제 데이터 연동] 가짜 폴백 로직(stableRandomCount) 전면 제거
       const avgScore = d.product_avg_score || d.stars || 5;
@@ -644,7 +647,10 @@
       const d = this.data[id];
       const imgSide = document.getElementById('ritModalImg');
       const contentSide = document.getElementById('ritContent');
-      const updatedDisplayName = d.author_name ? d.author_name : (d.writer || '고객');
+
+      // 💡 [수정] 모달 작성자 이름 마스킹 적용
+      const rawDisplayName = d.author_name ? d.author_name : (d.writer || '고객');
+      const updatedDisplayName = this.maskName(rawDisplayName);
 
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
@@ -660,8 +666,6 @@
         }
         d.is_parsed = true;
       }
-
-      // ... (renderDetail 상단 로직 유지) ...
 
       if (d.all_images && d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
         imgSide.innerHTML = `
@@ -681,19 +685,16 @@
       </div>`;
 
         if (window.Swiper) {
-          // 🛑 [긴급 픽스] 기존에 열려있던 좀비 스와이퍼 인스턴스 파괴 (충돌 방지)
           if (window.ritActiveModalSwiper) {
             window.ritActiveModalSwiper.destroy(true, true);
           }
 
-          // DOM이 완전히 그려질 틈을 주기 위한 미세 딜레이
           setTimeout(() => {
             window.ritActiveModalSwiper = new Swiper('.rit-modal-swiper', {
               pagination: { el: '.rit-fraction', type: 'fraction' },
               navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
               centeredSlides: true,
               loop: d.all_images.length > 1,
-              // 🛑 [긴급 픽스] 모달 창 내부에서 Swiper를 쓸 때 필수인 동적 감지 옵션
               observer: true,
               observeParents: true,
               resizeObserver: true
@@ -783,11 +784,11 @@
       if (!container) return;
 
       // 💡 [수정된 로직] scraped_product_no를 최우선 순위로 배치
-      const rawProductNo = 
+      const rawProductNo =
         currentReviewData?.scraped_product_no || // 1순위: 방금 DOM에서 직접 긁어온 가장 정확한 번호
-        currentReviewData?.product_no || 
-        currentReviewData?.product_id || 
-        currentReviewData?.prd_no || 
+        currentReviewData?.product_no ||
+        currentReviewData?.product_id ||
+        currentReviewData?.prd_no ||
         currentReviewData?.rel_product_no;
 
       // 숫자 외 문자 제거 및 정수 파싱
