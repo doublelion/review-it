@@ -124,6 +124,9 @@
     },
 
     autoCreateContainer() {
+      // 🛑 게시판 페이지(상세 read.html 포함)라면 어떠한 경우에도 컨테이너 뼈대를 생성하지 않음!
+      if (isBoardPage) return;
+
       let container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
       if (container) return;
 
@@ -131,7 +134,6 @@
       const isMainPage = pathname === '/' || pathname === '/index.html';
       const isProductPage = !!CONFIG.PRODUCT_NO;
 
-      // 🛑 [긴급 픽스] 메인페이지와 상품 상세페이지가 아니면 절대 위젯 뼈대를 만들지 않음! (서브페이지 노출 완벽 차단)
       if (!isMainPage && !isProductPage) return;
 
       container = document.createElement('div');
@@ -139,43 +141,35 @@
       container.style.marginTop = '80px';
       container.style.marginBottom = '80px';
 
-      // 1. 상품 상세 페이지일 경우 삽입 위치
       if (isProductPage) {
         const detailArea = document.querySelector('.xans-product-additional') || document.querySelector('#prdDetail') || document.querySelector('#detailArea');
-        if (detailArea) {
-          detailArea.appendChild(container);
-        }
-      }
-      // 2. 메인 페이지일 경우 삽입 위치
-      else if (isMainPage) {
+        if (detailArea) detailArea.appendChild(container);
+      } else if (isMainPage) {
         const mainContent = document.querySelector('#contents') || document.querySelector('.xans-product-listmain') || document.querySelector('#wrap');
         const footer = document.querySelector('#footer');
 
-        if (mainContent) {
-          mainContent.appendChild(container);
-        } else if (footer) {
-          document.body.insertBefore(container, footer);
-        } else {
-          document.body.appendChild(container);
-        }
+        if (mainContent) mainContent.appendChild(container);
+        else if (footer) document.body.insertBefore(container, footer);
+        else document.body.appendChild(container);
       }
 
       if (document.getElementById('review-it-widget')) this.renderSkeleton(container);
     },
 
     async init() {
-      this.autoCreateContainer();
+      // 게시판이 아닐 때만 컨테이너 생성 시도
+      if (!isBoardPage) {
+        this.autoCreateContainer();
+      }
 
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
 
-      // 💡 [긴급 픽스] 위젯 컨테이너가 없는 페이지(글쓰기, 게시판 등)라면 여기서 즉시 스크립트 실행을 중단합니다.
-      // 이 방어 코드가 없으면 글쓰기 페이지에서도 최대 15번의 fetch API가 백그라운드에서 실행되어 카페24 서버와 충돌(보안 차단)을 일으킵니다.
+      // 🛑 컨테이너가 없으면(게시판 포함) 위젯 렌더링 관련 로직(API 호출 등)을 안전하게 즉시 중단
       if (!container) {
-        console.log("▶ [REVIEW-IT] 위젯 노출 대상 페이지가 아니므로 실행을 안전하게 중단합니다.");
+        console.log("▶ [REVIEW-IT] 위젯 노출 대상 페이지가 아니므로 위젯 생성을 안전하게 스킵합니다.");
         return;
       }
 
-      // 2. 컨테이너가 있는 메인/상품 상세 페이지에서만 이후 로직(API 호출, CSS 주입) 실행
       this.injectCSS();
       await this.loadWidgetSettings();
       const hasReviews = await this.loadReviews();
@@ -186,6 +180,8 @@
       }
       this.renderWidget();
     },
+
+
 
     async loadWidgetSettings() {
       try {
@@ -751,7 +747,7 @@
       if (productNo && productNo !== '11') { // (기존 11번 캐싱 데이터 방어)
         const productUrl = `/product/detail.html?product_no=${productNo}`;
         const productImg = currentReviewData?.product_img || (currentReviewData?.all_images && currentReviewData.all_images[0]) || CONFIG.DEFAULT_IMG;
-        
+
         shoppableBtnHtml = `
           <a href="${productUrl}" target="_self" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:5px 12px; border-radius:6px; border:1px solid #f1f5f9; text-decoration:none; transition:all 0.2s;">
              <img src="${productImg}" style="width:16px; height:16px; border-radius:3px; object-fit:cover;">
