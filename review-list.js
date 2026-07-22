@@ -496,12 +496,12 @@
         const sampleProductName = r.product_name || "REVIEW-IT 프리미엄 솔루션";
         const sampleProductImg = r.product_img || imgUrl;
 
-        // 💡 [안정화 픽스] 위젯과 동일한 ID 기반 고정 리뷰 수 생성
-        const numericId = parseInt(String(r.id).replace(/\D/g, '') || '0', 10);
-        const stableRandomCount = (numericId % 40) + 15;
-
+        // 💡 [완전 삭제 및 실제 데이터 연동] 가짜 폴백 로직 전면 제거
         const avgScore = r.product_avg_score || r.stars || 5;
-        const revCount = r.product_review_count || stableRandomCount;
+        const revCount = r.product_review_count; // 오직 DB의 실제 데이터만 받음
+        
+        // 💡 실제 데이터가 없으면 리뷰 수 렌더링 안 함
+        const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
         const productChipHtml = `
           <div class="rit-product-chip">
@@ -514,12 +514,10 @@
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
             <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
             <div class="rit-masonry-info">
-              <!-- 💡 평점 및 리뷰 수 UI -->
               <div style="display:flex; align-items:center; gap:5px; margin-bottom:8px; font-size:11px; font-weight:700; color:#52525b;">
                  <span style="color:#fbbf24;">★</span>
                  <span>${Number(avgScore).toFixed(1)}</span>
-                 <span style="color:#e4e4e7; margin:0 2px;">|</span>
-                 <span style="font-weight:500; color:#71717a;">리뷰 ${revCount}</span>
+                 ${reviewCountHtml}
               </div>
               
               <div class="rit-masonry-subject">${r.subject}</div>

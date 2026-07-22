@@ -566,14 +566,12 @@
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
       const displayName = d.author_name ? d.author_name : (d.writer || '고객');
 
-      // 💡 [안정화 픽스] 새로고침해도 변하지 않는 ID 기반 고정 리뷰 수 생성 (DB 연동 전까지 시각적 유지)
-      const numericId = parseInt(String(id).replace(/\D/g, '') || '0', 10);
-      const stableRandomCount = (numericId % 40) + 15; // 15 ~ 54 사이의 고정 값
-
+      // 💡 [완전 삭제 및 실제 데이터 연동] 가짜 폴백 로직(stableRandomCount) 전면 제거
       const avgScore = d.product_avg_score || d.stars || 5;
-      const revCount = d.product_review_count || stableRandomCount;
+      const revCount = d.product_review_count; // 오직 DB의 실제 데이터만 받음
 
-      const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount}</span>` : '';
+      // 💡 실제 데이터가 없으면(|) 기호와 숫자 자체를 렌더링하지 않음
+      const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
       return `
       <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff;">
