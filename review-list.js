@@ -14,7 +14,7 @@
   // 💡 [핵심 업데이트] HTML을 텍스트로 바꾸기 전에 쓰레기 CSS(style, p.p1 등)를 먼저 박멸합니다.
   const stripHtml = (html) => {
     if (!html) return "";
-    
+
     // 1단계: 더러운 스타일 태그 및 인라인 CSS 텍스트 사전 제거
     let cleanedHtml = String(html)
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // style 태그 내용물 전체 삭제
@@ -499,11 +499,10 @@
 
         const productChipHtml = `
           <div class="rit-product-chip">
-            <img src="${sampleProductImg}" class="rit-product-chip-img" alt="product">
+            <img src="${sampleProductImg}" class="rit-product-chip-img" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
             <span class="rit-product-chip-name">${sampleProductName}</span>
           </div>
         `;
-
         return `
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
             <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
