@@ -73,37 +73,31 @@
       transform: translateY(-1px);
     }
 
-    /* 공지사항 흐르는 띠 배너 애니메이션 */
+    /* 공지사항 무한 흐르는 띠 배너 애니메이션 */
     .ticker-wrapper {
       width: 100%;
       overflow: hidden;
-      background-color: #111827;
-      /* 톤앤매너에 맞는 세련된 다크 컬러 */
+      background-color: #111827; 
       position: relative;
+      display: flex;
     }
-
-    .ticker-content {
-      display: inline-flex;
-      white-space: nowrap;
-      padding-left: 100%;
-      /* 화면 오른쪽 끝에서 시작 */
-      animation: ticker-scroll 20s linear infinite;
+    
+    .ticker-track {
+      display: flex;
+      width: max-content;
+      animation: ticker-scroll 12s linear infinite; 
     }
-
-    .ticker-content:hover {
-      animation-play-state: paused;
-      /* 마우스 오버 시 일시 정지 (사용성 향상) */
+    
+    .ticker-wrapper:hover .ticker-track {
+      animation-play-state: paused; 
     }
-
+    
     @keyframes ticker-scroll {
-      0% {
-        transform: translate3d(0, 0, 0);
-      }
-
-      100% {
-        transform: translate3d(-100%, 0, 0);
-      }
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
     }
+
+
   </style>
 </head>
 
