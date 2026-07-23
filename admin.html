@@ -107,16 +107,31 @@
   </style>
 </head>
 
-<body class="bg-[#f8f9fa] min-h-screen p-4 md:p-10">
+<body class="bg-[#f8f9fa] min-h-screen">
 
   <div class="ticker-wrapper border-b border-gray-800 z-50">
     <div class="ticker-content py-2 flex items-center gap-3">
-      <span class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase">Update</span>
+      <!-- 1. 기존 업데이트 공지 -->
+      <span
+        class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase">Update</span>
       <span class="text-[12px] text-gray-200 font-medium tracking-wide">
         최신 업데이트 로그 (2026.07.22) - 메이슨리(Masonry) 게시판 스타일 토글 기능 추가 및 성능 최적화 완료 🎉
       </span>
-      <!-- 배너 간격을 띄워주기 위한 투명 여백 (선택사항) -->
-      <span class="w-20 inline-block"></span>
+
+      <!-- 배너 간격을 띄워주기 위한 투명 여백 -->
+      <span class="w-32 inline-block"></span>
+
+      <!-- 2. 신규 COMING SOON 공지 -->
+      <span
+        class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase">Coming
+        Soon</span>
+      <span class="text-[12px] text-gray-200 font-medium tracking-wide">
+        🚀 <strong class="text-purple-300">상품 상세페이지 전용 리뷰 위젯</strong> 출시 임박! 상세페이지 하단에 찰떡같이 스며들어 구매 전환율을 폭발시킬 최적화된 위젯이 곧
+        찾아옵니다.
+      </span>
+
+      <!-- 반복을 위한 여백 -->
+      <span class="w-32 inline-block"></span>
     </div>
   </div>
 
