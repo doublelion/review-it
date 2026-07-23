@@ -1,9 +1,10 @@
 /**
  * @Project: Review-It Universal Collector Engine
- * @Version: v1.0.7
+ * @Version: v1.0.8
  * @Update: 
- *  1. [핵심] 쇼퍼블 버튼 연동을 위한 product_no 추출 및 전송 로직 추가
+ *  1. [핵심] 쇼퍼블 버튼 연동을 위한 product_no 추출 및 전송 로직 유지
  *  2. [버그 픽스] 백그라운드 이미지 파싱 시 document -> doc 오참조 버그 해결
+ *  3. [데이터 동기화] DB 컬럼 추가에 따른 product_name, product_image 스크래핑 및 페이로드 추가
  */
 
 (function (window) {
@@ -93,12 +94,19 @@
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
-      // 💡 [핵심 추가] 상품 번호(product_no) 추출
+      // 💡 1. 상품 번호(product_no) 추출
       let extractedProductNo = null;
       const productLink = el.querySelector('a[href*="product_no="]');
       if (productLink) {
         const pMatch = productLink.getAttribute('href').match(/product_no=(\d+)/);
         if (pMatch) extractedProductNo = pMatch[1];
+      }
+
+      // 💡 2. 새로 추가된 상품명(product_name) 추출 로직
+      let extractedProductName = null;
+      const pNameEl = el.querySelector('.product-name, .prd-name, .typeProduct a, td.thumb + td a, .product_name, .name a');
+      if (pNameEl) {
+        extractedProductName = pNameEl.innerText.replace(/\n/g, '').trim();
       }
 
       let authorNameEl = el.querySelector('.writer, .name, td.name, span.name, td:nth-child(3)');
@@ -116,9 +124,17 @@
       let reviewImg = el.querySelector('img[src*="/board/"]:not([src*="icon"])');
       let productImg = el.querySelector('.typeProduct img, td.thumb img, .product-img img, img[src*="/product/"]:not([src*="icon"])');
 
-      // 💡 [버그 픽스] document -> doc 참조로 수정하여 엉뚱한 이미지 수집 방지
       if (!reviewImg && !productImg) {
         productImg = doc.querySelector('.typeProduct img, .xans-board-product img, .xans-board-product-4 img');
+      }
+
+      // 💡 3. 새로 추가된 상품 이미지(product_image) 전용 추출 로직
+      let extractedProductImg = null;
+      if (productImg && productImg.getAttribute('src')) {
+        let src = productImg.getAttribute('src');
+        if (!src.match(/star|icon|btn|logo|dummy|ec2-common|echosting/i)) {
+          extractedProductImg = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
+        }
       }
 
       if (reviewImg && reviewImg.getAttribute('src')) {
@@ -160,6 +176,7 @@
         }
       }
 
+      // 💡 페이로드(전송 데이터) 구성
       const reviewData = {
         mall_id: CONFIG.mallId,
         article_no: String(articleNo),
@@ -172,10 +189,10 @@
         is_visible: true
       };
 
-      // 상품 번호가 스크래핑 되었다면 페이로드에 추가
-      if (extractedProductNo) {
-        reviewData.product_no = extractedProductNo;
-      }
+      // 💡 새롭게 추출한 데이터들을 Supabase 컬럼에 맞게 추가
+      if (extractedProductNo) reviewData.product_no = extractedProductNo;
+      if (extractedProductName) reviewData.product_name = extractedProductName;
+      if (extractedProductImg) reviewData.product_image = extractedProductImg;
 
       payload.push(reviewData);
     });
@@ -203,7 +220,7 @@
       });
 
       if (res.ok) {
-        console.log(`✅ [REVIEW-IT Collector] 동기화 완료 (${limitedPayload.length}건)`);
+        console.log(`✅ [REVIEW-IT Collector] 동기화 완료 (${limitedPayload.length}건) - 상품명/이미지 포함`);
         localStorage.setItem('rit_last_sync', new Date().getTime().toString());
       } else {
         console.error("❌ 데이터 전송 실패:", await res.text());
