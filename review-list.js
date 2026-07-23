@@ -300,12 +300,6 @@
           <h2 class="rit-universal-title">Product Reviews</h2>
           <p class="rit-universal-subtitle">고객님들이 직접 남겨주신 생생한 후기를 확인해보세요.</p>
         </div>
-        
-        <div id="rit-dashboard-area">
-          <div class="rit-dash-skeleton">
-            <!-- 기존 스켈레톤 코드 유지 -->
-          </div>
-        </div>
         <div id="rit-dashboard-area">
           <div class="rit-dash-skeleton">
             <div class="rit-dash-skeleton-left">
