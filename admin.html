@@ -72,10 +72,55 @@
       background: #1d4ed8;
       transform: translateY(-1px);
     }
+
+    /* 공지사항 흐르는 띠 배너 애니메이션 */
+    .ticker-wrapper {
+      width: 100%;
+      overflow: hidden;
+      background-color: #111827;
+      /* 톤앤매너에 맞는 세련된 다크 컬러 */
+      position: relative;
+    }
+
+    .ticker-content {
+      display: inline-flex;
+      white-space: nowrap;
+      padding-left: 100%;
+      /* 화면 오른쪽 끝에서 시작 */
+      animation: ticker-scroll 20s linear infinite;
+    }
+
+    .ticker-content:hover {
+      animation-play-state: paused;
+      /* 마우스 오버 시 일시 정지 (사용성 향상) */
+    }
+
+    @keyframes ticker-scroll {
+      0% {
+        transform: translate3d(0, 0, 0);
+      }
+
+      100% {
+        transform: translate3d(-100%, 0, 0);
+      }
+    }
   </style>
 </head>
 
 <body class="bg-[#f8f9fa] min-h-screen p-4 md:p-10">
+
+  <div class="ticker-wrapper border-b border-gray-800 z-50">
+    <div class="ticker-content py-2 flex items-center gap-3">
+      <span class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase">Update</span>
+      <span class="text-[12px] text-gray-200 font-medium tracking-wide">
+        최신 업데이트 로그 (2026.07.22) - 메이슨리(Masonry) 게시판 스타일 토글 기능 추가 및 성능 최적화 완료 🎉
+      </span>
+      <!-- 배너 간격을 띄워주기 위한 투명 여백 (선택사항) -->
+      <span class="w-20 inline-block"></span>
+    </div>
+  </div>
+
+
   <div class="max-w-6xl mx-auto">
     <div
       class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 border-b border-gray-200 pb-6">
