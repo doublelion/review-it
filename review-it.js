@@ -104,7 +104,8 @@
 
       // 💡 2. 새로 추가된 상품명(product_name) 추출 로직
       let extractedProductName = null;
-      const pNameEl = el.querySelector('.product-name, .prd-name, .typeProduct a, td.thumb + td a, .product_name, .name a');
+      
+      const pNameEl = el.querySelector('.typeProduct a, td.product a, .product-name, .prd-name, .product_name');
       if (pNameEl) {
         extractedProductName = pNameEl.innerText.replace(/\n/g, '').trim();
       }
