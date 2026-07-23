@@ -48,19 +48,18 @@
   const env = getDynamicConfig();
 
   const currentPath = window.location.pathname.toLowerCase();
+  const currentSearch = window.location.search.toLowerCase(); // 기존 로직을 위해 다시 부활
+  const urlParams = new URLSearchParams(window.location.search); // 정밀 타겟팅용 추가
 
-  // URLSearchParams를 활용한 안전한 파라미터 추출
-  const urlParams = new URLSearchParams(window.location.search);
-
-  // 'board_no'가 아닌 정확히 'no' 또는 'article_no' 파라미터가 있을 때만 차단
+  // 1. 읽기 페이지 차단 로직 (no 파라미터 오탐지 방지용 특수 로직)
   const isBlockedReadPage =
-    currentPath.includes('/read.html') ||
+    currentPath.includes('/board/product/read.html') ||
     urlParams.has('article_no') ||
     urlParams.has('no');
 
+  // 2. 기타 예외 페이지
   const isBlockedDetailPage = currentPath.includes('/product/detail.html');
   const isBlockedWritePage = currentPath.includes('/write.html') || currentPath.includes('/modify.html');
-
 
   if (isBlockedReadPage || isBlockedDetailPage || isBlockedWritePage) {
     console.log("▶ [REVIEW-IT List] 예외 페이지 감지 -> 리스트 엔진 차단 및 뼈대 강제 삭제 가동");
@@ -81,6 +80,7 @@
     return;
   }
 
+  // 3. 리뷰 게시판 감지 (여기에 currentSearch가 쓰이고 있었습니다!)
   const isReviewBoardPage =
     currentPath.includes('/board/product/list') ||
     currentPath.includes('상품-사용후기') ||
