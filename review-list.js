@@ -1,28 +1,24 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.8
+ * @Project: Review-It Universal Board List Engine v1.0.9
  * @Role: Cafe24 Review SaaS Lead Developer
  * @Update: 
- *  1. [클린업] 맥 에디터 쓰레기 태그(p.p1, span.s1 등) 리스트 프리뷰 완벽 정제 로직 추가
- *  2. [안전] ykinas 몰 전용 락(Lock) 주석 유지
- *  3. [UI] 리뷰 수 랜덤 페이크 삭제 및 실제 데이터 매핑 연동
- *  4. [초강력 방어] 상품 상세 및 게시판 상세 페이지 뼈대 잔재 3초간 강제 파괴 로직 유지
+ *  1. [클린업] 맥 에디터 쓰레기 태그(p.p1, span.s1 등) 리스트 프리뷰 완벽 정제 로직
+ *  2. [UI/UX] DB에 상품명이 없어도 칩(Chip)이 증발하지 않도록 안전 폴백('리뷰 상품 보기') 추가
+ *  3. [데이터] 위젯과 리스트 간의 상품 번호(product_no) 완벽 동기화 및 모달 링크 끊김 방어
+ *  4. [이벤트] 칩 클릭 시 모달이 아닌 상품 상세로 이동하도록 버블링(stopPropagation) 차단
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
   window.RIT_LIST_LOADED = true;
 
-  // 💡 [핵심 업데이트] HTML을 텍스트로 바꾸기 전에 쓰레기 CSS(style, p.p1 등)를 먼저 박멸합니다.
   const stripHtml = (html) => {
     if (!html) return "";
-
-    // 1단계: 더러운 스타일 태그 및 인라인 CSS 텍스트 사전 제거
     let cleanedHtml = String(html)
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // style 태그 내용물 전체 삭제
-      .replace(/p\.p1\s*\{[^}]*\}/gi, '')             // 텍스트로 노출되는 p.p1 삭제
-      .replace(/span\.s1\s*\{[^}]*\}/gi, '')          // span.s1 삭제
-      .replace(/&nbsp;/gi, ' ');                      // 무의미한 공백 제거
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/p\.p1\s*\{[^}]*\}/gi, '')
+      .replace(/span\.s1\s*\{[^}]*\}/gi, '')
+      .replace(/&nbsp;/gi, ' ');
 
-    // 2단계: 순수 텍스트만 추출
     let tmp = document.createElement("DIV");
     tmp.innerHTML = cleanedHtml;
     return (tmp.textContent || tmp.innerText || "").trim();
@@ -51,16 +47,9 @@
 
   const env = getDynamicConfig();
 
-  // 🔒 [테스트 안전장치] 정식 릴리즈 전까지 ykinas 몰 전용 유지 (타 몰 오픈 방지)
-  // if (env.mallId !== 'ykinas') {
-  //   console.log("▶ [REVIEW-IT List] 아직 오픈되지 않은 페이지입니다. (ykinas 전용 테스트 락 작동 중)");
-  //   return;
-  // }
-
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
 
-  // 💡 [경로 추적 차단] /board/product/read.html 및 /product/detail.html 감지 시 즉시 종료
   const isBlockedReadPage = currentPath.includes('/board/product/read.html') || currentSearch.includes('no=') || currentSearch.includes('article_no=');
   const isBlockedDetailPage = currentPath.includes('/product/detail.html');
   const isBlockedWritePage = currentPath.includes('/write.html') || currentPath.includes('/modify.html');
@@ -68,7 +57,6 @@
   if (isBlockedReadPage || isBlockedDetailPage || isBlockedWritePage) {
     console.log("▶ [REVIEW-IT List] 예외 페이지 감지 -> 리스트 엔진 차단 및 뼈대 강제 삭제 가동");
 
-    // 🚨 3초간 0.2초 간격으로 지연 렌더링된 뼈대까지 모조리 파괴하는 Ghost Killer
     const killListGhosts = () => {
       document.querySelectorAll('.rit-list-container, #review-it-widget, #rit-widget-container').forEach(el => {
         el.style.setProperty('display', 'none', 'important');
@@ -82,7 +70,7 @@
     const ghostInterval = setInterval(killListGhosts, 200);
     setTimeout(() => clearInterval(ghostInterval), 3000);
 
-    return; // 리스트 렌더링 로직 완전 종료
+    return;
   }
 
   const isReviewBoardPage =
@@ -110,7 +98,7 @@
     allFetchedReviews: [],
 
     async init() {
-      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.8");
+      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.9");
 
       try {
         const res = await fetch(`${CONFIG.sbUrl}/widget_settings?mall_id=eq.${CONFIG.mallId}&select=list_design_type`, {
@@ -219,7 +207,6 @@
         .rit-modal-swiper .swiper-slide { width: 100% !important; flex-shrink: 0 !important; background: #000 !important; }
         .rit-img-side { background: #000 !important; }
 
-        /* 💡 REVIEW-IT 유니버설 타이틀 CSS */
         .rit-universal-header { text-align: center; margin-bottom: 40px; }
         .rit-universal-title { font-size: 26px; font-weight: 700; color: #18181b; margin: 0 0 10px 0; letter-spacing: -0.5px; font-family: inherit; }
         .rit-universal-subtitle { font-size: 14px; color: #71717a; font-weight: 400; margin: 0; word-break: keep-all; }
@@ -295,7 +282,6 @@
       container.className = 'rit-list-container';
 
       container.innerHTML = `
-        <!-- 💡 [추가] 모든 몰에 어울리는 심플하고 고급스러운 커스텀 타이틀 -->
         <div class="rit-universal-header">
           <h2 class="rit-universal-title">Product Reviews</h2>
           <p class="rit-universal-subtitle">고객님들이 직접 남겨주신 생생한 후기를 확인해보세요.</p>
@@ -411,8 +397,6 @@
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
-        // 작성자 이름을 덮어씌우는 로직을 완전히 삭제합니다.
-        // 기존 ReviewApp의 모달 렌더링 로직이 작성자 이름을 정상적으로 출력하도록 둡니다.
       }
     },
 
@@ -439,12 +423,10 @@
 
         const enrichedData = await Promise.all(data.map(async (r) => {
           if (window.ReviewApp) {
-            // 💡 [핵심] 리스트에서 가져온 DB 정보를 ReviewApp 전역 데이터에 주입 (모달 연동용)
             if (!window.ReviewApp.data[r.id]) {
               window.ReviewApp.data[r.id] = { ...r };
               window.ReviewApp.listOrder.push(r.id);
             } else {
-              // 이미 존재한다면, 누락된 product_no 등을 덮어씌워서 모달 링크 복구
               window.ReviewApp.data[r.id] = { ...window.ReviewApp.data[r.id], ...r };
             }
 
@@ -457,9 +439,10 @@
                 widgetData.clean_text_body = stripHtml(scraped.text || r.content || '');
                 if (scraped.writer) widgetData.author_name = scraped.writer;
 
-                // 스크래핑된 상품 정보가 있다면 widgetData에 추가 보강 (모달 상품 이동 방어용)
-                if (scraped.product_name && !widgetData.product_name) widgetData.product_name = scraped.product_name;
-                if (scraped.product_no && !widgetData.product_no) widgetData.product_no = scraped.product_no;
+                // 💡 [핵심 연동] 위젯 스크래퍼에서 추출한 상품 정보가 있다면 리스트 칩 렌더링을 위해 최우선 백업
+                if (scraped.productName) widgetData.scraped_product_name = scraped.productName;
+                if (scraped.productNo) widgetData.scraped_product_no = scraped.productNo;
+                if (scraped.productImg) widgetData.scraped_product_img = scraped.productImg;
               } else {
                 widgetData.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
                 widgetData.clean_text_body = stripHtml(r.content || '');
@@ -509,22 +492,21 @@
         const revCount = r.product_review_count;
         const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
-        // 💡 [수정] 페이크 데이터 완전 삭제 및 실제 데이터 맵핑
-        // DB 컬럼명에 따라 product_name 또는 item_name 대응
-        const actualProductName = r.product_name || r.item_name || '';
-        const actualProductImg = r.product_image || r.product_img || imgUrl;
-        const actualProductNo = r.product_no || '';
+        // 💡 [핵심 방어 로직] 칩 증발 방지 및 우선순위 스크래핑 데이터 적용
+        // 1. 위젯이 방금 긁어온 값 (scraped_*) -> 2. DB 저장 값 (product_*) -> 3. 실패 시 기본 텍스트
+        const actualProductName = r.scraped_product_name || r.product_name || r.item_name || '리뷰 상품 보기';
+        const actualProductImg = r.scraped_product_img || r.product_image || r.product_img || imgUrl;
+        const actualProductNo = r.scraped_product_no || r.product_no || '';
 
-        // 상품 번호가 있으면 상세 페이지 링크 생성
         const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
 
-        // 상품명이 존재할 때만 칩(Chip) 렌더링, 클릭 시 상품 페이지로 이동 (버블링 방지)
-        const productChipHtml = actualProductName ? `
+        // 💡 칩은 조건 없이 항상 렌더링되도록 보장, 클릭 시 모달이 뜨지 않도록 버블링 방지(stopPropagation)
+        const productChipHtml = `
           <div class="rit-product-chip" ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} style="${productLink ? 'cursor:pointer;' : ''}">
             <img src="${actualProductImg}" class="rit-product-chip-img" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
             <span class="rit-product-chip-name">${actualProductName}</span>
           </div>
-        ` : '';
+        `;
 
         const rawName = (r.author_name ? r.author_name : (r.writer || '고객')).trim();
         const isMallOwner = CONFIG.mallName && (rawName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawName));
