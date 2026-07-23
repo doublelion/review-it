@@ -1,9 +1,9 @@
 /**
- * @Project: Review-It Universal Board List Engine v1.0.9
+ * @Project: Review-It Universal Board List Engine v1.0.9 (UX Patch)
  * @Role: Cafe24 Review SaaS Lead Developer
  * @Update: 
  *  1. [클린업] 맥 에디터 쓰레기 태그(p.p1, span.s1 등) 리스트 프리뷰 완벽 정제 로직
- *  2. [UI/UX] DB에 상품명이 없어도 칩(Chip)이 증발하지 않도록 안전 폴백('리뷰 상품 보기') 추가
+ *  2. [UI/UX] 칩(Chip) 텍스트를 '상품 보기'로 강제 통일하여 구매 전환율(CTA) 극대화 및 스킨 오류 원천 차단
  *  3. [데이터] 위젯과 리스트 간의 상품 번호(product_no) 완벽 동기화 및 모달 링크 끊김 방어
  *  4. [이벤트] 칩 클릭 시 모달이 아닌 상품 상세로 이동하도록 버블링(stopPropagation) 차단
  */
@@ -437,7 +437,7 @@
                 widgetData.clean_text_body = stripHtml(scraped.text || r.content || '');
                 if (scraped.writer) widgetData.author_name = scraped.writer;
 
-                // 💡 [핵심 연동] 위젯 스크래퍼에서 추출한 상품 정보가 있다면 리스트 칩 렌더링을 위해 최우선 백업
+                // 💡 추출 로직은 뒤에서 묵묵히 일하도록 살려둡니다.
                 if (scraped.productName) widgetData.scraped_product_name = scraped.productName;
                 if (scraped.productNo) widgetData.scraped_product_no = scraped.productNo;
                 if (scraped.productImg) widgetData.scraped_product_img = scraped.productImg;
@@ -490,9 +490,9 @@
         const revCount = r.product_review_count;
         const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
-        // 💡 [핵심 방어 로직] 칩 증발 방지 및 우선순위 스크래핑 데이터 적용
-        // 1. 위젯이 방금 긁어온 값 (scraped_*) -> 2. DB 저장 값 (product_*) -> 3. 실패 시 기본 텍스트
-        const actualProductName = r.scraped_product_name || r.product_name || r.item_name || '리뷰 상품 보기';
+        // 💡 [UX 최적화] 복잡한 상품명 대신 깔끔하게 '상품 보기'로 통일 (CTA 효과 극대화)
+        // 로직(r.scraped_product_name 등)은 백그라운드에 그대로 살려둡니다.
+        const actualProductName = '상품 보기'; 
         const actualProductImg = r.scraped_product_img || r.product_image || r.product_img || imgUrl;
         const actualProductNo = r.scraped_product_no || r.product_no || '';
 
