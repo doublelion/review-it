@@ -439,9 +439,13 @@
 
         const enrichedData = await Promise.all(data.map(async (r) => {
           if (window.ReviewApp) {
+            // 💡 [핵심] 리스트에서 가져온 DB 정보를 ReviewApp 전역 데이터에 주입 (모달 연동용)
             if (!window.ReviewApp.data[r.id]) {
-              window.ReviewApp.data[r.id] = r;
+              window.ReviewApp.data[r.id] = { ...r };
               window.ReviewApp.listOrder.push(r.id);
+            } else {
+              // 이미 존재한다면, 누락된 product_no 등을 덮어씌워서 모달 링크 복구
+              window.ReviewApp.data[r.id] = { ...window.ReviewApp.data[r.id], ...r };
             }
 
             let widgetData = window.ReviewApp.data[r.id];
@@ -451,8 +455,11 @@
               if (scraped) {
                 widgetData.all_images = (scraped.images && scraped.images.length > 0) ? scraped.images : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg]);
                 widgetData.clean_text_body = stripHtml(scraped.text || r.content || '');
-                // 💡 [추가] 위젯처럼 스크래핑한 진짜 작성자 이름을 author_name에 저장!
                 if (scraped.writer) widgetData.author_name = scraped.writer;
+
+                // 스크래핑된 상품 정보가 있다면 widgetData에 추가 보강 (모달 상품 이동 방어용)
+                if (scraped.product_name && !widgetData.product_name) widgetData.product_name = scraped.product_name;
+                if (scraped.product_no && !widgetData.product_no) widgetData.product_no = scraped.product_no;
               } else {
                 widgetData.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
                 widgetData.clean_text_body = stripHtml(r.content || '');
@@ -498,30 +505,34 @@
         const imgUrl = (r.all_images && r.all_images.length > 0 && r.all_images[0] !== CONFIG.defaultImg) ? r.all_images[0] : CONFIG.defaultImg;
         const cleanContent = r.clean_text_body || '내용이 없습니다.';
 
-        const sampleProductName = r.product_name || "REVIEW-IT 프리미엄 솔루션";
-        const sampleProductImg = r.product_img || imgUrl;
-
         const avgScore = r.product_avg_score || r.stars || 5;
         const revCount = r.product_review_count;
-
         const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
-        const productChipHtml = `
-          <div class="rit-product-chip">
-            <img src="${sampleProductImg}" class="rit-product-chip-img" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
-            <span class="rit-product-chip-name">${sampleProductName}</span>
-          </div>
-        `;
+        // 💡 [수정] 페이크 데이터 완전 삭제 및 실제 데이터 맵핑
+        // DB 컬럼명에 따라 product_name 또는 item_name 대응
+        const actualProductName = r.product_name || r.item_name || '';
+        const actualProductImg = r.product_image || r.product_img || imgUrl;
+        const actualProductNo = r.product_no || '';
 
-        // 💡 [추가/수정] 위젯과 완벽히 동일한 작성자 추출 및 마스킹 로직
+        // 상품 번호가 있으면 상세 페이지 링크 생성
+        const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
+
+        // 상품명이 존재할 때만 칩(Chip) 렌더링, 클릭 시 상품 페이지로 이동 (버블링 방지)
+        const productChipHtml = actualProductName ? `
+          <div class="rit-product-chip" ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} style="${productLink ? 'cursor:pointer;' : ''}">
+            <img src="${actualProductImg}" class="rit-product-chip-img" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
+            <span class="rit-product-chip-name">${actualProductName}</span>
+          </div>
+        ` : '';
+
         const rawName = (r.author_name ? r.author_name : (r.writer || '고객')).trim();
         const isMallOwner = CONFIG.mallName && (rawName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawName));
 
         let displayName = rawName;
         if (!isMallOwner && window.ReviewApp && typeof window.ReviewApp.maskName === 'function') {
-          displayName = window.ReviewApp.maskName(rawName); // 위젯의 마스킹 함수 재사용
+          displayName = window.ReviewApp.maskName(rawName);
         } else if (!isMallOwner) {
-          // ReviewApp이 혹시 없을 경우를 대비한 자체 폴백 마스킹
           if (rawName.length <= 2) displayName = rawName.charAt(0) + '*';
           else if (rawName.length === 3) displayName = rawName.charAt(0) + '*' + rawName.charAt(2);
           else displayName = rawName.substring(0, 2) + '**';
@@ -541,7 +552,6 @@
               <div class="rit-masonry-desc">${cleanContent}</div>
               ${productChipHtml}
               <div class="rit-masonry-meta">
-                <!-- 💡 [수정] 맵핑된 displayName 출력 -->
                 <span style="font-weight:600; color:#52525b;">${displayName}</span>
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" class="rit-card-star" alt="star">
               </div>
