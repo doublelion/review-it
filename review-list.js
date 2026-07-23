@@ -397,14 +397,8 @@
     hijackModal() {
       if (window.ReviewApp && !window.ReviewApp._list_hijacked) {
         window.ReviewApp._list_hijacked = true;
-        const origRender = window.ReviewApp.renderDetail;
-        window.ReviewApp.renderDetail = async function (id) {
-          await origRender.call(this, id);
-          const authorEl = document.querySelector('#ritMetaArea .rit-author');
-          if (authorEl) {
-            authorEl.innerText = CONFIG.mallName;
-          }
-        };
+        // 작성자 이름을 덮어씌우는 로직을 완전히 삭제합니다.
+        // 기존 ReviewApp의 모달 렌더링 로직이 작성자 이름을 정상적으로 출력하도록 둡니다.
       }
     },
 
@@ -517,7 +511,8 @@
               <div class="rit-masonry-desc">${cleanContent}</div>
               ${productChipHtml}
               <div class="rit-masonry-meta">
-                <span style="font-weight:600; color:#52525b;">${CONFIG.mallName}</span>
+                <!-- DB의 작성자 필드명(예: writer)을 넣어주세요. 값이 없을 경우 '고객' 등으로 대체합니다. -->
+                <span style="font-weight:600; color:#52525b;">${r.writer || r.author || '고객'}</span>
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" class="rit-card-star" alt="star">
               </div>
             </div>
