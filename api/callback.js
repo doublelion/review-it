@@ -11,7 +11,6 @@ const CAFE24_API_VERSION = '2026-03-01';
 module.exports = async (req, res) => {
   try {
     const code = req.query.code;
-    // state가 없으면 카페24가 기본으로 던져주는 mall_id를 낚아챕니다.
     const mall_id = req.query.mall_id || req.query.state;
 
     if (!code || !mall_id) {
@@ -101,9 +100,6 @@ module.exports = async (req, res) => {
             shopIds = fetchedShops.map(s => s.shop_no);
             console.log(`🔍 [상점 조회 성공] 검색된 멀티쇼핑몰 목록: ${shopIds}`);
           }
-        } else {
-          const shopErrorDetail = await shopListRes.text();
-          console.warn(`⚠️ [상점 조회 실패] 상태 코드: ${shopListRes.status}, 사유: ${shopErrorDetail}. 기본값(1번 몰)으로 진행합니다.`);
         }
       } catch (shopErr) {
         console.error('⚠️ [상점 조회 중 예외 발생] 기본값(1번 몰)으로 진행:', shopErr.message);
@@ -134,16 +130,14 @@ module.exports = async (req, res) => {
           });
 
           if (!scriptRes.ok) {
-            const errorDetail = await scriptRes.text();
-            console.error(`❌ [스크립트 주입 실패 - 상점 ${shop_no}] 상세 사유:`, errorDetail);
+            console.error(`❌ [스크립트 주입 실패 - 상점 ${shop_no}]`);
           } else {
             console.log(`✅ [스크립트 주입 성공 - 상점 ${shop_no}] ${src} 등록 완료!`);
           }
         }
       }
-
     } catch (scriptErr) {
-      console.error('🔥 스크립트 자동 주입 프로세스 치명적 에러:', scriptErr);
+      console.error('🔥 스크립트 자동 주입 프로세스 에러:', scriptErr);
     }
 
     // =================================================================
@@ -151,7 +145,7 @@ module.exports = async (req, res) => {
     // =================================================================
     try {
       console.log(`🔄 [리뷰 동기화 시작] ${mall_id}의 초기 리뷰 데이터를 가져옵니다.`);
-      const boardNo = 4; // 상품 구매후기 게시판 번호 (표준 4번)
+      const boardNo = 4;
 
       const articlesRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/boards/${boardNo}/articles?limit=15`, {
         method: 'GET',
@@ -166,12 +160,9 @@ module.exports = async (req, res) => {
         const articles = articlesData.articles || [];
 
         if (articles.length > 0) {
-          // 💡 [추가] 게시글에 연결된 고유한 상품 번호(product_no)들만 추출 (null 제외)
           const uniqueProductNos = [...new Set(articles.map(a => a.product_no).filter(Boolean))];
+          let productInfoMap = {};
 
-          let productInfoMap = {}; // 상품 정보를 담을 딕셔너리
-
-          // 💡 [추가] 추출한 상품 번호가 있다면, 카페24 상품 API를 1번만 호출하여 상품명/이미지 일괄 조회
           if (uniqueProductNos.length > 0) {
             const productQuery = uniqueProductNos.join(',');
             const prodRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/products?product_no=${productQuery}&fields=product_no,product_name,list_image`, {
@@ -185,65 +176,87 @@ module.exports = async (req, res) => {
             if (prodRes.ok) {
               const prodData = await prodRes.json();
               const products = prodData.products || [];
-              // 조회된 상품 데이터를 Map 형태로 변환 (빠른 매핑을 위해)
               products.forEach(p => {
                 productInfoMap[p.product_no] = {
                   name: p.product_name,
-                  image: p.list_image // 카페24 표준 리스트 썸네일
+                  image: p.list_image
                 };
               });
               console.log(`📦 [상품 정보 매핑 성공] ${products.length}개의 상품 정보 획득`);
             }
           }
 
-          // Supabase 'reviews' 테이블에 데이터 매핑 및 저장
           const reviewsToInsert = articles.map(article => {
             const pNo = article.product_no;
-            const pInfo = productInfoMap[pNo] || {}; // 맵핑된 상품 정보 꺼내기
+            const pInfo = productInfoMap[pNo] || {};
 
             return {
               mall_id: mall_id,
               article_no: String(article.article_no),
               product_no: pNo || null,
-
-              // 💡 [핵심] 조회해온 실제 상품명과 이미지 DB 삽입 (없으면 폴백)
               product_name: pInfo.name || null,
               product_image: pInfo.image || null,
-
               member_id: article.member_id || 'guest',
               writer: article.writer || '고객',
               author_name: article.writer || '고객',
               subject: article.subject || '포토 리뷰입니다.',
               content: article.content || '본문을 불러오는 중입니다...',
-              created_at: article.created_date
+              created_at: article.created_date,
+              is_visible: true
             };
           });
 
-          const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
+          const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews?on_conflict=mall_id,article_no`, {
             method: 'POST',
             headers: {
               'apikey': SUPABASE_KEY,
               'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates'
             },
             body: JSON.stringify(reviewsToInsert)
           });
 
-          if (!insertRes.ok) {
-            const insertError = await insertRes.text();
-            console.error('❌ 리뷰 Supabase 저장 에러:', insertError);
-          } else {
-            console.log(`✅ [리뷰 동기화 성공] ${reviewsToInsert.length}개의 리뷰 저장 완료! (상품명/이미지 매핑 포함)`);
+          if (insertRes.ok) {
+            console.log(`✅ [리뷰 동기화 성공] ${reviewsToInsert.length}개의 리뷰 저장 완료!`);
           }
-        } else {
-          console.log(`ℹ️ [리뷰 동기화] 가져올 기존 리뷰가 없습니다.`);
         }
-      } else {
-        const articleErrorDetail = await articlesRes.text();
-        console.warn(`⚠️ [리뷰 동기화 실패] 상태 코드: ${articlesRes.status}, 사유: ${articleErrorDetail}`);
       }
     } catch (syncErr) {
       console.error('🔥 초기 리뷰 동기화 프로세스 에러:', syncErr);
+    }
+
+    // =================================================================
+    // 4-1. [핵심 추가] 실시간 웹훅(Webhook) 자동 등록
+    // =================================================================
+    try {
+      const webhookUrl = 'https://review-it-tau.vercel.app/api/webhook';
+
+      const webhookRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/webhooks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'X-Cafe24-Api-Version': CAFE24_API_VERSION
+        },
+        body: JSON.stringify({
+          request: {
+            client_id: CAFE24_CLIENT_ID,
+            event_type: "article_created", // 게시글(리뷰) 작성 감지
+            url: webhookUrl
+          }
+        })
+      });
+
+      if (webhookRes.ok) {
+        console.log(`✅ [웹훅 등록 성공] ${mall_id} - 실시간 리뷰 자동 수집망 장착 완료`);
+      } else {
+        const errText = await webhookRes.text();
+        // 이미 등록된 경우 오류를 뱉을 수 있으므로 경고 처리
+        console.warn(`⚠️ [웹훅 등록 안내] ${mall_id}: 이미 등록되었거나 실패 - ${errText}`);
+      }
+    } catch (webhookErr) {
+      console.error('🔥 웹훅 등록 중 서버 에러:', webhookErr);
     }
 
     // =================================================================
