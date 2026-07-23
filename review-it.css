@@ -1150,7 +1150,7 @@
   - .rit-list-container에 'rit-force-hide-back' 클래스가 부여되었을 때만
   - 부모인 #contents를 추적하여 하위의 RTMB(뒤로가기)를 강제 숨김 처리합니다.
 */
-#contents:has(.rit-list-container.rit-force-hide-back) .xans-layout-mobileaction.RTMB {
+#contents:has(.rit-list-container) .xans-layout-mobileaction.RTMB {
   display: none !important;
 }
 
