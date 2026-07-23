@@ -218,7 +218,16 @@
         .rit-modal-swiper .swiper-wrapper { display: flex !important; }
         .rit-modal-swiper .swiper-slide { width: 100% !important; flex-shrink: 0 !important; background: #000 !important; }
         .rit-img-side { background: #000 !important; }
-        
+
+        /* 💡 REVIEW-IT 유니버설 타이틀 CSS */
+        .rit-universal-header { text-align: center; margin-bottom: 40px; }
+        .rit-universal-title { font-size: 26px; font-weight: 700; color: #18181b; margin: 0 0 10px 0; letter-spacing: -0.5px; font-family: inherit; }
+        .rit-universal-subtitle { font-size: 14px; color: #71717a; font-weight: 400; margin: 0; word-break: keep-all; }
+        @media (min-width: 1024px) {
+          .rit-universal-title { font-size: 32px; }
+          .rit-universal-subtitle { font-size: 15px; }
+        }
+                
         @media (min-width: 768px) {
           .rit-modal-window { overflow: visible !important; }
           .rit-modal-header { position: absolute !important; top: -60px !important; left: 0; right: 0; background: transparent !important; padding: 0 !important; display: flex !important; z-index: 99999 !important; border: none !important; }
@@ -286,6 +295,17 @@
       container.className = 'rit-list-container';
 
       container.innerHTML = `
+        <!-- 💡 [추가] 모든 몰에 어울리는 심플하고 고급스러운 커스텀 타이틀 -->
+        <div class="rit-universal-header">
+          <h2 class="rit-universal-title">Product Reviews</h2>
+          <p class="rit-universal-subtitle">고객님들이 직접 남겨주신 생생한 후기를 확인해보세요.</p>
+        </div>
+        
+        <div id="rit-dashboard-area">
+          <div class="rit-dash-skeleton">
+            <!-- 기존 스켈레톤 코드 유지 -->
+          </div>
+        </div>
         <div id="rit-dashboard-area">
           <div class="rit-dash-skeleton">
             <div class="rit-dash-skeleton-left">
