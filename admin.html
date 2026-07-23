@@ -77,60 +77,83 @@
     .ticker-wrapper {
       width: 100%;
       overflow: hidden;
-      background-color: #111827; 
+      background-color: #111827;
       position: relative;
       display: flex;
     }
-    
+
     .ticker-track {
       display: flex;
       width: max-content;
-      animation: ticker-scroll 12s linear infinite; 
+      animation: ticker-scroll 12s linear infinite;
     }
-    
+
     .ticker-wrapper:hover .ticker-track {
-      animation-play-state: paused; 
+      animation-play-state: paused;
     }
-    
+
     @keyframes ticker-scroll {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
+      0% {
+        transform: translateX(0);
+      }
+
+      100% {
+        transform: translateX(-50%);
+      }
     }
-
-
   </style>
 </head>
 
 <body class="bg-[#f8f9fa] min-h-screen">
 
   <div class="ticker-wrapper border-b border-gray-800 z-50">
-    <div class="ticker-content py-2 flex items-center gap-3">
-      <!-- 1. 기존 업데이트 공지 -->
-      <span
-        class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase">Update</span>
-      <span class="text-[12px] text-gray-200 font-medium tracking-wide">
-        최신 업데이트 로그 (2026.07.22) - 메이슨리(Masonry) 게시판 스타일 토글 기능 추가 및 성능 최적화 완료 🎉
-      </span>
+    <div class="ticker-track py-2">
 
-      <!-- 배너 간격을 띄워주기 위한 투명 여백 -->
-      <span class="w-32 inline-block"></span>
+      <!-- 그룹 1 -->
+      <div class="flex items-center gap-3 px-4">
+        <span
+          class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Update</span>
+        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
+          최신 업데이트 로그 (2026.07.22) - 메이슨리(Masonry) 게시판 스타일 토글 기능 추가 및 성능 최적화 완료 🎉
+        </span>
 
-      <!-- 2. 신규 COMING SOON 공지 -->
-      <span
-        class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase">Coming
-        Soon</span>
-      <span class="text-[12px] text-gray-200 font-medium tracking-wide">
-        🚀 <strong class="text-purple-300">상품 상세페이지 전용 리뷰 위젯</strong> 출시 임박! 상세페이지 하단에 찰떡같이 스며들어 구매 전환율을 폭발시킬 최적화된 위젯이 곧
-        찾아옵니다.
-      </span>
+        <span class="w-8 inline-block"></span>
 
-      <!-- 반복을 위한 여백 -->
-      <span class="w-32 inline-block"></span>
+        <span
+          class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Coming
+          Soon</span>
+        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
+          🚀 <strong class="text-purple-300">상품 상세페이지 전용 리뷰 위젯</strong> 출시 임박! 상세페이지 하단에 찰떡같이 스며들어 구매 전환율을 폭발시킬 최적화된 위젯이
+          곧 찾아옵니다.
+        </span>
+        <span class="w-8 inline-block"></span>
+      </div>
+
+      <!-- 그룹 2 (그룹 1과 동일한 내용으로 무한 루프 구현) -->
+      <div class="flex items-center gap-3 px-4">
+        <span
+          class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Update</span>
+        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
+          최신 업데이트 로그 (2026.07.22) - 메이슨리(Masonry) 게시판 스타일 토글 기능 추가 및 성능 최적화 완료 🎉
+        </span>
+
+        <span class="w-8 inline-block"></span>
+
+        <span
+          class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Coming
+          Soon</span>
+        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
+          🚀 <strong class="text-purple-300">상품 상세페이지 전용 리뷰 위젯</strong> 출시 임박! 상세페이지 하단에 찰떡같이 스며들어 구매 전환율을 폭발시킬 최적화된 위젯이
+          곧 찾아옵니다.
+        </span>
+        <span class="w-8 inline-block"></span>
+      </div>
+
     </div>
   </div>
 
 
-  <div class="max-w-6xl mx-auto">
+  <div class="mt-8 max-w-6xl mx-auto">
     <div
       class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 border-b border-gray-200 pb-6">
       <div>
