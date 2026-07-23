@@ -48,11 +48,19 @@
   const env = getDynamicConfig();
 
   const currentPath = window.location.pathname.toLowerCase();
-  const currentSearch = window.location.search.toLowerCase();
 
-  const isBlockedReadPage = currentPath.includes('/board/product/read.html') || currentSearch.includes('no=') || currentSearch.includes('article_no=');
+  // URLSearchParams를 활용한 안전한 파라미터 추출
+  const urlParams = new URLSearchParams(window.location.search);
+
+  // 'board_no'가 아닌 정확히 'no' 또는 'article_no' 파라미터가 있을 때만 차단
+  const isBlockedReadPage =
+    currentPath.includes('/read.html') ||
+    urlParams.has('article_no') ||
+    urlParams.has('no');
+
   const isBlockedDetailPage = currentPath.includes('/product/detail.html');
   const isBlockedWritePage = currentPath.includes('/write.html') || currentPath.includes('/modify.html');
+
 
   if (isBlockedReadPage || isBlockedDetailPage || isBlockedWritePage) {
     console.log("▶ [REVIEW-IT List] 예외 페이지 감지 -> 리스트 엔진 차단 및 뼈대 강제 삭제 가동");
@@ -492,7 +500,7 @@
 
         // 💡 [UX 최적화] 복잡한 상품명 대신 깔끔하게 '상품 보기'로 통일 (CTA 효과 극대화)
         // 로직(r.scraped_product_name 등)은 백그라운드에 그대로 살려둡니다.
-        const actualProductName = '상품 보기'; 
+        const actualProductName = '상품 보기';
         const actualProductImg = r.scraped_product_img || r.product_image || r.product_img || imgUrl;
         const actualProductNo = r.scraped_product_no || r.product_no || '';
 
