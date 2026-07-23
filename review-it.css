@@ -1140,3 +1140,25 @@
     display: none !important;
   }
 }
+
+/* =========================================
+   REVIEW-IT: 카페24 기본 모바일 뒤로가기 제어
+========================================= */
+
+/* 
+  1. 최신 CSS 가상 클래스 :has()를 활용한 방식 
+  - .rit-list-container에 'rit-force-hide-back' 클래스가 부여되었을 때만
+  - 부모인 #contents를 추적하여 하위의 RTMB(뒤로가기)를 강제 숨김 처리합니다.
+*/
+#contents:has(.rit-list-container.rit-force-hide-back) .xans-layout-mobileaction.RTMB {
+  display: none !important;
+}
+
+/* 
+  2. 하위 호환성 및 명시적 제어를 위한 Body/Parent 클래스 방식
+  - JS로 body나 #contents 자체에 클래스를 먹일 경우를 대비한 방어 코드입니다.
+*/
+body.rit-hide-default-back #contents .xans-layout-mobileaction.RTMB,
+#contents.rit-hide-default-back .xans-layout-mobileaction.RTMB {
+  display: none !important;
+}
