@@ -7,16 +7,19 @@
   console.log("▶ [REVIEW-IT] 프론트엔드 스크립트 로드 완료!");
 
   const currentPath = window.location.pathname.toLowerCase();
-  const currentSearch = window.location.search.toLowerCase();
+  const currentSearch = window.location.search.toLowerCase(); // 하위 로직(board_no=4 감지 등)을 위해 유지
+  const urlParams = new URLSearchParams(window.location.search); // 정밀 타겟팅용 추가
 
   const isProductDetailPage = currentPath.includes('/product/detail.html');
-  const isBoardReadPage = currentPath.includes('/board/product/read.html') || currentSearch.includes('no=');
+  // 🐛 수정됨: includes('no=') 대신 URLSearchParams의 has() 메서드 사용
+  const isBoardReadPage = currentPath.includes('/board/product/read.html') || urlParams.has('no') || urlParams.has('article_no');
   const isWriteOrModify = currentPath.includes('write.html') || currentPath.includes('modify.html');
 
   const isBlockedPage = isProductDetailPage || isBoardReadPage || isWriteOrModify;
 
   const isBoardPage = currentPath.includes('/board/') || currentPath.includes('상품-사용후기');
-  const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
+  // 🐛 수정됨: includes('no=') 대신 URLSearchParams의 has() 메서드 사용
+  const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || urlParams.has('no') || urlParams.has('article_no');
 
   if (isBoardPage) {
     const isReviewList = currentPath.includes('/board/product/list') || currentPath.includes('상품-사용후기') || (currentSearch.includes('board_no=4') || currentPath.includes('/4/'));
