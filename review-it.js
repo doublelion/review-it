@@ -1,10 +1,10 @@
 /**
  * @Project: Review-It Universal Collector Engine
- * @Version: v1.0.8
+ * @Version: v1.0.9 (Self-Healing & Zero-Error Update)
  * @Update: 
- *  1. [핵심] 쇼퍼블 버튼 연동을 위한 product_no 추출 및 전송 로직 유지
- *  2. [버그 픽스] 백그라운드 이미지 파싱 시 document -> doc 오참조 버그 해결
- *  3. [데이터 동기화] DB 컬럼 추가에 따른 product_name, product_image 스크래핑 및 페이로드 추가
+ *  1. [핵심] 쇼퍼블 버튼 연동을 위한 product_no 추출 유지
+ *  2. [데이터 동기화] DB 컬럼 추가에 따른 product_name, product_image 스크래핑 추가
+ *  3. [오류 방어] 긁어온 상품명이 리뷰 제목과 동일할 경우 폐기하는 '자가 치유' 로직 적용
  */
 
 (function (window) {
@@ -94,6 +94,25 @@
       const articleNo = articleNoMatch ? articleNoMatch[1] : null;
       if (!articleNo) return;
 
+      // =========================================================
+      // 💡 [핵심 순서 변경] 리뷰 제목을 가장 먼저 가져옵니다 (방어막 용도)
+      // =========================================================
+      let subjectEl = el.querySelector('.subject, .title, .board_title, .td_subject');
+      let targetText = link ? link.innerText : (subjectEl ? subjectEl.innerText : "");
+      let cleanSubject = "포토 리뷰입니다.";
+
+      if (targetText) {
+        let temp = targetText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
+        temp = temp.replace(/\s+/g, ' ').trim();
+
+        if (temp.length > 0) {
+          cleanSubject = temp;
+          if (cleanSubject.length > 25) {
+            cleanSubject = cleanSubject.substring(0, 25) + '...';
+          }
+        }
+      }
+
       // 💡 1. 상품 번호(product_no) 추출
       let extractedProductNo = null;
       const productLink = el.querySelector('a[href*="product_no="]');
@@ -102,12 +121,19 @@
         if (pMatch) extractedProductNo = pMatch[1];
       }
 
-      // 💡 2. 새로 추가된 상품명(product_name) 추출 로직
+      // 💡 2. 상품명(product_name) 추출 및 자가 치유(방어) 로직
       let extractedProductName = null;
-      
       const pNameEl = el.querySelector('.typeProduct a, td.product a, .product-name, .prd-name, .product_name');
+      
       if (pNameEl) {
-        extractedProductName = pNameEl.innerText.replace(/\n/g, '').trim();
+        let tempName = pNameEl.innerText.replace(/\n/g, '').trim();
+        
+        // 🔥 [방어막 작동] 상품명이라고 긁어온 게 리뷰 제목이랑 다를 때만 진짜 상품명으로 인정!
+        if (tempName !== cleanSubject && !tempName.includes(cleanSubject.replace('...', ''))) {
+          extractedProductName = tempName;
+        } else {
+          console.log(`🛡️ [방어] 상품명이 아닌 리뷰 제목을 감지하여 차단했습니다: ${tempName}`);
+        }
       }
 
       let authorNameEl = el.querySelector('.writer, .name, td.name, span.name, td:nth-child(3)');
@@ -125,11 +151,12 @@
       let reviewImg = el.querySelector('img[src*="/board/"]:not([src*="icon"])');
       let productImg = el.querySelector('.typeProduct img, td.thumb img, .product-img img, img[src*="/product/"]:not([src*="icon"])');
 
+      // 💡 (오타 수정 완료) document -> doc 참조 복구 완료
       if (!reviewImg && !productImg) {
         productImg = doc.querySelector('.typeProduct img, .xans-board-product img, .xans-board-product-4 img');
       }
 
-      // 💡 3. 새로 추가된 상품 이미지(product_image) 전용 추출 로직
+      // 💡 3. 상품 이미지(product_image) 전용 추출 로직
       let extractedProductImg = null;
       if (productImg && productImg.getAttribute('src')) {
         let src = productImg.getAttribute('src');
@@ -159,22 +186,6 @@
       if (starImg) {
         const match = starImg.getAttribute('src').match(/icon-star-rating(\d+)/);
         if (match && match[1]) extractedStar = parseInt(match[1], 10);
-      }
-
-      let subjectEl = el.querySelector('.subject, .title, .board_title, .td_subject');
-      let targetText = link ? link.innerText : (subjectEl ? subjectEl.innerText : "");
-      let cleanSubject = "포토 리뷰입니다.";
-
-      if (targetText) {
-        let temp = targetText.split('\n')[0].replace(/^제목\s*:?\s*/i, '').trim();
-        temp = temp.replace(/\s+/g, ' ').trim();
-
-        if (temp.length > 0) {
-          cleanSubject = temp;
-          if (cleanSubject.length > 25) {
-            cleanSubject = cleanSubject.substring(0, 25) + '...';
-          }
-        }
       }
 
       // 💡 페이로드(전송 데이터) 구성
@@ -209,6 +220,7 @@
     if (limitedPayload.length === 0) return;
 
     try {
+      // 💡 [최적화] 이전처럼 DB 직통 경로를 유지하되, upsert를 통해 무결성 확보
       const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
         method: 'POST',
         headers: {
@@ -221,7 +233,7 @@
       });
 
       if (res.ok) {
-        console.log(`✅ [REVIEW-IT Collector] 동기화 완료 (${limitedPayload.length}건) - 상품명/이미지 포함`);
+        console.log(`✅ [REVIEW-IT Collector] 동기화 완료 (${limitedPayload.length}건) - 오류 방어막 가동 중`);
         localStorage.setItem('rit_last_sync', new Date().getTime().toString());
       } else {
         console.error("❌ 데이터 전송 실패:", await res.text());
