@@ -1,7 +1,7 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.9
+ * @Project: Review-It Universal Widget Engine v1.0.9 (Self-Healing Patch)
  * @Update: 리스트 엔진 종속성(ReviewApp) 유지를 위한 return 차단 해제 및 고정 폴백 리뷰 수 적용
- *          + [핵심] 리스트 엔진(Chip) 연동을 위한 상품명(ProductName) 및 썸네일 강력 추출 로직 추가
+ *          + [핵심] 리스트 엔진(Chip) 연동을 위한 상품명(ProductName) 스크래핑 및 악성 데이터 차단 방어막 추가
  */
 (function (window) {
   console.log("▶ [REVIEW-IT] 프론트엔드 스크립트 로드 완료!");
@@ -63,8 +63,6 @@
 
     let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
     const finalMallId = cafe24MallId || fallbackMallId || 'default_mall';
-
-    console.log("▶ [REVIEW-IT Widget] 매핑된 상점 Mall ID:", finalMallId);
 
     const getProductNo = () => {
       if (typeof window.iProductNo !== 'undefined' && window.iProductNo) return window.iProductNo;
@@ -186,7 +184,6 @@
           hardcodedContainer.style.setProperty('display', 'none', 'important');
           hardcodedContainer.innerHTML = '';
         }
-        console.log("▶ [REVIEW-IT Widget] 예외 페이지(/detail.html, /read.html 등) 진입 -> 위젯 강제 차단");
         return;
       }
 
@@ -194,10 +191,7 @@
 
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
 
-      if (!container) {
-        console.log("▶ [REVIEW-IT] 메인 페이지가 아니거나 뼈대가 없으므로 위젯 생성을 안전하게 스킵합니다.");
-        return;
-      }
+      if (!container) return;
 
       this.injectCSS();
       if (container.innerHTML.trim() === '') this.renderSkeleton(container);
@@ -263,49 +257,6 @@
           if (match && match[1]) extractedStar = parseInt(match[1], 10);
         }
 
-        // 💡 [수정/추가됨] 상품명, 상품 썸네일, 상품 번호 일괄 스크래핑 투망
-        let extractedProductNo = null;
-        let extractedProductName = null;
-        let extractedProductImg = null;
-
-        const prdInfoArea = doc.querySelector('.ec-board-prdinfo, .prdInfo, .boardItem, .product-info');
-        if (prdInfoArea) {
-          const aTag = prdInfoArea.querySelector('a[href*="product_no="]');
-          if (aTag) {
-            const match = aTag.getAttribute('href').match(/product_no=(\d+)/);
-            if (match && match[1]) extractedProductNo = match[1];
-          }
-
-          // 💡 [오류 수정] 리뷰 제목을 긁어오던 악성 클래스(.name, .title) 완전 제거
-          // 1순위: 상품 상세 페이지로 가는 링크(a 태그) 안의 텍스트가 가장 정확한 상품명입니다.
-          const productLinks = prdInfoArea.querySelectorAll('a[href*="product_no="]');
-          for (let link of productLinks) {
-            let text = link.innerText.replace(/\n/g, '').trim();
-            // 이미지 썸네일 링크가 아니고, 실제 텍스트가 있는 경우 상품명으로 확정
-            if (text.length > 0 && !link.querySelector('img')) {
-              extractedProductName = text;
-              break;
-            }
-          }
-
-          // 2순위: a 태그에서 못 찾았을 경우, 카페24 상품명 전용 안전 클래스만 좁혀서 탐색
-          if (!extractedProductName) {
-            const safeNameEl = prdInfoArea.querySelector('.prdName, .product-name, .info_name, .prd-name, .ec-board-prdinfo h3, .prdInfo h3');
-            if (safeNameEl) extractedProductName = safeNameEl.innerText.trim();
-          }
-
-          const imgEl = prdInfoArea.querySelector('img');
-          if (imgEl) extractedProductImg = imgEl.getAttribute('src');
-        }
-
-        if (!extractedProductNo) {
-          const fallbackLink = doc.querySelector('a[href*="/product/detail.html?product_no="], a[href*="product_no="]');
-          if (fallbackLink) {
-            const match = fallbackLink.getAttribute('href').match(/product_no=(\d+)/);
-            if (match && match[1]) extractedProductNo = match[1];
-          }
-        }
-
         const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
         let extractedSubject = null;
         let extractedDate = null;
@@ -331,6 +282,54 @@
             const hidden = clone.querySelector('.displaynone');
             if (hidden) hidden.remove();
             extractedWriter = clone.innerText.replace(/\(ip:.*\)/gi, '').trim();
+          }
+        }
+
+        let extractedProductNo = null;
+        let extractedProductName = null;
+        let extractedProductImg = null;
+
+        const prdInfoArea = doc.querySelector('.ec-board-prdinfo, .prdInfo, .boardItem, .product-info');
+        if (prdInfoArea) {
+          const aTag = prdInfoArea.querySelector('a[href*="product_no="]');
+          if (aTag) {
+            const match = aTag.getAttribute('href').match(/product_no=(\d+)/);
+            if (match && match[1]) extractedProductNo = match[1];
+          }
+
+          const productLinks = prdInfoArea.querySelectorAll('a[href*="product_no="]');
+          for (let link of productLinks) {
+            let text = link.innerText.replace(/\n/g, '').trim();
+            if (text.length > 0 && !link.querySelector('img')) {
+              extractedProductName = text;
+              break;
+            }
+          }
+
+          if (!extractedProductName) {
+            const safeNameEl = prdInfoArea.querySelector('.prdName, .product-name, .info_name, .prd-name, .ec-board-prdinfo h3, .prdInfo h3');
+            if (safeNameEl) extractedProductName = safeNameEl.innerText.trim();
+          }
+
+          const imgEl = prdInfoArea.querySelector('img');
+          if (imgEl) extractedProductImg = imgEl.getAttribute('src');
+        }
+
+        if (!extractedProductNo) {
+          const fallbackLink = doc.querySelector('a[href*="/product/detail.html?product_no="], a[href*="product_no="]');
+          if (fallbackLink) {
+            const match = fallbackLink.getAttribute('href').match(/product_no=(\d+)/);
+            if (match && match[1]) extractedProductNo = match[1];
+          }
+        }
+
+        // 🚨 [초강력 방어막 추가] 긁어온 상품명이 리뷰 제목과 똑같다면 무조건 폐기!
+        if (extractedProductName && extractedSubject) {
+          let tempName = extractedProductName.replace(/\s+/g, '');
+          let tempSubj = extractedSubject.replace(/\s+/g, '');
+          if (tempName === tempSubj || tempName.includes(tempSubj.replace('...', ''))) {
+            extractedProductName = null;
+            console.log("🛡️ [Widget 방어] 상품명과 리뷰 제목이 동일하여 초기화합니다.");
           }
         }
 
@@ -380,7 +379,6 @@
           cleanText = "포토 리뷰입니다.";
         }
 
-        // 💡 [수정됨] 최종적으로 긁어온 모든 데이터를 리턴하여 리스트 앱이 쓸 수 있게 합니다.
         return {
           images: extractedImages,
           text: cleanText,
@@ -411,7 +409,6 @@
           if (res.status === 403 || res.status === 401) {
             const container = document.getElementById('review-it-widget');
             if (container) container.style.display = 'none';
-            console.error(`[REVIEW-IT] 접근 거부(403/401): 결제 만료 또는 유효하지 않은 상점입니다.`);
             return false;
           }
           throw new Error(`API 오류: ${res.status}`);
@@ -421,7 +418,6 @@
         if (!list || list.length === 0) {
           const container = document.getElementById('review-it-widget');
           if (container) container.style.display = 'none';
-          console.warn(`[REVIEW-IT] 노출할 리뷰 데이터가 DB에 없습니다.`);
           return false;
         }
 
@@ -448,7 +444,7 @@
               r.author_name = separateData.writer;
             }
 
-            // 💡 [수정/추가됨] 스크래핑한 상품 데이터를 전역 객체(r)에 주입합니다. (리스트 앱이 여기서 데이터를 꺼내 칩을 만듭니다)
+            // 💡 위젯 전역 데이터 갱신
             if (separateData.productNo) r.scraped_product_no = separateData.productNo;
             if (separateData.productName) r.scraped_product_name = separateData.productName;
             if (separateData.productImg) r.scraped_product_img = separateData.productImg;
