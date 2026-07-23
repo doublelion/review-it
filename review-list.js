@@ -437,7 +437,8 @@
               if (scraped) {
                 widgetData.all_images = (scraped.images && scraped.images.length > 0) ? scraped.images : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg]);
                 widgetData.clean_text_body = stripHtml(scraped.text || r.content || '');
-                if (scraped.subject) widgetData.subject = scraped.subject;
+                // 💡 [추가] 위젯처럼 스크래핑한 진짜 작성자 이름을 author_name에 저장!
+                if (scraped.writer) widgetData.author_name = scraped.writer;
               } else {
                 widgetData.all_images = r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg];
                 widgetData.clean_text_body = stripHtml(r.content || '');
@@ -497,6 +498,21 @@
             <span class="rit-product-chip-name">${sampleProductName}</span>
           </div>
         `;
+
+        // 💡 [추가/수정] 위젯과 완벽히 동일한 작성자 추출 및 마스킹 로직
+        const rawName = (r.author_name ? r.author_name : (r.writer || '고객')).trim();
+        const isMallOwner = CONFIG.mallName && (rawName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawName));
+
+        let displayName = rawName;
+        if (!isMallOwner && window.ReviewApp && typeof window.ReviewApp.maskName === 'function') {
+          displayName = window.ReviewApp.maskName(rawName); // 위젯의 마스킹 함수 재사용
+        } else if (!isMallOwner) {
+          // ReviewApp이 혹시 없을 경우를 대비한 자체 폴백 마스킹
+          if (rawName.length <= 2) displayName = rawName.charAt(0) + '*';
+          else if (rawName.length === 3) displayName = rawName.charAt(0) + '*' + rawName.charAt(2);
+          else displayName = rawName.substring(0, 2) + '**';
+        }
+
         return `
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
             <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
@@ -511,8 +527,8 @@
               <div class="rit-masonry-desc">${cleanContent}</div>
               ${productChipHtml}
               <div class="rit-masonry-meta">
-                <!-- DB의 작성자 필드명(예: writer)을 넣어주세요. 값이 없을 경우 '고객' 등으로 대체합니다. -->
-                <span style="font-weight:600; color:#52525b;">${r.writer || r.author || '고객'}</span>
+                <!-- 💡 [수정] 맵핑된 displayName 출력 -->
+                <span style="font-weight:600; color:#52525b;">${displayName}</span>
                 <img src="${CONFIG.starPath}${r.stars || 5}.svg" class="rit-card-star" alt="star">
               </div>
             </div>
