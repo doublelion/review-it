@@ -1,6 +1,7 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.8
+ * @Project: Review-It Universal Widget Engine v1.0.9
  * @Update: 리스트 엔진 종속성(ReviewApp) 유지를 위한 return 차단 해제 및 고정 폴백 리뷰 수 적용
+ *          + [핵심] 리스트 엔진(Chip) 연동을 위한 상품명(ProductName) 및 썸네일 강력 추출 로직 추가
  */
 (function (window) {
   console.log("▶ [REVIEW-IT] 프론트엔드 스크립트 로드 완료!");
@@ -8,22 +9,18 @@
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase();
 
-  // 💡 [수정] 상품 상세 페이지(detail.html) 및 게시판 상세/작성 페이지 완벽 차단
   const isProductDetailPage = currentPath.includes('/product/detail.html');
   const isBoardReadPage = currentPath.includes('/board/product/read.html') || currentSearch.includes('no=');
   const isWriteOrModify = currentPath.includes('write.html') || currentPath.includes('modify.html');
 
-  // 🚨 차단 대상 페이지 전역 플래그 세팅 (상세, 게시판, 글쓰기 모두 차단)
   const isBlockedPage = isProductDetailPage || isBoardReadPage || isWriteOrModify;
 
   const isBoardPage = currentPath.includes('/board/') || currentPath.includes('상품-사용후기');
-
   const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || currentSearch.includes('no=');
 
   if (isBoardPage) {
     const isReviewList = currentPath.includes('/board/product/list') || currentPath.includes('상품-사용후기') || (currentSearch.includes('board_no=4') || currentPath.includes('/4/'));
 
-    // 리스트 게시판일 때만 리스트 엔진 호출 (캐시 무효화 포함)
     if (isReviewList && !isReadOrWrite) {
       if (!document.getElementById('rit-list-script')) {
         console.log("▶ [REVIEW-IT] 리뷰 리스트 게시판 감지! 최신 review-list.js를 동적으로 호출합니다.");
@@ -36,7 +33,6 @@
     }
   }
 
-  // 🚨 2. [Ghost Killer] 게시판 상세/작성 페이지는 하드코딩 뼈대가 있어도 3초간 감시하며 강제 파괴!
   if (isBoardPage && isReadOrWrite) {
     console.log("▶ [REVIEW-IT Widget] 예외 페이지 진입 -> 3초간 위젯 뼈대를 강력 감시 및 파괴합니다.");
     const killWidget = () => {
@@ -46,12 +42,12 @@
       });
     };
 
-    killWidget(); // 1차 즉시 파괴
-    window.addEventListener('DOMContentLoaded', killWidget); // 2차 DOM 파괴
-    const killerInterval = setInterval(killWidget, 200); // 3차 0.2초 간격 무한 파괴
-    setTimeout(() => clearInterval(killerInterval), 3000); // 3초 후 감시 종료
+    killWidget();
+    window.addEventListener('DOMContentLoaded', killWidget);
+    const killerInterval = setInterval(killWidget, 200);
+    setTimeout(() => clearInterval(killerInterval), 3000);
 
-    return; // ⭐️ 위젯 렌더링 엔진 완전 정지
+    return;
   }
 
   const getDynamicConfig = () => {
@@ -128,14 +124,13 @@
       grid_rows_mobile: 2
     },
 
-    // 💡 [추가됨] 렌더링 직전 찌꺼기 코드를 박멸하는 프론트엔드 정제 필터
     cleanEditorText(text) {
       if (!text) return "";
       return String(text)
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // style 태그 및 내부 CSS 완전 삭제
-        .replace(/p\.p1\s*\{[^}]*\}/gi, '')             // 텍스트로 노출된 p.p1 CSS 삭제
-        .replace(/span\.s1\s*\{[^}]*\}/gi, '')          // span.s1 CSS 삭제
-        .replace(/&nbsp;/gi, ' ')                       // 무의미한 공백 엔티티 치환
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/p\.p1\s*\{[^}]*\}/gi, '')
+        .replace(/span\.s1\s*\{[^}]*\}/gi, '')
+        .replace(/&nbsp;/gi, ' ')
         .trim();
     },
 
@@ -155,7 +150,6 @@
     },
 
     autoCreateContainer() {
-      // 🛑 차단 대상 페이지라면 어떠한 경우에도 뼈대를 생성하지 않음!
       if (typeof isBlockedPage !== 'undefined' && isBlockedPage) return;
 
       let container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
@@ -164,7 +158,6 @@
       const pathname = decodeURIComponent(window.location.pathname);
       const isMainPage = pathname === '/' || pathname === '/index.html';
 
-      // 💡 [핵심] 오직 메인 페이지에서만 위젯 뼈대를 자동 생성 (Zero Setup)
       if (!isMainPage) return;
 
       container = document.createElement('div');
@@ -187,7 +180,6 @@
     },
 
     async init() {
-      // 🚨 [강력 차단] 상품 상세 또는 게시판 상세 페이지 진입 시, 하드코딩된 태그가 있어도 숨기고 실행 종료!
       if (typeof isBlockedPage !== 'undefined' && isBlockedPage) {
         const hardcodedContainer = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
         if (hardcodedContainer) {
@@ -198,7 +190,6 @@
         return;
       }
 
-      // 💡 메인 페이지 자동 노출 로직 실행
       this.autoCreateContainer();
 
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
@@ -209,7 +200,6 @@
       }
 
       this.injectCSS();
-      // 뼈대가 갓 생성되어 비어있다면 스켈레톤 먼저 렌더링
       if (container.innerHTML.trim() === '') this.renderSkeleton(container);
 
       await this.loadWidgetSettings();
@@ -236,7 +226,6 @@
                 this.settings[key] = s[key];
               } else {
                 let dbValue = String(s[key]).trim();
-                // 💡 [트윅 1] DB 값이 대문자 'EMPTY'이거나 실제 공백/빈 문자열이면 명시적 빈 값("")으로 세팅
                 if (dbValue === "" || dbValue === "EMPTY") {
                   this.settings[key] = "";
                 } else {
@@ -272,6 +261,35 @@
         if (starImg) {
           const match = starImg.getAttribute('src').match(/icon-star-rating(\d+)/);
           if (match && match[1]) extractedStar = parseInt(match[1], 10);
+        }
+
+        // 💡 [수정/추가됨] 상품명, 상품 썸네일, 상품 번호 일괄 스크래핑 투망
+        let extractedProductNo = null;
+        let extractedProductName = null;
+        let extractedProductImg = null;
+
+        const prdInfoArea = doc.querySelector('.ec-board-prdinfo, .prdInfo, .boardItem, .product-info');
+        if (prdInfoArea) {
+          const aTag = prdInfoArea.querySelector('a[href*="product_no="]');
+          if (aTag) {
+            const match = aTag.getAttribute('href').match(/product_no=(\d+)/);
+            if (match && match[1]) extractedProductNo = match[1];
+          }
+
+          // 💡 스킨 종속성 방어용 광범위 클래스 탐색
+          const nameEl = prdInfoArea.querySelector('h3 a, h3, .name a, .name, .prdName, .product-name a, strong.name, .info_name, .prd-name, p.name, .title a, .ec-board-prdinfo .info h3');
+          if (nameEl) extractedProductName = nameEl.innerText.trim();
+
+          const imgEl = prdInfoArea.querySelector('img');
+          if (imgEl) extractedProductImg = imgEl.getAttribute('src');
+        }
+
+        if (!extractedProductNo) {
+          const fallbackLink = doc.querySelector('a[href*="/product/detail.html?product_no="], a[href*="product_no="]');
+          if (fallbackLink) {
+            const match = fallbackLink.getAttribute('href').match(/product_no=(\d+)/);
+            if (match && match[1]) extractedProductNo = match[1];
+          }
         }
 
         const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
@@ -348,14 +366,7 @@
           cleanText = "포토 리뷰입니다.";
         }
 
-        // 💡 [추가된 로직] 카페24 본문에서 실제 상품 번호 강제 추출
-        let extractedProductNo = null;
-        const productLink = doc.querySelector('a[href*="/product/detail.html?product_no="], a[href*="product_no="]');
-        if (productLink) {
-          const match = productLink.getAttribute('href').match(/product_no=(\d+)/);
-          if (match && match[1]) extractedProductNo = match[1];
-        }
-
+        // 💡 [수정됨] 최종적으로 긁어온 모든 데이터를 리턴하여 리스트 앱이 쓸 수 있게 합니다.
         return {
           images: extractedImages,
           text: cleanText,
@@ -363,7 +374,9 @@
           subject: extractedSubject,
           date: extractedDate,
           writer: extractedWriter,
-          productNo: extractedProductNo // 💡 추가됨
+          productNo: extractedProductNo,
+          productName: extractedProductName,
+          productImg: extractedProductImg
         };
       } catch (e) {
         return null;
@@ -421,10 +434,11 @@
               r.author_name = separateData.writer;
             }
 
-            // 💡 [추가된 로직] DB값이 틀렸을 경우를 대비해 스크래핑한 상품 번호 덮어쓰기
-            if (separateData.productNo) {
-              r.scraped_product_no = separateData.productNo;
-            }
+            // 💡 [수정/추가됨] 스크래핑한 상품 데이터를 전역 객체(r)에 주입합니다. (리스트 앱이 여기서 데이터를 꺼내 칩을 만듭니다)
+            if (separateData.productNo) r.scraped_product_no = separateData.productNo;
+            if (separateData.productName) r.scraped_product_name = separateData.productName;
+            if (separateData.productImg) r.scraped_product_img = separateData.productImg;
+
           } else {
             r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
             r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
@@ -485,7 +499,6 @@
       }
     </style>
 
-    <!-- 💡 [트윅 2] 과도한 연산자(||) 제거하여 DB에서 세팅한 명시적 빈 문자열을 온전히 렌더링하도록 처리 -->
     ${this.settings.is_header_enabled !== false
           ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
               ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">${this.settings.tagline}</div>` : ''}
@@ -515,19 +528,14 @@
             slidesPerView: isPc ? pcCols : moCols,
             spaceBetween: isPc ? 20 : 12,
             loop: true,
-            // 슬라이드 개수가 적을 때 루프가 멈추는 버그 방지 (선택 사항이나 권장)
             loopedSlides: isPc ? pcCols * 2 : moCols * 2,
-            speed: 4000, // 롤링 속도 (5000은 터치 후 복귀 시 다소 답답할 수 있어 4000 권장)
-
-            // freeMode는 delay:0 방식과 충돌을 일으키므로 false로 두는 것이 훨씬 자연스럽습니다.
+            speed: 4000,
             freeMode: false,
-
             autoplay: {
               delay: 0,
-              disableOnInteraction: false, // 드래그 후에도 계속 자동 재생
-              pauseOnMouseEnter: true // PC 환경에서 마우스 오버 시 멈춤 (사용성 증가)
+              disableOnInteraction: false,
+              pauseOnMouseEnter: true
             },
-
             allowTouchMove: true,
             grabCursor: true,
             observer: true,
@@ -548,13 +556,10 @@
           }
         });
 
-        // 백그라운드(다른 탭) 이동 후 돌아왔을 때 스와이퍼가 멈춰있는 버그 해결
         document.addEventListener("visibilitychange", () => {
           if (document.hidden) {
-            // 탭을 벗어나면 애니메이션 일시 정지 (리소스 절약 및 꼬임 방지)
             if (ritSwiper && ritSwiper.autoplay) ritSwiper.autoplay.stop();
           } else {
-            // 탭으로 돌아오면 재시작
             if (ritSwiper && ritSwiper.autoplay) ritSwiper.autoplay.start();
           }
         });
@@ -613,16 +618,13 @@
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
 
-      // 💡 [수정] 쇼핑몰 이름과 일치하면 마스킹 예외 처리 (원래 이름 노출)
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
       const isMallOwner = CONFIG.MALL_NAME && (rawName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawName));
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
 
-      // 💡 [완전 삭제 및 실제 데이터 연동] 가짜 폴백 로직(stableRandomCount) 전면 제거
       const avgScore = d.product_avg_score || d.stars || 5;
-      const revCount = d.product_review_count; // 오직 DB의 실제 데이터만 받음
+      const revCount = d.product_review_count;
 
-      // 💡 실제 데이터가 없으면(|) 기호와 숫자 자체를 렌더링하지 않음
       const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
       return `
@@ -653,14 +655,12 @@
       await this.renderDetail(id);
     },
 
-    // 모달(MODAL)
     async renderDetail(id) {
       this.currentReviewId = id;
       const d = this.data[id];
       const imgSide = document.getElementById('ritModalImg');
       const contentSide = document.getElementById('ritContent');
 
-      // 이름 노출
       const rawDisplayName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
       const isMallOwner = CONFIG.MALL_NAME && (rawDisplayName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawDisplayName));
       const updatedDisplayName = isMallOwner ? rawDisplayName : this.maskName(rawDisplayName);
@@ -787,7 +787,6 @@
           return { writer, content, date, isOfficial };
         }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호'));
 
-        // 💡 렌더링 함수로 리뷰 데이터(currentReviewData) 전달
         this.renderComments(comments, articleNo, boardNo, currentReviewData);
       } catch (e) { commContainer.innerHTML = ''; }
     },
@@ -796,25 +795,21 @@
       const container = document.getElementById('ritCommList');
       if (!container) return;
 
-      // 💡 [수정된 로직] scraped_product_no를 최우선 순위로 배치
       const rawProductNo =
-        currentReviewData?.scraped_product_no || // 1순위: 방금 DOM에서 직접 긁어온 가장 정확한 번호
+        currentReviewData?.scraped_product_no ||
         currentReviewData?.product_no ||
         currentReviewData?.product_id ||
         currentReviewData?.prd_no ||
         currentReviewData?.rel_product_no;
 
-      // 숫자 외 문자 제거 및 정수 파싱
       const cleanProductNo = rawProductNo ? String(rawProductNo).replace(/\D/g, '').trim() : null;
       const validProductNo = (cleanProductNo && cleanProductNo !== '0' && cleanProductNo !== '11') ? cleanProductNo : null;
 
       let shoppableBtnHtml = '';
 
-      // 💡 [정밀 보정 2] 유효한 상품 번호가 존재할 때만 버튼 생성
       if (validProductNo) {
         const productUrl = `/product/detail.html?product_no=${validProductNo}`;
 
-        // 상품 전용 이미지를 최우선으로 탐색하고, 없을 때만 리뷰 이미지/기본 이미지 폴백
         const productImg =
           currentReviewData?.product_img ||
           currentReviewData?.product_thumb ||
