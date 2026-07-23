@@ -276,9 +276,23 @@
             if (match && match[1]) extractedProductNo = match[1];
           }
 
-          // 💡 스킨 종속성 방어용 광범위 클래스 탐색
-          const nameEl = prdInfoArea.querySelector('h3 a, h3, .name a, .name, .prdName, .product-name a, strong.name, .info_name, .prd-name, p.name, .title a, .ec-board-prdinfo .info h3');
-          if (nameEl) extractedProductName = nameEl.innerText.trim();
+          // 💡 [오류 수정] 리뷰 제목을 긁어오던 악성 클래스(.name, .title) 완전 제거
+          // 1순위: 상품 상세 페이지로 가는 링크(a 태그) 안의 텍스트가 가장 정확한 상품명입니다.
+          const productLinks = prdInfoArea.querySelectorAll('a[href*="product_no="]');
+          for (let link of productLinks) {
+            let text = link.innerText.replace(/\n/g, '').trim();
+            // 이미지 썸네일 링크가 아니고, 실제 텍스트가 있는 경우 상품명으로 확정
+            if (text.length > 0 && !link.querySelector('img')) {
+              extractedProductName = text;
+              break;
+            }
+          }
+
+          // 2순위: a 태그에서 못 찾았을 경우, 카페24 상품명 전용 안전 클래스만 좁혀서 탐색
+          if (!extractedProductName) {
+            const safeNameEl = prdInfoArea.querySelector('.prdName, .product-name, .info_name, .prd-name, .ec-board-prdinfo h3, .prdInfo h3');
+            if (safeNameEl) extractedProductName = safeNameEl.innerText.trim();
+          }
 
           const imgEl = prdInfoArea.querySelector('img');
           if (imgEl) extractedProductImg = imgEl.getAttribute('src');

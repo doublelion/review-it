@@ -222,8 +222,6 @@
           .btn-rit-grid { 
             display: flex !important; 
             align-items: center;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.3);
             backdrop-filter: blur(4px);
             padding: 6px 14px;
             border-radius: 20px;
