@@ -151,7 +151,7 @@ module.exports = async (req, res) => {
     // =================================================================
     try {
       console.log(`🔄 [리뷰 동기화 시작] ${mall_id}의 초기 리뷰 데이터를 가져옵니다.`);
-      const boardNo = 4; // 상품 구매후기 게시판 번호 (몰마다 다를 수 있으나 4번이 표준)
+      const boardNo = 4; // 상품 구매후기 게시판 번호 (표준 4번)
 
       const articlesRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/boards/${boardNo}/articles?limit=15`, {
         method: 'GET',
@@ -166,21 +166,58 @@ module.exports = async (req, res) => {
         const articles = articlesData.articles || [];
 
         if (articles.length > 0) {
+          // 💡 [추가] 게시글에 연결된 고유한 상품 번호(product_no)들만 추출 (null 제외)
+          const uniqueProductNos = [...new Set(articles.map(a => a.product_no).filter(Boolean))];
+
+          let productInfoMap = {}; // 상품 정보를 담을 딕셔너리
+
+          // 💡 [추가] 추출한 상품 번호가 있다면, 카페24 상품 API를 1번만 호출하여 상품명/이미지 일괄 조회
+          if (uniqueProductNos.length > 0) {
+            const productQuery = uniqueProductNos.join(',');
+            const prodRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/products?product_no=${productQuery}&fields=product_no,product_name,list_image`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'X-Cafe24-Api-Version': CAFE24_API_VERSION
+              }
+            });
+
+            if (prodRes.ok) {
+              const prodData = await prodRes.json();
+              const products = prodData.products || [];
+              // 조회된 상품 데이터를 Map 형태로 변환 (빠른 매핑을 위해)
+              products.forEach(p => {
+                productInfoMap[p.product_no] = {
+                  name: p.product_name,
+                  image: p.list_image // 카페24 표준 리스트 썸네일
+                };
+              });
+              console.log(`📦 [상품 정보 매핑 성공] ${products.length}개의 상품 정보 획득`);
+            }
+          }
+
           // Supabase 'reviews' 테이블에 데이터 매핑 및 저장
-          const reviewsToInsert = articles.map(article => ({
-            mall_id: mall_id,
-            article_no: String(article.article_no), // ✅ DB 스키마에 맞게 article_no로 통일
-            product_no: article.product_no || null,
-            member_id: article.member_id || 'guest',
+          const reviewsToInsert = articles.map(article => {
+            const pNo = article.product_no;
+            const pInfo = productInfoMap[pNo] || {}; // 맵핑된 상품 정보 꺼내기
 
-            // 💡 DB의 Not-Null 제약조건을 통과하기 위해 명시적으로 추가
-            writer: article.writer || '고객',
-            author_name: article.writer || '고객',
+            return {
+              mall_id: mall_id,
+              article_no: String(article.article_no),
+              product_no: pNo || null,
 
-            subject: article.subject || '포토 리뷰입니다.',
-            content: article.content || '본문을 불러오는 중입니다...',
-            created_at: article.created_date
-          }));
+              // 💡 [핵심] 조회해온 실제 상품명과 이미지 DB 삽입 (없으면 폴백)
+              product_name: pInfo.name || null,
+              product_image: pInfo.image || null,
+
+              member_id: article.member_id || 'guest',
+              writer: article.writer || '고객',
+              author_name: article.writer || '고객',
+              subject: article.subject || '포토 리뷰입니다.',
+              content: article.content || '본문을 불러오는 중입니다...',
+              created_at: article.created_date
+            };
+          });
 
           const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
             method: 'POST',
@@ -196,7 +233,7 @@ module.exports = async (req, res) => {
             const insertError = await insertRes.text();
             console.error('❌ 리뷰 Supabase 저장 에러:', insertError);
           } else {
-            console.log(`✅ [리뷰 동기화 성공] ${reviewsToInsert.length}개의 리뷰 저장 완료!`);
+            console.log(`✅ [리뷰 동기화 성공] ${reviewsToInsert.length}개의 리뷰 저장 완료! (상품명/이미지 매핑 포함)`);
           }
         } else {
           console.log(`ℹ️ [리뷰 동기화] 가져올 기존 리뷰가 없습니다.`);
