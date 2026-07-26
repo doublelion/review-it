@@ -634,7 +634,11 @@
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
 
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-      const isMallOwner = CONFIG.MALL_NAME && (rawName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawName));
+
+      // 💡 [핵심 방어 1] 관리자 판별 로직 강화 (쇼핑몰 이름 또는 관리자 키워드 포함 여부)
+      const isMallOwner = (CONFIG.MALL_NAME && (rawName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawName)))
+        || CONFIG.ADMIN_KEYWORDS.some(k => rawName.includes(k));
+
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
 
       const avgScore = d.product_avg_score || d.stars || 5;
@@ -657,7 +661,7 @@
       const actualProductName = '상품 보기';
       const actualProductImg = d.scraped_product_img || d.product_image || d.product_img || thumb;
       const actualProductNo = d.scraped_product_no || d.product_no || '';
-      
+
       const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
 
       const productChipHtml = `
@@ -671,6 +675,11 @@
         </div>
       `;
 
+      // 💡 [핵심 방어 2] 관리자가 아닐 때만 구매 인증 배지 HTML을 생성
+      const verifiedBadgeHtml = !isMallOwner ? `
+        <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
+      ` : '';
+
       return `
       <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff; height: 100%; aspect-ratio: auto !important;">
         <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
@@ -678,8 +687,8 @@
               onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';"
               style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
           
-          <!-- 💡 [핵심 방어 1] 구매인증 배지 Absolute 처리 (이미지 우측 하단 배치로 고급스러움 극대화) -->
-          <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
+          <!-- 💡 [결과] 생성된 구매 인증 배지 삽입 (관리자면 빈 문자열이 들어가 렌더링되지 않음) -->
+          ${verifiedBadgeHtml}
         </div>
         
         <div class="rit-card-info" style="position: relative; z-index: 3; background: #fff; padding: 16px 14px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
@@ -689,12 +698,10 @@
              ${reviewCountHtml}
           </div>
           
-          <!-- 💡 제목 최소 2줄 높이 고정 유지 -->
           <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; height: 2.8em; color: #222; margin-bottom: 12px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${d.subject}</div>
           
           ${productChipHtml}
           
-          <!-- 💡 [핵심 방어 2] 하단 영역 절대 1줄 고정 (이름이 너무 길 경우 ellipsis 말줄임표 처리) -->
           <div class="rit-card-meta" style="border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
             <div style="display: flex; align-items: center; gap: 6px; width: 100%; overflow: hidden;">
               <span style="font-size: 11px; color: #71717a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${displayName}</span>
