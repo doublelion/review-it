@@ -642,7 +642,7 @@
 
       const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
-      // [추가/수정] 날짜 포맷팅 (YY.MM.DD 작성)
+      // [유지] 날짜 포맷팅 (YY.MM.DD 작성)
       const rawDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
       let formattedDate = rawDate;
       if (rawDate) {
@@ -654,6 +654,26 @@
           formattedDate = `${yy}.${mm}.${dd} 작성`;
         }
       }
+
+      // 💡 [핵심 추가] 상품 칩(Chip) 추출 및 렌더링 로직
+      const actualProductName = '상품 보기';
+      const actualProductImg = d.scraped_product_img || d.product_image || d.product_img || thumb;
+      const actualProductNo = d.scraped_product_no || d.product_no || '';
+      
+      // 상품 번호가 있을 때만 링크 생성
+      const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
+
+      // 상품 번호가 존재할 경우에만 칩(Chip) 노출, 클릭 시 버블링 차단(stopPropagation)
+      const productChipHtml = actualProductNo ? `
+        <div class="rit-product-chip" 
+             ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} 
+             onmouseover="this.style.background='#f1f5f9'" 
+             onmouseout="this.style.background='#f8fafc'"
+             style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; cursor: pointer;">
+          <img src="${actualProductImg}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover;" alt="product" onerror="this.src='${CONFIG.DEFAULT_IMG}'">
+          <span style="font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${actualProductName}</span>
+        </div>
+      ` : '';
 
       return `
       <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff;">
@@ -668,9 +688,12 @@
              <span>${Number(avgScore).toFixed(1)}</span>
              ${reviewCountHtml}
           </div>
-          <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; color: #222; margin-bottom: 15px; font-weight: 500;">${d.subject}</div>
+          <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; color: #222; margin-bottom: 12px; font-weight: 500;">${d.subject}</div>
           
-          <!-- [추가/수정] 하단 메타 정보 영역 (작성자, 날짜, 구매인증) -->
+          <!-- 💡 추가된 상품 이동 칩 -->
+          ${productChipHtml}
+          
+          <!-- [유지] 하단 메타 정보 영역 -->
           <div class="rit-card-meta" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
             <div style="display: flex; align-items: center; gap: 6px;">
               <span style="font-size: 11px; color: #71717a; font-weight: 600;">${displayName}</span>
@@ -682,7 +705,7 @@
         </div>
       </div>`;
     },
-
+    
     async openModal(id) {
       this.currentScrollY = window.pageYOffset;
       document.getElementById('ritModal').style.display = 'flex';
