@@ -640,6 +640,19 @@
 
       const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
+      // [추가/수정] 날짜 포맷팅 (YY.MM.DD 작성)
+      const rawDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
+      let formattedDate = rawDate;
+      if (rawDate) {
+        const dateObj = new Date(rawDate);
+        if (!isNaN(dateObj)) {
+          const yy = String(dateObj.getFullYear()).slice(-2);
+          const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const dd = String(dateObj.getDate()).padStart(2, '0');
+          formattedDate = `${yy}.${mm}.${dd} 작성`;
+        }
+      }
+
       return `
       <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff;">
         <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
@@ -653,9 +666,16 @@
              <span>${Number(avgScore).toFixed(1)}</span>
              ${reviewCountHtml}
           </div>
-          <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; color: #222; margin-bottom: 10px; font-weight: 500;">${d.subject}</div>
-          <div class="rit-card-meta" style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; color: #888;">${displayName}</span>
+          <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; color: #222; margin-bottom: 15px; font-weight: 500;">${d.subject}</div>
+          
+          <!-- [추가/수정] 하단 메타 정보 영역 (작성자, 날짜, 구매인증) -->
+          <div class="rit-card-meta" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 11px; color: #71717a; font-weight: 600;">${displayName}</span>
+              <span style="font-size: 10px; color: #e4e4e7;">|</span>
+              <span style="font-size: 11px; color: #a1a1aa;">${formattedDate}</span>
+            </div>
+            <span style="font-size: 10px; background: #f4f4f5; color: #52525b; padding: 4px 6px; border-radius: 4px; font-weight: 600; letter-spacing: -0.5px;">구매 인증</span>
           </div>
         </div>
       </div>`;
