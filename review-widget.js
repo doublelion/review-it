@@ -495,86 +495,15 @@
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
 
-      const pcCols = isGrid ? 4 : 4;
+      // PC/Mobile 컬럼 수 원복
+      const pcCols = isGrid ? (parseInt(this.settings.grid_rows_desktop) || 5) : 5;
       const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
-
-      let totalStars = 0;
-      reviews.forEach(id => {
-        const d = this.data[id];
-        totalStars += parseInt(d.stars || 5, 10);
-      });
-      const avgScore = reviews.length > 0 ? (totalStars / reviews.length).toFixed(1) : "5.0";
-      const totalReviewCount = this.listOrder.length > 999 ? '999+' : this.listOrder.length;
 
       let mainHtml = `
     <style>
-      /* 🚀 모바일 퍼스트 & 반응형 레이아웃 래퍼 */
-      .rit-widget-wrapper {
-        display: flex;
-        flex-direction: column; /* 기본: 모바일에서는 상하 배치 */
-        gap: 24px;
-        max-width: 1260px;
-        margin: 0 auto;
-        padding: 0 16px; /* 모바일 좌우 안전 여백 */
-        box-sizing: border-box;
-      }
-      
-      .rit-dashboard-side {
-        width: 100%; /* 모바일에서 꽉 차게 */
-      }
-      
-      .rit-content-side {
-        width: 100%;
-        min-width: 0; /* ✨ 스와이퍼 찌그러짐 원천 차단 */
-        overflow: hidden;
-      }
-
-      /* PC 해상도 (1024px 이상) */
-      @media (min-width: 1024px) {
-        .rit-widget-wrapper {
-          flex-direction: row; /* PC에서는 좌우 배치 */
-          align-items: flex-start;
-          padding: 0; 
-        }
-        .rit-dashboard-side {
-          width: 280px; 
-          flex-shrink: 0;
-          position: sticky;
-          top: 100px;
-        }
-        .rit-content-side {
-          flex-grow: 1;
-          width: calc(100% - 304px); /* 여백 포함 정확한 계산 */
-        }
-      }
-
-      /* 🚀 고급스러운 글래스모피즘 (Glassmorphism) */
-      .rit-dashboard-box {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        background: rgba(255, 255, 255, 0.45); /* 은은한 반투명 */
-        backdrop-filter: blur(16px); /* 블러 효과 강화 */
-        -webkit-backdrop-filter: blur(16px); /* Safari 크로스브라우징 필수 */
-        border: 1px solid rgba(255, 255, 255, 0.7); /* 유리 테두리 질감 */
-        border-radius: 20px;
-        padding: 35px 20px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05); /* 세련된 그림자 */
-      }
-      
-      /* 모바일 대시보드 사이즈 최적화 */
-      @media (max-width: 1023px) {
-        .rit-dashboard-box {
-          padding: 24px 20px;
-          border-radius: 16px;
-        }
-      }
-
-      /* 그리드 레이아웃 설정 */
       .rit-main-grid-layout {
         display: grid !important;
-        gap: 12px;
+        gap: 15px;
         grid-template-columns: repeat(${Math.floor(moCols)}, 1fr) !important;
       }
       @media (min-width: 1024px) {
@@ -583,67 +512,27 @@
           gap: 20px;
         }
       }
-      
-      /* 리뷰 전체보기 버튼 */
-      .rit-write-btn {
-        display: inline-block;
-        padding: 14px 32px;
-        background: rgba(24, 24, 27, 0.95);
-        color: #fff !important;
-        border-radius: 30px;
-        font-size: 13px;
-        font-weight: 700;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        border: 1px solid transparent;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-      }
-      .rit-write-btn:hover {
-        background: rgba(0, 0, 0, 1);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
-      }
     </style>
 
     ${this.settings.is_header_enabled !== false
-          ? `<div class="rit-header-area" style="text-align:center; margin-bottom:40px;">
-              ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px; color:#a1a1aa;">${this.settings.tagline}</div>` : ''}
+          ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
+              ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">${this.settings.tagline}</div>` : ''}
               ${this.settings.title ? `<h2 class="rit-main-title" style="margin:0;">${getFormattedTitle(this.settings.title)}</h2>` : ''}
-              ${(this.settings.tagline || this.settings.title) ? `<div class="rit-line" style="width:30px; height:1px; background:#e4e4e7; margin:15px auto;"></div>` : ''}
-              ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#71717a; word-break:keep-all; margin:0 auto; max-width:80%; line-height:1.6;">${this.settings.description}</p>` : ''}
+              ${(this.settings.tagline || this.settings.title) ? `<div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>` : ''}
+              ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all; margin:0 auto; max-width:80%;">${this.settings.description}</p>` : ''}
              </div>`
           : ''
         }
 
-    <div class="rit-widget-wrapper">
-      <!-- 💎 좌측 프리미엄 대시보드 (글래스모피즘) -->
-      <div class="rit-dashboard-side">
-        <div class="rit-dashboard-box">
-          <div style="font-size:11px; letter-spacing:1.5px; color:#71717a; font-weight:700; margin-bottom:12px;">CUSTOMER REVIEWS</div>
-          <div style="font-size:52px; font-weight:800; color:#18181b; line-height:1; margin-bottom:12px; font-family: 'Inter', sans-serif;">${avgScore}</div>
-          <div style="display:flex; justify-content:center; gap:3px; margin-bottom:16px;">
-             ${Array.from({ length: 5 }).map((_, i) => `<img src="${CONFIG.STAR_PATH}5.svg" style="height:16px; opacity:${i < Math.floor(avgScore) ? '1' : '0.2'};">`).join('')}
-          </div>
-          <div style="font-size:12px; color:#52525b; margin-bottom:28px;">
-            총 <strong style="color:#111; font-weight:800;">${totalReviewCount}</strong>개의 소중한 후기
-          </div>
-          <a href="/board/product/list.html?board_no=4" class="rit-write-btn">리뷰 전체보기</a>
-        </div>
-      </div>
-      
-      <!-- 우측 리뷰 카드 영역 -->
-      <div class="rit-content-side">
-        ${isGrid
+    ${isGrid
           ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
           : `<div class="swiper rit-main-swiper">
-              <div class="swiper-wrapper">
-                ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
-              </div>
-             </div>`
+          <div class="swiper-wrapper">
+            ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
+          </div>
+         </div>`
         }
-      </div>
-    </div>
-  `;
+      `;
 
       container.innerHTML = mainHtml;
 
