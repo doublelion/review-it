@@ -494,9 +494,8 @@
       const isGrid = this.settings.display_type === 'grid';
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
-
-      // 💡 PC 환경에서 좌측 대시보드가 공간을 차지하므로, 그리드/스와이퍼 카드를 4개 노출로 조정하면 비율이 가장 아름답습니다.
-      const pcCols = isGrid ? 4 : 4;
+      
+      const pcCols = isGrid ? 4 : 4; 
       const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
       let totalStars = 0;
@@ -509,54 +508,73 @@
 
       let mainHtml = `
     <style>
-      /* 🚀 전체 레이아웃 래퍼 */
+      /* 🚀 모바일 퍼스트 & 반응형 레이아웃 래퍼 */
       .rit-widget-wrapper {
         display: flex;
-        flex-direction: column;
-        gap: 20px;
+        flex-direction: column; /* 기본: 모바일에서는 상하 배치 */
+        gap: 24px;
         max-width: 1260px;
         margin: 0 auto;
+        padding: 0 16px; /* 모바일 좌우 안전 여백 */
+        box-sizing: border-box;
       }
       
+      .rit-dashboard-side {
+        width: 100%; /* 모바일에서 꽉 차게 */
+      }
+      
+      .rit-content-side {
+        width: 100%;
+        min-width: 0; /* ✨ 스와이퍼 찌그러짐 원천 차단 */
+        overflow: hidden;
+      }
+
+      /* PC 해상도 (1024px 이상) */
       @media (min-width: 1024px) {
         .rit-widget-wrapper {
-          flex-direction: row;
-          align-items: stretch; 
+          flex-direction: row; /* PC에서는 좌우 배치 */
+          align-items: flex-start;
+          padding: 0; 
         }
         .rit-dashboard-side {
-          width: 280px; /* 고정 크기로 찌그러짐 방지 */
+          width: 280px; 
           flex-shrink: 0;
+          position: sticky;
+          top: 100px;
         }
         .rit-content-side {
           flex-grow: 1;
-          min-width: 0; /* ✨ 스와이퍼/그리드 깨짐(구겨짐) 현상 완벽 해결의 핵심 키워드 */
-          overflow: hidden;
+          width: calc(100% - 304px); /* 여백 포함 정확한 계산 */
         }
       }
 
-      /* 🚀 하이엔드 투명 대시보드 (Glassmorphism) */
+      /* 🚀 고급스러운 글래스모피즘 (Glassmorphism) */
       .rit-dashboard-box {
-        position: sticky;
-        top: 100px;
-        height: 100%;
-        min-height: 320px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        background: rgba(255, 255, 255, 0.4); /* 투명도 적용 */
-        backdrop-filter: blur(12px); /* 배경 블러 효과 */
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.6);
+        background: rgba(255, 255, 255, 0.45); /* 은은한 반투명 */
+        backdrop-filter: blur(16px); /* 블러 효과 강화 */
+        -webkit-backdrop-filter: blur(16px); /* Safari 크로스브라우징 필수 */
+        border: 1px solid rgba(255, 255, 255, 0.7); /* 유리 테두리 질감 */
         border-radius: 20px;
-        padding: 40px 20px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.03); /* 은은한 그림자 */
+        padding: 35px 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05); /* 세련된 그림자 */
+      }
+      
+      /* 모바일 대시보드 사이즈 최적화 */
+      @media (max-width: 1023px) {
+        .rit-dashboard-box {
+          padding: 24px 20px;
+          border-radius: 16px;
+        }
       }
 
       /* 그리드 레이아웃 설정 */
       .rit-main-grid-layout {
         display: grid !important;
-        gap: 15px;
+        gap: 12px;
         grid-template-columns: repeat(${Math.floor(moCols)}, 1fr) !important;
       }
       @media (min-width: 1024px) {
@@ -569,43 +587,44 @@
       /* 리뷰 전체보기 버튼 */
       .rit-write-btn {
         display: inline-block;
-        padding: 12px 30px;
-        background: rgba(17, 17, 17, 0.9);
+        padding: 14px 32px;
+        background: rgba(24, 24, 27, 0.95);
         color: #fff !important;
-        border-radius: 30px; /* 둥근 버튼으로 세련미 강조 */
+        border-radius: 30px;
         font-size: 13px;
         font-weight: 700;
         text-decoration: none;
         transition: all 0.3s ease;
         border: 1px solid transparent;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       }
       .rit-write-btn:hover {
         background: rgba(0, 0, 0, 1);
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
       }
     </style>
 
     ${this.settings.is_header_enabled !== false
           ? `<div class="rit-header-area" style="text-align:center; margin-bottom:40px;">
-              ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">${this.settings.tagline}</div>` : ''}
+              ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px; color:#a1a1aa;">${this.settings.tagline}</div>` : ''}
               ${this.settings.title ? `<h2 class="rit-main-title" style="margin:0;">${getFormattedTitle(this.settings.title)}</h2>` : ''}
-              ${(this.settings.tagline || this.settings.title) ? `<div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>` : ''}
-              ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all; margin:0 auto; max-width:80%; line-height:1.6;">${this.settings.description}</p>` : ''}
+              ${(this.settings.tagline || this.settings.title) ? `<div class="rit-line" style="width:30px; height:1px; background:#e4e4e7; margin:15px auto;"></div>` : ''}
+              ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#71717a; word-break:keep-all; margin:0 auto; max-width:80%; line-height:1.6;">${this.settings.description}</p>` : ''}
              </div>`
           : ''
         }
 
     <div class="rit-widget-wrapper">
-      <!-- 💎 좌측 프리미엄 대시보드 -->
+      <!-- 💎 좌측 프리미엄 대시보드 (글래스모피즘) -->
       <div class="rit-dashboard-side">
         <div class="rit-dashboard-box">
-          <div style="font-size:12px; letter-spacing:1px; color:#71717a; font-weight:700; margin-bottom:15px;">CUSTOMER REVIEWS</div>
-          <div style="font-size:56px; font-weight:800; color:#18181b; line-height:1; margin-bottom:10px; font-family: 'Inter', sans-serif;">${avgScore}</div>
-          <div style="display:flex; justify-content:center; gap:2px; margin-bottom:20px;">
-             <img src="${CONFIG.STAR_PATH}5.svg" style="height:22px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
+          <div style="font-size:11px; letter-spacing:1.5px; color:#71717a; font-weight:700; margin-bottom:12px;">CUSTOMER REVIEWS</div>
+          <div style="font-size:52px; font-weight:800; color:#18181b; line-height:1; margin-bottom:12px; font-family: 'Inter', sans-serif;">${avgScore}</div>
+          <div style="display:flex; justify-content:center; gap:3px; margin-bottom:16px;">
+             ${Array.from({length: 5}).map((_, i) => `<img src="${CONFIG.STAR_PATH}5.svg" style="height:16px; opacity:${i < Math.floor(avgScore) ? '1' : '0.2'};">`).join('')}
           </div>
-          <div style="font-size:13px; color:#52525b; margin-bottom:30px;">
+          <div style="font-size:12px; color:#52525b; margin-bottom:28px;">
             총 <strong style="color:#111; font-weight:800;">${totalReviewCount}</strong>개의 소중한 후기
           </div>
           <a href="/board/product/list.html?board_no=4" class="rit-write-btn">리뷰 전체보기</a>
@@ -615,13 +634,13 @@
       <!-- 우측 리뷰 카드 영역 -->
       <div class="rit-content-side">
         ${isGrid
-          ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
-          : `<div class="swiper rit-main-swiper">
+              ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
+              : `<div class="swiper rit-main-swiper">
               <div class="swiper-wrapper">
                 ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
               </div>
              </div>`
-        }
+            }
       </div>
     </div>
   `;
