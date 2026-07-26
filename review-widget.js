@@ -494,8 +494,8 @@
       const isGrid = this.settings.display_type === 'grid';
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
-      
-      const pcCols = isGrid ? 4 : 4; 
+
+      const pcCols = isGrid ? 4 : 4;
       const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
       let totalStars = 0;
@@ -622,7 +622,7 @@
           <div style="font-size:11px; letter-spacing:1.5px; color:#71717a; font-weight:700; margin-bottom:12px;">CUSTOMER REVIEWS</div>
           <div style="font-size:52px; font-weight:800; color:#18181b; line-height:1; margin-bottom:12px; font-family: 'Inter', sans-serif;">${avgScore}</div>
           <div style="display:flex; justify-content:center; gap:3px; margin-bottom:16px;">
-             ${Array.from({length: 5}).map((_, i) => `<img src="${CONFIG.STAR_PATH}5.svg" style="height:16px; opacity:${i < Math.floor(avgScore) ? '1' : '0.2'};">`).join('')}
+             ${Array.from({ length: 5 }).map((_, i) => `<img src="${CONFIG.STAR_PATH}5.svg" style="height:16px; opacity:${i < Math.floor(avgScore) ? '1' : '0.2'};">`).join('')}
           </div>
           <div style="font-size:12px; color:#52525b; margin-bottom:28px;">
             총 <strong style="color:#111; font-weight:800;">${totalReviewCount}</strong>개의 소중한 후기
@@ -634,13 +634,13 @@
       <!-- 우측 리뷰 카드 영역 -->
       <div class="rit-content-side">
         ${isGrid
-              ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
-              : `<div class="swiper rit-main-swiper">
+          ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
+          : `<div class="swiper rit-main-swiper">
               <div class="swiper-wrapper">
                 ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
               </div>
              </div>`
-            }
+        }
       </div>
     </div>
   `;
