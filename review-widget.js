@@ -494,10 +494,11 @@
       const isGrid = this.settings.display_type === 'grid';
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
-      const pcCols = isGrid ? (parseInt(this.settings.grid_rows_desktop) || 5) : 5;
+
+      // 💡 PC 환경에서 좌측 대시보드가 공간을 차지하므로, 그리드/스와이퍼 카드를 4개 노출로 조정하면 비율이 가장 아름답습니다.
+      const pcCols = isGrid ? 4 : 4;
       const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
-      // 💡 [대시보드용] 평균 별점 및 리뷰 수 계산 로직
       let totalStars = 0;
       reviews.forEach(id => {
         const d = this.data[id];
@@ -508,6 +509,51 @@
 
       let mainHtml = `
     <style>
+      /* 🚀 전체 레이아웃 래퍼 */
+      .rit-widget-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        max-width: 1260px;
+        margin: 0 auto;
+      }
+      
+      @media (min-width: 1024px) {
+        .rit-widget-wrapper {
+          flex-direction: row;
+          align-items: stretch; 
+        }
+        .rit-dashboard-side {
+          width: 280px; /* 고정 크기로 찌그러짐 방지 */
+          flex-shrink: 0;
+        }
+        .rit-content-side {
+          flex-grow: 1;
+          min-width: 0; /* ✨ 스와이퍼/그리드 깨짐(구겨짐) 현상 완벽 해결의 핵심 키워드 */
+          overflow: hidden;
+        }
+      }
+
+      /* 🚀 하이엔드 투명 대시보드 (Glassmorphism) */
+      .rit-dashboard-box {
+        position: sticky;
+        top: 100px;
+        height: 100%;
+        min-height: 320px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.4); /* 투명도 적용 */
+        backdrop-filter: blur(12px); /* 배경 블러 효과 */
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 20px;
+        padding: 40px 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.03); /* 은은한 그림자 */
+      }
+
+      /* 그리드 레이아웃 설정 */
       .rit-main-grid-layout {
         display: grid !important;
         gap: 15px;
@@ -519,41 +565,63 @@
           gap: 20px;
         }
       }
+      
+      /* 리뷰 전체보기 버튼 */
+      .rit-write-btn {
+        display: inline-block;
+        padding: 12px 30px;
+        background: rgba(17, 17, 17, 0.9);
+        color: #fff !important;
+        border-radius: 30px; /* 둥근 버튼으로 세련미 강조 */
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+      }
+      .rit-write-btn:hover {
+        background: rgba(0, 0, 0, 1);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      }
     </style>
 
     ${this.settings.is_header_enabled !== false
-          ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
+          ? `<div class="rit-header-area" style="text-align:center; margin-bottom:40px;">
               ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">${this.settings.tagline}</div>` : ''}
               ${this.settings.title ? `<h2 class="rit-main-title" style="margin:0;">${getFormattedTitle(this.settings.title)}</h2>` : ''}
               ${(this.settings.tagline || this.settings.title) ? `<div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>` : ''}
-              ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all; margin:0 auto; max-width:80%;">${this.settings.description}</p>` : ''}
+              ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all; margin:0 auto; max-width:80%; line-height:1.6;">${this.settings.description}</p>` : ''}
              </div>`
           : ''
         }
 
-    <!-- 🚀 2-Column 대시보드 래퍼 적용 -->
     <div class="rit-widget-wrapper">
+      <!-- 💎 좌측 프리미엄 대시보드 -->
       <div class="rit-dashboard-side">
         <div class="rit-dashboard-box">
-          <div style="font-size:13px; color:#666; font-weight:600; margin-bottom:10px;">고객 만족도</div>
-          <div class="rit-dashboard-score">${avgScore}</div>
-          <div style="display:flex; justify-content:center; gap:2px; margin-bottom:15px;">
-             <img src="${CONFIG.STAR_PATH}5.svg" style="height:20px;">
+          <div style="font-size:12px; letter-spacing:1px; color:#71717a; font-weight:700; margin-bottom:15px;">CUSTOMER REVIEWS</div>
+          <div style="font-size:56px; font-weight:800; color:#18181b; line-height:1; margin-bottom:10px; font-family: 'Inter', sans-serif;">${avgScore}</div>
+          <div style="display:flex; justify-content:center; gap:2px; margin-bottom:20px;">
+             <img src="${CONFIG.STAR_PATH}5.svg" style="height:22px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
           </div>
-          <div style="font-size:12px; color:#888; margin-bottom:20px;">총 <strong>${totalReviewCount}</strong>개의 소중한 후기</div>
+          <div style="font-size:13px; color:#52525b; margin-bottom:30px;">
+            총 <strong style="color:#111; font-weight:800;">${totalReviewCount}</strong>개의 소중한 후기
+          </div>
           <a href="/board/product/list.html?board_no=4" class="rit-write-btn">리뷰 전체보기</a>
         </div>
       </div>
       
+      <!-- 우측 리뷰 카드 영역 -->
       <div class="rit-content-side">
         ${isGrid
-              ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
-              : `<div class="swiper rit-main-swiper">
+          ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
+          : `<div class="swiper rit-main-swiper">
               <div class="swiper-wrapper">
                 ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
               </div>
              </div>`
-            }
+        }
       </div>
     </div>
   `;
@@ -605,7 +673,7 @@
       }
       this.initModal();
     },
-    
+
     initModal() {
       let modalContainer = document.getElementById('ritModal');
       if (modalContainer) return;
