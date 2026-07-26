@@ -498,15 +498,24 @@
         const revCount = r.product_review_count;
         const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
-        // 💡 [UX 최적화] 복잡한 상품명 대신 깔끔하게 '상품 보기'로 통일 (CTA 효과 극대화)
-        // 로직(r.scraped_product_name 등)은 백그라운드에 그대로 살려둡니다.
+        // 💡 [추가] 날짜 포맷팅 (YY.MM.DD 작성)
+        const rawDate = r.original_date ? r.original_date : (r.created_at ? r.created_at.split('T')[0] : '');
+        let formattedDate = rawDate;
+        if(rawDate) {
+           const dateObj = new Date(rawDate);
+           if(!isNaN(dateObj)) {
+               const yy = String(dateObj.getFullYear()).slice(-2);
+               const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+               const dd = String(dateObj.getDate()).padStart(2, '0');
+               formattedDate = `${yy}.${mm}.${dd} 작성`;
+           }
+        }
+
         const actualProductName = '상품 보기';
         const actualProductImg = r.scraped_product_img || r.product_image || r.product_img || imgUrl;
         const actualProductNo = r.scraped_product_no || r.product_no || '';
-
         const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
 
-        // 💡 칩은 조건 없이 항상 렌더링되도록 보장, 클릭 시 모달이 뜨지 않도록 버블링 방지(stopPropagation)
         const productChipHtml = `
           <div class="rit-product-chip" ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} style="${productLink ? 'cursor:pointer;' : ''}">
             <img src="${actualProductImg}" class="rit-product-chip-img" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
@@ -539,9 +548,15 @@
               <div class="rit-masonry-subject">${r.subject}</div>
               <div class="rit-masonry-desc">${cleanContent}</div>
               ${productChipHtml}
-              <div class="rit-masonry-meta">
-                <span style="font-weight:600; color:#52525b;">${displayName}</span>
-                <img src="${CONFIG.starPath}${r.stars || 5}.svg" class="rit-card-star" alt="star">
+              
+              <!-- 💡 [수정] 메인 위젯과 동일한 마크업 적용 -->
+              <div class="rit-masonry-meta" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 11px; color: #71717a; font-weight: 600;">${displayName}</span>
+                  <span style="font-size: 10px; color: #e4e4e7;">|</span>
+                  <span style="font-size: 11px; color: #a1a1aa;">${formattedDate}</span>
+                </div>
+                <span style="font-size: 10px; background: #f4f4f5; color: #52525b; padding: 4px 6px; border-radius: 4px; font-weight: 600; letter-spacing: -0.5px;">구매 인증</span>
               </div>
             </div>
           </div>

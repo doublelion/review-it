@@ -497,6 +497,15 @@
       const pcCols = isGrid ? (parseInt(this.settings.grid_rows_desktop) || 5) : 5;
       const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
+      // 💡 [대시보드용] 평균 별점 및 리뷰 수 계산 로직
+      let totalStars = 0;
+      reviews.forEach(id => {
+        const d = this.data[id];
+        totalStars += parseInt(d.stars || 5, 10);
+      });
+      const avgScore = reviews.length > 0 ? (totalStars / reviews.length).toFixed(1) : "5.0";
+      const totalReviewCount = this.listOrder.length > 999 ? '999+' : this.listOrder.length;
+
       let mainHtml = `
     <style>
       .rit-main-grid-layout {
@@ -522,14 +531,31 @@
           : ''
         }
 
-    ${isGrid
-          ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
-          : `<div class="swiper rit-main-swiper">
-          <div class="swiper-wrapper">
-            ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
+    <!-- 🚀 2-Column 대시보드 래퍼 적용 -->
+    <div class="rit-widget-wrapper">
+      <div class="rit-dashboard-side">
+        <div class="rit-dashboard-box">
+          <div style="font-size:13px; color:#666; font-weight:600; margin-bottom:10px;">고객 만족도</div>
+          <div class="rit-dashboard-score">${avgScore}</div>
+          <div style="display:flex; justify-content:center; gap:2px; margin-bottom:15px;">
+             <img src="${CONFIG.STAR_PATH}5.svg" style="height:20px;">
           </div>
-         </div>`
-        }
+          <div style="font-size:12px; color:#888; margin-bottom:20px;">총 <strong>${totalReviewCount}</strong>개의 소중한 후기</div>
+          <a href="/board/product/list.html?board_no=4" class="rit-write-btn">리뷰 전체보기</a>
+        </div>
+      </div>
+      
+      <div class="rit-content-side">
+        ${isGrid
+              ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
+              : `<div class="swiper rit-main-swiper">
+              <div class="swiper-wrapper">
+                ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
+              </div>
+             </div>`
+            }
+      </div>
+    </div>
   `;
 
       container.innerHTML = mainHtml;
@@ -579,7 +605,7 @@
       }
       this.initModal();
     },
-
+    
     initModal() {
       let modalContainer = document.getElementById('ritModal');
       if (modalContainer) return;
