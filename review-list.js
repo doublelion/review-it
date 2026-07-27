@@ -498,7 +498,7 @@
         const revCount = r.product_review_count;
         const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
-        // 💡 [추가] 날짜 포맷팅 (YY.MM.DD 작성)
+        // 날짜 포맷팅 (YY.MM.DD 작성)
         const rawDate = r.original_date ? r.original_date : (r.created_at ? r.created_at.split('T')[0] : '');
         let formattedDate = rawDate;
         if(rawDate) {
@@ -517,14 +517,20 @@
         const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
 
         const productChipHtml = `
-          <div class="rit-product-chip" ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} style="${productLink ? 'cursor:pointer;' : ''}">
-            <img src="${actualProductImg}" class="rit-product-chip-img" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
-            <span class="rit-product-chip-name">${actualProductName}</span>
+          <div class="rit-product-chip" 
+               ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} 
+               style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; cursor: pointer;">
+            <img src="${actualProductImg}" class="rit-product-chip-img" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
+            <span class="rit-product-chip-name" style="font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${actualProductName}</span>
           </div>
         `;
 
         const rawName = (r.author_name ? r.author_name : (r.writer || '고객')).trim();
-        const isMallOwner = CONFIG.mallName && (rawName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawName));
+        
+        // 💡 [핵심 방어 1] 관리자 판별 로직 추가
+        const adminKeywords = ['관리자', 'Official', '운영자', 'admin', '대표', '주인장'];
+        const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawName))) 
+                            || adminKeywords.some(k => rawName.includes(k));
 
         let displayName = rawName;
         if (!isMallOwner && window.ReviewApp && typeof window.ReviewApp.maskName === 'function') {
@@ -535,28 +541,41 @@
           else displayName = rawName.substring(0, 2) + '**';
         }
 
+        // 💡 [핵심 방어 2] 관리자가 아닐 때만 구매 인증 배지 생성
+        const verifiedBadgeHtml = !isMallOwner ? `
+          <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
+        ` : '';
+
         return `
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
-            <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
-            <div class="rit-masonry-info">
+            
+            <!-- 💡 [결과] 이미지 래퍼 생성 및 배지 삽입 -->
+            <div style="position: relative; width: 100%; overflow: hidden; background: rgba(0,0,0,0.02);">
+              <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'" style="width: 100%; height: auto; display: block; object-fit: cover;">
+              ${verifiedBadgeHtml}
+            </div>
+            
+            <div class="rit-masonry-info" style="display: flex; flex-direction: column; padding: 15px;">
               <div style="display:flex; align-items:center; gap:5px; margin-bottom:8px; font-size:11px; font-weight:700; color:#52525b;">
                  <span style="color:#fbbf24;">★</span>
                  <span>${Number(avgScore).toFixed(1)}</span>
                  ${reviewCountHtml}
               </div>
               
-              <div class="rit-masonry-subject">${r.subject}</div>
-              <div class="rit-masonry-desc">${cleanContent}</div>
+              <!-- 💡 [결과] 제목 최소 2줄 무조건 고정 -->
+              <div class="rit-masonry-subject" style="font-size: 13px; color: #18181b; font-weight: 700; line-height: 1.4; height: 2.8em; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal;">${r.subject}</div>
+              
+              <div class="rit-masonry-desc" style="font-size: 12px; color: #52525b; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: keep-all;">${cleanContent}</div>
+              
               ${productChipHtml}
               
-              <!-- 💡 [수정] 메인 위젯과 동일한 마크업 적용 -->
-              <div class="rit-masonry-meta" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="font-size: 11px; color: #71717a; font-weight: 600;">${displayName}</span>
-                  <span style="font-size: 10px; color: #e4e4e7;">|</span>
-                  <span style="font-size: 11px; color: #a1a1aa;">${formattedDate}</span>
+              <!-- 💡 [결과] 하단 작성자/날짜 한 줄 고정 (ellipsis) -->
+              <div class="rit-masonry-meta" style="border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
+                <div style="display: flex; align-items: center; gap: 6px; width: 100%; overflow: hidden;">
+                  <span style="font-size: 11px; color: #71717a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%;">${displayName}</span>
+                  <span style="font-size: 10px; color: #e4e4e7; flex-shrink: 0;">|</span>
+                  <span style="font-size: 11px; color: #a1a1aa; flex-shrink: 0; white-space: nowrap;">${formattedDate}</span>
                 </div>
-                <span style="font-size: 10px; background: #f4f4f5; color: #52525b; padding: 4px 6px; border-radius: 4px; font-weight: 600; letter-spacing: -0.5px;">구매 인증</span>
               </div>
             </div>
           </div>
