@@ -759,8 +759,8 @@
             <div class="swiper-slide" style="position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center; width: 100% !important; box-sizing: border-box;">
               <div style="position: absolute; inset: -20px; background-image: url('${img}'); background-size: cover; background-position: center; filter: blur(20px); opacity: 0.4; pointer-events: none;"></div>
               <img src="${img}" alt="review" 
-                onerror="this.closest('.swiper-slide').remove(); if(window.ritActiveModalSwiper){ window.ritActiveModalSwiper.update(); } if(!document.querySelector('.rit-modal-swiper .swiper-slide')){ document.getElementById('ritModalImg').innerHTML = '<div class=\'rit-no-image\'><span>REVIEW-IT</span></div>'; }" 
-                style="position: relative; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1;">
+                   onerror="this.closest('.swiper-slide').remove(); if(window.ritActiveModalSwiper){ window.ritActiveModalSwiper.update(); } if(!document.querySelector('.rit-modal-swiper .swiper-slide')){ document.getElementById('ritModalImg').innerHTML = \`<div class='rit-no-image'><span>REVIEW-IT</span></div>\`; }" 
+                   style="position: relative; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1;">
             </div>
           `).join('')}
         </div>
@@ -778,7 +778,7 @@
               pagination: { el: '.rit-fraction', type: 'fraction' },
               navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
               centeredSlides: true,
-              loop: validImages.length > 1, // 2장 이상일 때만 무한 루프
+              loop: validImages.length > 1,
               observer: true,
               observeParents: true,
               resizeObserver: true
