@@ -730,10 +730,13 @@
       const isMallOwner = CONFIG.MALL_NAME && (rawDisplayName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawDisplayName));
       const updatedDisplayName = isMallOwner ? rawDisplayName : this.maskName(rawDisplayName);
 
+
+
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
 
+      // 1. 비동기 데이터 파싱 (이미지, 본문, 작성자 등 추출)
       if (!d.is_parsed) {
         const separateData = await this._fetchAndSeparateContent(d.article_no, d.board_no);
         if (separateData) {
@@ -745,16 +748,19 @@
         d.is_parsed = true;
       }
 
-      if (d.all_images && d.all_images.length > 0 && d.all_images[0] !== CONFIG.DEFAULT_IMG) {
+      const validImages = d.all_images.filter(img => img && !img.includes('rit_noimg.jpg'));
+
+      // 2. 추출된 유효 이미지가 존재할 때만 Swiper 슬라이더 생성
+      if (validImages.length > 0) {
         imgSide.innerHTML = `
       <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
         <div class="swiper-wrapper">
-          ${d.all_images.map(img => `
+          ${validImages.map(img => `
             <div class="swiper-slide" style="position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center; width: 100% !important; box-sizing: border-box;">
               <div style="position: absolute; inset: -20px; background-image: url('${img}'); background-size: cover; background-position: center; filter: blur(20px); opacity: 0.4; pointer-events: none;"></div>
               <img src="${img}" alt="review" 
-                   onerror="this.src='${CONFIG.DEFAULT_IMG}'; this.style.filter='none'; this.previousElementSibling.style.display='none';" 
-                   style="position: relative; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1;">
+                onerror="this.closest('.swiper-slide').remove(); if(window.ritActiveModalSwiper){ window.ritActiveModalSwiper.update(); } if(!document.querySelector('.rit-modal-swiper .swiper-slide')){ document.getElementById('ritModalImg').innerHTML = '<div class=\'rit-no-image\'><span>REVIEW-IT</span></div>'; }" 
+                style="position: relative; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1;">
             </div>
           `).join('')}
         </div>
@@ -772,7 +778,7 @@
               pagination: { el: '.rit-fraction', type: 'fraction' },
               navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
               centeredSlides: true,
-              loop: d.all_images.length > 1,
+              loop: validImages.length > 1, // 2장 이상일 때만 무한 루프
               observer: true,
               observeParents: true,
               resizeObserver: true
