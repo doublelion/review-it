@@ -751,7 +751,14 @@
       const validImages = d.all_images.filter(img => img && !img.includes('rit_noimg.jpg'));
 
       // 2. 추출된 유효 이미지가 존재할 때만 Swiper 슬라이더 생성
+      // 2. 추출된 유효 이미지가 존재할 때만 Swiper 슬라이더 생성
       if (validImages.length > 0) {
+        // [FIX] 이미지가 2장 이상일 때만 컨트롤(버튼, 페이지네이션) DOM 생성
+        const swiperControls = validImages.length > 1 ? `
+          <div class="rit-fraction"></div>
+          <div class="swiper-button-next"></div><div class="swiper-button-prev"></div>
+        ` : '';
+
         imgSide.innerHTML = `
       <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
         <div class="swiper-wrapper">
@@ -764,8 +771,7 @@
             </div>
           `).join('')}
         </div>
-        <div class="rit-fraction"></div>
-        <div class="swiper-button-next"></div><div class="swiper-button-prev"></div>
+        ${swiperControls}
       </div>`;
 
         if (window.Swiper) {
@@ -775,13 +781,15 @@
 
           setTimeout(() => {
             window.ritActiveModalSwiper = new Swiper('.rit-modal-swiper', {
-              pagination: { el: '.rit-fraction', type: 'fraction' },
-              navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+              // [FIX] 옵션에서도 컨트롤 바인딩을 방어하고, 1장일 때 스와이프 기능 정지
+              pagination: validImages.length > 1 ? { el: '.rit-fraction', type: 'fraction' } : false,
+              navigation: validImages.length > 1 ? { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' } : false,
               centeredSlides: true,
               loop: validImages.length > 1,
               observer: true,
               observeParents: true,
-              resizeObserver: true
+              resizeObserver: true,
+              watchOverflow: true // 슬라이드가 1개일 때 스와이프 기능 자동 비활성화
             });
           }, 50);
         }
