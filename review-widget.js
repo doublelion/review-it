@@ -4,7 +4,7 @@
  *          + [핵심] 리스트 엔진(Chip) 연동을 위한 상품명(ProductName) 스크래핑 및 악성 데이터 차단 방어막 추가
  */
 (function (window) {
-  console.log("▶ [REVIEW-IT] 프론트엔드 스크립트 로드 완료!");
+  console.log('%c[REVIEW-IT]%c Universal Widget Loaded', 'color:#3b82f6; font-weight:bold;', 'color:#111;');
 
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase(); // 하위 로직(board_no=4 감지 등)을 위해 유지
@@ -26,7 +26,6 @@
 
     if (isReviewList && !isReadOrWrite) {
       if (!document.getElementById('rit-list-script')) {
-        console.log("▶ [REVIEW-IT] 리뷰 리스트 게시판 감지! 최신 review-list.js를 동적으로 호출합니다.");
         const script = document.createElement('script');
         script.id = 'rit-list-script';
         script.src = `https://review-it-tau.vercel.app/review-list.js?v=${new Date().getTime()}`;
@@ -37,7 +36,6 @@
   }
 
   if (isBoardPage && isReadOrWrite) {
-    console.log("▶ [REVIEW-IT Widget] 예외 페이지 진입 -> 3초간 위젯 뼈대를 강력 감시 및 파괴합니다.");
     const killWidget = () => {
       document.querySelectorAll('#review-it-widget, #rit-widget-container, .rit-list-container').forEach(el => {
         el.style.setProperty('display', 'none', 'important');
@@ -332,7 +330,6 @@
           let tempSubj = extractedSubject.replace(/\s+/g, '');
           if (tempName === tempSubj || tempName.includes(tempSubj.replace('...', ''))) {
             extractedProductName = null;
-            console.log("🛡️ [Widget 방어] 상품명과 리뷰 제목이 동일하여 초기화합니다.");
           }
         }
 
@@ -730,8 +727,6 @@
       const isMallOwner = CONFIG.MALL_NAME && (rawDisplayName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawDisplayName));
       const updatedDisplayName = isMallOwner ? rawDisplayName : this.maskName(rawDisplayName);
 
-
-
       document.getElementById('ritGridView').classList.add('rit-hidden');
       document.getElementById('ritDetailView').style.display = 'flex';
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
@@ -751,7 +746,6 @@
       const validImages = d.all_images.filter(img => img && !img.includes('rit_noimg.jpg'));
 
       // 2. 추출된 유효 이미지가 존재할 때만 Swiper 슬라이더 생성
-      // 2. 추출된 유효 이미지가 존재할 때만 Swiper 슬라이더 생성
       if (validImages.length > 0) {
         // [FIX] 이미지가 2장 이상일 때만 컨트롤(버튼, 페이지네이션) DOM 생성
         const swiperControls = validImages.length > 1 ? `
@@ -770,7 +764,6 @@
                     this.onerror=null; 
                     const slide = this.closest('.swiper-slide'); 
                     if(slide) slide.remove(); 
-                    console.log('▶ [REVIEW-IT Track] 깨진 이미지 슬라이드 제거됨');
                     if(window.ritActiveModalSwiper && typeof window.ritActiveModalSwiper.update === 'function') { 
                       try { 
                         window.ritActiveModalSwiper.update(); 
@@ -791,7 +784,6 @@
 
         if (window.Swiper) {
           if (window.ritActiveModalSwiper) {
-            console.log("▶ [REVIEW-IT Track] 기존 모달 Swiper 파괴 시도");
             try {
               if (typeof window.ritActiveModalSwiper.destroy === 'function') {
                 // DOM 요소가 이미 변경되었을 수 있으므로 이벤트 해제 중 발생하는 에러를 무시하도록 false, false 옵션 적용
