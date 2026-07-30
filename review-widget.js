@@ -766,7 +766,22 @@
             <div class="swiper-slide" style="position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center; width: 100% !important; box-sizing: border-box;">
               <div style="position: absolute; inset: -20px; background-image: url('${img}'); background-size: cover; background-position: center; filter: blur(20px); opacity: 0.4; pointer-events: none;"></div>
               <img src="${img}" alt="review" 
-                   onerror="this.closest('.swiper-slide').remove(); if(window.ritActiveModalSwiper){ window.ritActiveModalSwiper.update(); } if(!document.querySelector('.rit-modal-swiper .swiper-slide')){ document.getElementById('ritModalImg').innerHTML = \`<div class='rit-no-image'><span>REVIEW-IT</span></div>\`; }" 
+                   onerror="
+                    this.onerror=null; 
+                    const slide = this.closest('.swiper-slide'); 
+                    if(slide) slide.remove(); 
+                    console.log('▶ [REVIEW-IT Track] 깨진 이미지 슬라이드 제거됨');
+                    if(window.ritActiveModalSwiper && typeof window.ritActiveModalSwiper.update === 'function') { 
+                      try { 
+                        window.ritActiveModalSwiper.update(); 
+                      } catch(e) {
+                        console.warn('▶ [REVIEW-IT Track] Swiper 강제 업데이트 중 에러 방어:', e);
+                      } 
+                    } 
+                    if(!document.querySelector('.rit-modal-swiper .swiper-slide')) { 
+                      document.getElementById('ritModalImg').innerHTML = \`<div class='rit-no-image'><span>REVIEW-IT</span></div>\`; 
+                    }
+                  "
                    style="position: relative; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1;">
             </div>
           `).join('')}
@@ -776,10 +791,22 @@
 
         if (window.Swiper) {
           if (window.ritActiveModalSwiper) {
-            window.ritActiveModalSwiper.destroy(true, true);
+            console.log("▶ [REVIEW-IT Track] 기존 모달 Swiper 파괴 시도");
+            try {
+              if (typeof window.ritActiveModalSwiper.destroy === 'function') {
+                // DOM 요소가 이미 변경되었을 수 있으므로 이벤트 해제 중 발생하는 에러를 무시하도록 false, false 옵션 적용
+                window.ritActiveModalSwiper.destroy(false, false);
+              }
+            } catch (e) {
+              console.warn("▶ [REVIEW-IT Track] Swiper 파괴 중 에러 방어 (무시 가능):", e);
+            } finally {
+              window.ritActiveModalSwiper = null; // 확실하게 메모리에서 해제
+            }
           }
 
           setTimeout(() => {
+            console.log("▶ [REVIEW-IT Track] 새 모달 Swiper 인스턴스 생성");
+            // ... 기존 Swiper 초기화 로직 유지
             window.ritActiveModalSwiper = new Swiper('.rit-modal-swiper', {
               // [FIX] 옵션에서도 컨트롤 바인딩을 방어하고, 1장일 때 스와이프 기능 정지
               pagination: validImages.length > 1 ? { el: '.rit-fraction', type: 'fraction' } : false,
