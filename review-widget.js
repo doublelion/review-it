@@ -397,24 +397,37 @@
 
     async loadReviews() {
       try {
-        let apiUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
+        // 기본 API URL 설정
+        const baseUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
+        let apiUrl = baseUrl;
+        
+        // 1. 상세페이지인 경우 해당 상품의 리뷰만 필터링
         if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
         apiUrl += `&order=created_at.desc`;
 
-        const res = await fetch(apiUrl, {
+        let res = await fetch(apiUrl, {
           headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
         });
 
-        if (!res.ok) {
-          if (res.status === 403 || res.status === 401) {
-            const container = document.getElementById('review-it-widget');
-            if (container) container.style.display = 'none';
-            return false;
-          }
-          throw new Error(`API 오류: ${res.status}`);
+        if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+        let list = await res.json();
+
+        // 🚨 [핵심 수정] 2. 해당 상품의 리뷰가 0개일 경우, 쇼핑몰 전체 최신 리뷰를 가져오는 폴백 로직
+        if ((!list || list.length === 0) && CONFIG.PRODUCT_NO) {
+          console.log('[REVIEW-IT] 해당 상품 리뷰 없음. 전체 최신 리뷰를 불러옵니다.');
+          const fallbackUrl = `${baseUrl}&order=created_at.desc&limit=${this.settings.display_limit}`;
+          
+          res = await fetch(fallbackUrl, {
+            headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
+          });
+          list = await res.json();
+          
+          // 위젯 타이틀을 동적으로 변경하여 고객 혼동 방지 (선택 사항)
+          this.settings.title = "다른 고객들의 베스트 리뷰";
+          this.settings.description = "현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!";
         }
 
-        const list = await res.json();
+        // 쇼핑몰 전체에도 리뷰가 아예 없으면 그때 숨김 처리
         if (!list || list.length === 0) {
           const container = document.getElementById('review-it-widget');
           if (container) container.style.display = 'none';
