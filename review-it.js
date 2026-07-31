@@ -220,6 +220,18 @@
     if (limitedPayload.length === 0) return;
 
     try {
+      // 💡 [PGRST102 에러 방어] 1. 배열 내 모든 객체의 Key를 하나로 끌어모읍니다.
+      const allKeys = [...new Set(limitedPayload.flatMap(Object.keys))];
+      
+      // 💡 [PGRST102 에러 방어] 2. 비어있는 Key 자리에 null을 채워 모든 객체의 모양을 똑같이 맞춥니다.
+      const normalizedPayload = limitedPayload.map(review => {
+        const normalized = {};
+        allKeys.forEach(key => {
+          normalized[key] = review[key] !== undefined ? review[key] : null;
+        });
+        return normalized;
+      });
+
       // 💡 [최적화] 이전처럼 DB 직통 경로를 유지하되, upsert를 통해 무결성 확보
       const res = await fetch(`${CONFIG.sbUrl}/reviews?on_conflict=mall_id,article_no`, {
         method: 'POST',
@@ -229,9 +241,9 @@
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates'
         },
-        body: JSON.stringify(limitedPayload)
+        body: JSON.stringify(normalizedPayload) // <--- 정규화된 페이로드로 교체!
       });
-
+      
       if (res.ok) {
         console.log(`✅ [REVIEW-IT Collector] 동기화 완료 (${limitedPayload.length}건) - 오류 방어막 가동 중`);
         localStorage.setItem('rit_last_sync', new Date().getTime().toString());
