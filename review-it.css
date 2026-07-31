@@ -623,8 +623,8 @@
     gap: 12px;
     padding-left: 16px;
     padding-right: 16px;
-    /* 모바일에서 설정값이 3 이상이더라도, 화면이 너무 좁으면 2열로 강제 고정하여 UI 찌그러짐 방지 */
-    grid-template-columns: repeat(min(var(--mo-cols, 2), 2), 1fr) !important; 
+    /* 해결: 관리자가 입력한 --mo-cols 값을 그대로 반영 */
+    grid-template-columns: repeat(var(--mo-cols, 2), 1fr) !important; 
   }
 
   /* 1. 모달 전체 높이 설정 */
