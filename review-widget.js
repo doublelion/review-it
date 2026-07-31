@@ -4,7 +4,7 @@
  *          + [핵심] 리스트 엔진(Chip) 연동을 위한 상품명(ProductName) 스크래핑 및 악성 데이터 차단 방어막 추가
  */
 (function (window) {
-  console.log('%c[REVIEW-IT]%c Universal Widget Loaded', 'color:#3b82f6; font-weight:bold;', 'color:#111;');
+  console.log('%c[REVIEW-IT]%c Universal Widget Loaded', 'color:#3b82f6; font-weight:bold;', 'color:#FE535C;');
 
   const currentPath = window.location.pathname.toLowerCase();
   const currentSearch = window.location.search.toLowerCase(); // 하위 로직(board_no=4 감지 등)을 위해 유지
@@ -400,7 +400,7 @@
         // 기본 API URL 설정
         const baseUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
         let apiUrl = baseUrl;
-        
+
         // 1. 상세페이지인 경우 해당 상품의 리뷰만 필터링
         if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
         apiUrl += `&order=created_at.desc`;
@@ -416,12 +416,12 @@
         if ((!list || list.length === 0) && CONFIG.PRODUCT_NO) {
           console.log('[REVIEW-IT] 해당 상품 리뷰 없음. 전체 최신 리뷰를 불러옵니다.');
           const fallbackUrl = `${baseUrl}&order=created_at.desc&limit=${this.settings.display_limit}`;
-          
+
           res = await fetch(fallbackUrl, {
             headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
           });
           list = await res.json();
-          
+
           // 위젯 타이틀을 동적으로 변경하여 고객 혼동 방지 (선택 사항)
           this.settings.title = "다른 고객들의 베스트 리뷰";
           this.settings.description = "현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!";
@@ -510,37 +510,25 @@
       const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
       let mainHtml = `
-    <style>
-      .rit-main-grid-layout {
-        display: grid !important;
-        gap: 15px;
-        grid-template-columns: repeat(${Math.floor(moCols)}, 1fr) !important;
-      }
-      @media (min-width: 1024px) {
-        .rit-main-grid-layout {
-          grid-template-columns: repeat(${pcCols}, 1fr) !important;
-          gap: 20px;
-        }
-      }
-    </style>
-
-    ${this.settings.is_header_enabled !== false
-          ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
-              ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">${this.settings.tagline}</div>` : ''}
-              ${this.settings.title ? `<h2 class="rit-main-title" style="margin:0;">${getFormattedTitle(this.settings.title)}</h2>` : ''}
-              ${(this.settings.tagline || this.settings.title) ? `<div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>` : ''}
-              ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all; margin:0 auto; max-width:80%;">${this.settings.description}</p>` : ''}
-             </div>`
-          : ''
-        }
+      ${this.settings.is_header_enabled !== false
+            ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
+                ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">${this.settings.tagline}</div>` : ''}
+                ${this.settings.title ? `<h2 class="rit-main-title" style="margin:0;">${getFormattedTitle(this.settings.title)}</h2>` : ''}
+                ${(this.settings.tagline || this.settings.title) ? `<div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>` : ''}
+                ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all; margin:0 auto; max-width:80%;">${this.settings.description}</p>` : ''}
+              </div>`
+            : ''
+          }
 
     ${isGrid
-          ? `<div class="rit-main-grid-layout">${reviews.map(id => this.getCardHTML(id)).join('')}</div>`
+          ? `<div class="rit-main-grid-layout" style="--pc-cols: ${pcCols}; --mo-cols: ${Math.floor(moCols)};">
+              ${reviews.map(id => this.getCardHTML(id)).join('')}
+             </div>`
           : `<div class="swiper rit-main-swiper">
-          <div class="swiper-wrapper">
-            ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
-          </div>
-         </div>`
+              <div class="swiper-wrapper">
+                ${reviews.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('')}
+              </div>
+             </div>`
         }
       `;
 

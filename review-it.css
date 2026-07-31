@@ -65,20 +65,18 @@
 .rit-main-grid-layout {
   display: grid !important;
   gap: 15px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
-  /* 자동 크기 조절 */
+  /* 모바일 기본값: JS에서 넘겨준 --mo-cols 변수 사용 (기본 2) */
+  grid-template-columns: repeat(var(--mo-cols, 2), 1fr) !important;
   justify-content: center !important;
-  /* 내부 아이템 중앙 정렬 */
-  justify-items: center !important;
   margin: 0 auto !important;
 }
 
 @media (min-width: 1024px) {
   .rit-main-grid-layout {
-    /* 6개로 고정하고 싶다면 */
-    grid-template-columns: repeat(6, 1fr) !important;
-    max-width: 1200px;
-    /* 적절한 최대폭 설정 */
+    /* PC 환경: JS에서 넘겨준 --pc-cols 변수 사용 (기본 5) */
+    grid-template-columns: repeat(var(--pc-cols, 5), 1fr) !important;
+    gap: 20px;
+    max-width: 1260px; /* 위젯 최대 너비 통일 */
   }
 
   #review-it-widget {
@@ -625,6 +623,8 @@
     gap: 12px;
     padding-left: 16px;
     padding-right: 16px;
+    /* 모바일에서 설정값이 3 이상이더라도, 화면이 너무 좁으면 2열로 강제 고정하여 UI 찌그러짐 방지 */
+    grid-template-columns: repeat(min(var(--mo-cols, 2), 2), 1fr) !important; 
   }
 
   /* 1. 모달 전체 높이 설정 */
