@@ -1,24 +1,20 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.0.9 (Self-Healing Patch)
- * @Update: 리스트 엔진 종속성(ReviewApp) 유지를 위한 return 차단 해제 및 고정 폴백 리뷰 수 적용
- *          + [핵심] 리스트 엔진(Chip) 연동을 위한 상품명(ProductName) 스크래핑 및 악성 데이터 차단 방어막 추가
+ * @Project: Review-It Universal Widget Engine v1.1.0
+ * @Update: 리스트 엔진 종속성 연동 + 메인페이지 노출 여부(Toggle) 제어 기능 추가 완료
  */
 (function (window) {
   console.log('%c[REVIEW-IT]%c Universal Widget Loaded', 'color:#3b82f6; font-weight:bold;', 'color:#FE535C;');
 
   const currentPath = window.location.pathname.toLowerCase();
-  const currentSearch = window.location.search.toLowerCase(); // 하위 로직(board_no=4 감지 등)을 위해 유지
-  const urlParams = new URLSearchParams(window.location.search); // 정밀 타겟팅용 추가
+  const currentSearch = window.location.search.toLowerCase();
+  const urlParams = new URLSearchParams(window.location.search);
 
   const isProductDetailPage = currentPath.includes('/product/detail.html');
-  // 🐛 수정됨: includes('no=') 대신 URLSearchParams의 has() 메서드 사용
   const isBoardReadPage = currentPath.includes('/board/product/read.html') || urlParams.has('no') || urlParams.has('article_no');
   const isWriteOrModify = currentPath.includes('write.html') || currentPath.includes('modify.html');
 
   const isBlockedPage = isProductDetailPage || isBoardReadPage || isWriteOrModify;
-
   const isBoardPage = currentPath.includes('/board/') || currentPath.includes('상품-사용후기');
-  // 🐛 수정됨: includes('no=') 대신 URLSearchParams의 has() 메서드 사용
   const isReadOrWrite = currentPath.includes('read.html') || currentPath.includes('write.html') || currentPath.includes('modify.html') || urlParams.has('no') || urlParams.has('article_no');
 
   if (isBoardPage) {
@@ -47,7 +43,6 @@
     window.addEventListener('DOMContentLoaded', killWidget);
     const killerInterval = setInterval(killWidget, 200);
     setTimeout(() => clearInterval(killerInterval), 3000);
-
     return;
   }
 
@@ -73,7 +68,6 @@
 
     const getMallName = () => {
       if (window.iMallName && window.iMallName !== "") return window.iMallName;
-
       const ogSiteName = document.querySelector('meta[property="og:site_name"]');
       if (ogSiteName && ogSiteName.content) return ogSiteName.content.trim();
 
@@ -86,11 +80,7 @@
       }
 
       title = title.replace(/공식몰|공식홈페이지|온라인스토어/g, "").trim();
-
-      if (title.length > 15) {
-        title = title.substring(0, 15) + '...';
-      }
-
+      if (title.length > 15) title = title.substring(0, 15) + '...';
       return title || "REVIEW-IT";
     };
 
@@ -115,6 +105,7 @@
     settings: {
       display_type: 'grid',
       is_header_enabled: true,
+      is_main_exposed: true, // 💡 새롭게 추가된 설정 (기본값 ON)
       tagline: 'Verified Authenticity',
       title: 'People Choice',
       description: '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.',
@@ -188,16 +179,29 @@
         return;
       }
 
+      // 1. 컨테이너 뼈대 먼저 생성
       this.autoCreateContainer();
-
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');
-
       if (!container) return;
 
       this.injectCSS();
       if (container.innerHTML.trim() === '') this.renderSkeleton(container);
 
+      // 2. 관리자 설정 로드
       await this.loadWidgetSettings();
+
+      // 💡 [핵심 방어] 관리자가 메인페이지 노출을 OFF로 설정했을 경우 컨테이너 삭제 및 동작 중지
+      const pathname = decodeURIComponent(window.location.pathname);
+      const isMainPage = pathname === '/' || pathname === '/index.html';
+
+      if (isMainPage && this.settings.is_main_exposed === false) {
+        console.log('[REVIEW-IT] 메인페이지 노출 OFF 설정으로 인해 위젯을 숨깁니다.');
+        container.style.setProperty('display', 'none', 'important');
+        container.innerHTML = '';
+        return;
+      }
+
+      // 3. 리뷰 데이터 로드 및 렌더링
       const hasReviews = await this.loadReviews();
 
       if (!hasReviews) {
@@ -217,7 +221,7 @@
           const s = data[0];
           Object.keys(this.settings).forEach(key => {
             if (s[key] !== undefined && s[key] !== null) {
-              if (key === 'is_header_enabled') {
+              if (key === 'is_header_enabled' || key === 'is_main_exposed') {
                 this.settings[key] = s[key];
               } else {
                 let dbValue = String(s[key]).trim();
@@ -236,10 +240,8 @@
     maskName(name) {
       if (!name || name === "고객") return "고객";
       name = name.trim();
-
       if (name.length <= 2) return name.charAt(0) + '*';
       if (name.length === 3) return name.charAt(0) + '*' + name.charAt(2);
-
       return name.substring(0, 2) + '**';
     },
 
@@ -324,7 +326,6 @@
           }
         }
 
-        // 🚨 [초강력 방어막 추가] 긁어온 상품명이 리뷰 제목과 똑같다면 무조건 폐기!
         if (extractedProductName && extractedSubject) {
           let tempName = extractedProductName.replace(/\s+/g, '');
           let tempSubj = extractedSubject.replace(/\s+/g, '');
@@ -397,11 +398,9 @@
 
     async loadReviews() {
       try {
-        // 기본 API URL 설정
         const baseUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
         let apiUrl = baseUrl;
 
-        // 1. 상세페이지인 경우 해당 상품의 리뷰만 필터링
         if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
         apiUrl += `&order=created_at.desc`;
 
@@ -412,7 +411,6 @@
         if (!res.ok) throw new Error(`API 오류: ${res.status}`);
         let list = await res.json();
 
-        // 🚨 [핵심 수정] 2. 해당 상품의 리뷰가 0개일 경우, 쇼핑몰 전체 최신 리뷰를 가져오는 폴백 로직
         if ((!list || list.length === 0) && CONFIG.PRODUCT_NO) {
           console.log('[REVIEW-IT] 해당 상품 리뷰 없음. 전체 최신 리뷰를 불러옵니다.');
           const fallbackUrl = `${baseUrl}&order=created_at.desc&limit=${this.settings.display_limit}`;
@@ -422,12 +420,10 @@
           });
           list = await res.json();
 
-          // 위젯 타이틀을 동적으로 변경하여 고객 혼동 방지 (선택 사항)
           this.settings.title = "다른 고객들의 베스트 리뷰";
           this.settings.description = "현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!";
         }
 
-        // 쇼핑몰 전체에도 리뷰가 아예 없으면 그때 숨김 처리
         if (!list || list.length === 0) {
           const container = document.getElementById('review-it-widget');
           if (container) container.style.display = 'none';
@@ -457,7 +453,6 @@
               r.author_name = separateData.writer;
             }
 
-            // 💡 위젯 전역 데이터 갱신
             if (separateData.productNo) r.scraped_product_no = separateData.productNo;
             if (separateData.productName) r.scraped_product_name = separateData.productName;
             if (separateData.productImg) r.scraped_product_img = separateData.productImg;
@@ -505,20 +500,19 @@
       const limit = this.settings.display_limit || 15;
       const reviews = this.listOrder.slice(0, limit);
 
-      // PC/Mobile 컬럼 수 원복
       const pcCols = isGrid ? (parseInt(this.settings.grid_rows_desktop) || 5) : 5;
       const moCols = isGrid ? (parseInt(this.settings.grid_rows_mobile) || 2) : 2.2;
 
       let mainHtml = `
       ${this.settings.is_header_enabled !== false
-            ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
+          ? `<div class="rit-header-area" style="text-align:center; margin-bottom:30px;">
                 ${this.settings.tagline ? `<div class="rit-tagline" style="font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">${this.settings.tagline}</div>` : ''}
                 ${this.settings.title ? `<h2 class="rit-main-title" style="margin:0;">${getFormattedTitle(this.settings.title)}</h2>` : ''}
                 ${(this.settings.tagline || this.settings.title) ? `<div class="rit-line" style="width:30px; height:1px; background:#cbcbcb; margin:15px auto;"></div>` : ''}
                 ${this.settings.description ? `<p class="rit-desc" style="font-size:14px; color:#444; word-break:keep-all; margin:0 auto; max-width:80%;">${this.settings.description}</p>` : ''}
               </div>`
-            : ''
-          }
+          : ''
+        }
 
     ${isGrid
           ? `<div class="rit-main-grid-layout" style="--pc-cols: ${pcCols}; --mo-cols: ${Math.floor(moCols)};">
@@ -630,18 +624,12 @@
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
-
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-
-      // 💡 [핵심 방어 1] 관리자 판별 로직 강화 (쇼핑몰 이름 또는 관리자 키워드 포함 여부)
-      const isMallOwner = (CONFIG.MALL_NAME && (rawName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawName)))
-        || CONFIG.ADMIN_KEYWORDS.some(k => rawName.includes(k));
-
+      const isMallOwner = (CONFIG.MALL_NAME && (rawName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawName))) || CONFIG.ADMIN_KEYWORDS.some(k => rawName.includes(k));
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
 
       const avgScore = d.product_avg_score || d.stars || 5;
       const revCount = d.product_review_count;
-
       const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
       const rawDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
@@ -673,7 +661,6 @@
         </div>
       `;
 
-      // 💡 [핵심 방어 2] 관리자가 아닐 때만 구매 인증 배지 HTML을 생성
       const verifiedBadgeHtml = !isMallOwner ? `
         <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
@@ -684,8 +671,6 @@
           <img src="${thumb}" class="rit-card-img" loading="lazy" 
               onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';"
               style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
-          
-          <!-- 💡 [결과] 생성된 구매 인증 배지 삽입 (관리자면 빈 문자열이 들어가 렌더링되지 않음) -->
           ${verifiedBadgeHtml}
         </div>
         
@@ -695,11 +680,8 @@
              <span>${Number(avgScore).toFixed(1)}</span>
              ${reviewCountHtml}
           </div>
-          
           <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; height: 2.8em; color: #222; margin-bottom: 12px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${d.subject}</div>
-          
           ${productChipHtml}
-          
           <div class="rit-card-meta" style="border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
             <div style="display: flex; align-items: center; gap: 6px; width: 100%; overflow: hidden;">
               <span style="font-size: 11px; color: #71717a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${displayName}</span>
@@ -732,7 +714,6 @@
       document.getElementById('ritDetailView').style.display = 'flex';
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
 
-      // 1. 비동기 데이터 파싱 (이미지, 본문, 작성자 등 추출)
       if (!d.is_parsed) {
         const separateData = await this._fetchAndSeparateContent(d.article_no, d.board_no);
         if (separateData) {
@@ -746,9 +727,7 @@
 
       const validImages = d.all_images.filter(img => img && !img.includes('rit_noimg.jpg'));
 
-      // 2. 추출된 유효 이미지가 존재할 때만 Swiper 슬라이더 생성
       if (validImages.length > 0) {
-        // [FIX] 이미지가 2장 이상일 때만 컨트롤(버튼, 페이지네이션) DOM 생성
         const swiperControls = validImages.length > 1 ? `
           <div class="rit-fraction"></div>
           <div class="swiper-button-next"></div><div class="swiper-button-prev"></div>
@@ -766,11 +745,7 @@
                     const slide = this.closest('.swiper-slide'); 
                     if(slide) slide.remove(); 
                     if(window.ritActiveModalSwiper && typeof window.ritActiveModalSwiper.update === 'function') { 
-                      try { 
-                        window.ritActiveModalSwiper.update(); 
-                      } catch(e) {
-                        console.warn('▶ [REVIEW-IT Track] Swiper 강제 업데이트 중 에러 방어:', e);
-                      } 
+                      try { window.ritActiveModalSwiper.update(); } catch(e){} 
                     } 
                     if(!document.querySelector('.rit-modal-swiper .swiper-slide')) { 
                       document.getElementById('ritModalImg').innerHTML = \`<div class='rit-no-image'><span>REVIEW-IT</span></div>\`; 
@@ -787,21 +762,15 @@
           if (window.ritActiveModalSwiper) {
             try {
               if (typeof window.ritActiveModalSwiper.destroy === 'function') {
-                // DOM 요소가 이미 변경되었을 수 있으므로 이벤트 해제 중 발생하는 에러를 무시하도록 false, false 옵션 적용
                 window.ritActiveModalSwiper.destroy(false, false);
               }
-            } catch (e) {
-              console.warn("▶ [REVIEW-IT Track] Swiper 파괴 중 에러 방어 (무시 가능):", e);
-            } finally {
-              window.ritActiveModalSwiper = null; // 확실하게 메모리에서 해제
+            } catch (e) { } finally {
+              window.ritActiveModalSwiper = null;
             }
           }
 
           setTimeout(() => {
-            console.log("▶ [REVIEW-IT Track] 새 모달 Swiper 인스턴스 생성");
-            // ... 기존 Swiper 초기화 로직 유지
             window.ritActiveModalSwiper = new Swiper('.rit-modal-swiper', {
-              // [FIX] 옵션에서도 컨트롤 바인딩을 방어하고, 1장일 때 스와이프 기능 정지
               pagination: validImages.length > 1 ? { el: '.rit-fraction', type: 'fraction' } : false,
               navigation: validImages.length > 1 ? { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' } : false,
               centeredSlides: true,
@@ -809,7 +778,7 @@
               observer: true,
               observeParents: true,
               resizeObserver: true,
-              watchOverflow: true // 슬라이드가 1개일 때 스와이프 기능 자동 비활성화
+              watchOverflow: true
             });
           }, 50);
         }
@@ -908,7 +877,6 @@
 
       if (validProductNo) {
         const productUrl = `/product/detail.html?product_no=${validProductNo}`;
-
         const productImg =
           currentReviewData?.product_img ||
           currentReviewData?.product_thumb ||
