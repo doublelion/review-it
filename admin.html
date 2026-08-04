@@ -435,40 +435,69 @@
 
         if (data && data.length > 0) {
           const s = data[0];
-          document.getElementById('input-tagline').value = s.tagline || '';
-          document.getElementById('input-title').value = s.title || '';
-          document.getElementById('input-description').value = s.description || '';
 
-          const isHeaderEnabled = s.is_header_enabled !== undefined ? s.is_header_enabled : true;
-          document.getElementById('toggle-header').checked = isHeaderEnabled;
+          // 1. 텍스트 필드 바인딩 (요소 존재 여부 안전하게 체크)
+          const taglineEl = document.getElementById('input-tagline');
+          if (taglineEl) taglineEl.value = s.tagline || '';
 
-          // 기존 설정 로드 로직 하단에 추가
-          if (s.grid_rows_desktop) document.getElementById('select-grid-pc').value = s.grid_rows_desktop;
-          if (s.grid_rows_mobile) document.getElementById('select-grid-mo').value = s.grid_rows_mobile;
-          if (s.display_limit) document.getElementById('input-limit').value = s.display_limit;
+          const titleEl = document.getElementById('input-title');
+          if (titleEl) titleEl.value = s.title || '';
 
+          const descEl = document.getElementById('input-description');
+          if (descEl) descEl.value = s.description || '';
+
+          // 2. 헤더 노출 여부 토글
+          const isHeaderEnabled = s.is_header_enabled !== false;
+          const headerToggleEl = document.getElementById('toggle-header');
+          if (headerToggleEl) headerToggleEl.checked = isHeaderEnabled;
+
+          // 3. 그리드 상세 설정 및 Limit 처리 (🚨 기존 에러 유발 원인 해결)
+          const gridPcEl = document.getElementById('select-grid-pc');
+          if (s.grid_rows_desktop && gridPcEl) gridPcEl.value = s.grid_rows_desktop;
+
+          const gridMoEl = document.getElementById('select-grid-mo');
+          if (s.grid_rows_mobile && gridMoEl) gridMoEl.value = s.grid_rows_mobile;
+
+          const limitEl = document.getElementById('input-limit');
+          if (s.display_limit && limitEl) limitEl.value = s.display_limit;
+
+          // 4. 위젯 노출 타입 세팅
           currentWidgetType = s.display_type || 'grid';
 
-          // 👇 [추가된 부분] 리스트 디자인 설정 라디오 버튼 체크 
+          // 5. 리스트 디자인 설정 (라디오 버튼)
           const designType = s.list_design_type || 'review_it';
-          const radioBtn = document.querySelector(`input[name="list_design"][value="${designType}"]`);
-          if (radioBtn) radioBtn.checked = true;
+          const designRadioBtn = document.querySelector(`input[name="list_design"][value="${designType}"]`);
+          if (designRadioBtn) designRadioBtn.checked = true;
 
-          // 👇 [추가] 메인페이지 노출 여부 세팅 로드
-          const isMainExposed = s.is_main_exposed !== false; // 기본값 true
+          // 6. 메인페이지 위젯 노출 토글 (라디오 버튼 - 문자열 'false' 방어 로직 추가)
+          let isMainExposed = true;
+          if (s.is_main_exposed === false || s.is_main_exposed === 'false') {
+            isMainExposed = false;
+          }
           const mainExpRadio = document.querySelector(`input[name="main_exposure"][value="${isMainExposed}"]`);
           if (mainExpRadio) mainExpRadio.checked = true;
 
         } else {
-          document.getElementById('input-tagline').value = 'Verified Authenticity';
-          document.getElementById('input-title').value = 'People Choice';
-          document.getElementById('input-description').value = '당신의 선택에 확신을 더하는 기록 텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.';
-          document.getElementById('toggle-header').checked = true;
+          // DB에 설정이 아예 없을 때의 기본값 세팅 처리
+          const taglineEl = document.getElementById('input-tagline');
+          if (taglineEl) taglineEl.value = 'Verified Authenticity';
+
+          const titleEl = document.getElementById('input-title');
+          if (titleEl) titleEl.value = 'People Choice';
+
+          const descEl = document.getElementById('input-description');
+          if (descEl) descEl.value = '당신의 선택에 확신을 더하는 기록 텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.';
+
+          const headerToggleEl = document.getElementById('toggle-header');
+          if (headerToggleEl) headerToggleEl.checked = true;
+
           currentWidgetType = 'grid';
         }
 
+        // 마지막으로 UI 토글 텍스트 및 활성화 상태 동기화
         updateToggleText();
         refreshSettingUI(currentWidgetType);
+
       } catch (err) {
         console.error("설정 로드 실패:", err);
       }

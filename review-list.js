@@ -186,6 +186,7 @@
           width: 100% !important;
           box-sizing: border-box; 
           gap: 12px !important;
+          padding: 0 1rem;
         }
         
         .rit-masonry-column {
@@ -289,7 +290,7 @@
             </div>
           `).join('')}
         </div>
-        <div id="rit-scroll-anchor" style="padding:30px; text-align:center;"></div>
+        <div id="rit-scroll-anchor" style="padding:30px; text-align:center; font-size:14px; color:#a1a1aa; font-weight:500; word-break:keep-all;"></div>
       `;
       wrapper.appendChild(container);
     },
@@ -381,7 +382,12 @@
         if (data.length < CONFIG.limit) {
           this.hasMore = false;
           const anchor = document.getElementById('rit-scroll-anchor');
-          if (anchor) anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
+          if (anchor) {
+            anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
+            // 명시적으로 한 번 더 스타일 강제 적용
+            anchor.style.fontSize = '14px';
+            anchor.style.color = '#a1a1aa';
+          }
         }
 
         const enrichedData = await Promise.all(data.map(async (r) => {
