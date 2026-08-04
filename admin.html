@@ -262,12 +262,20 @@
         </div>
 
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
+          <span class="rit-label mb-2">위젯 노출 타입</span>
+          <div class="rit-switch-group w-full flex justify-between">
+            <button onclick="updateWidgetType('grid')" id="btn-grid" class="rit-btn-toggle flex-1 active">나열형</button>
+            <button onclick="updateWidgetType('swiper')" id="btn-swiper" class="rit-btn-toggle flex-1">슬라이드</button>
+          </div>
+        </div>
+
+        <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">리스트 디자인 설정</span>
           <div class="rit-switch-group w-full flex justify-between">
             <label class="flex-1 text-center cursor-pointer">
               <input type="radio" name="list_design" value="review_it" class="hidden peer" checked>
               <div
-                class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
+                class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition tracking-tight">
                 Review-It 뷰</div>
             </label>
             <label class="flex-1 text-center cursor-pointer">
@@ -276,14 +284,6 @@
                 class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
                 Cafe24 뷰</div>
             </label>
-          </div>
-        </div>
-
-        <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
-          <span class="rit-label mb-2">위젯 노출 타입</span>
-          <div class="rit-switch-group w-full flex justify-between">
-            <button onclick="updateWidgetType('grid')" id="btn-grid" class="rit-btn-toggle flex-1 active">나열형</button>
-            <button onclick="updateWidgetType('swiper')" id="btn-swiper" class="rit-btn-toggle flex-1">슬라이드</button>
           </div>
         </div>
 
