@@ -2,10 +2,9 @@
  * @Project: Review-It Universal Board List Engine v1.0.9 (UX Patch)
  * @Role: Cafe24 Review SaaS Lead Developer
  * @Update: 
- *  1. [클린업] 맥 에디터 쓰레기 태그(p.p1, span.s1 등) 리스트 프리뷰 완벽 정제 로직
- *  2. [UI/UX] 칩(Chip) 텍스트를 '상품 보기'로 강제 통일하여 구매 전환율(CTA) 극대화 및 스킨 오류 원천 차단
- *  3. [데이터] 위젯과 리스트 간의 상품 번호(product_no) 완벽 동기화 및 모달 링크 끊김 방어
- *  4. [이벤트] 칩 클릭 시 모달이 아닌 상품 상세로 이동하도록 버블링(stopPropagation) 차단
+ *  1. [클린업] 맥 에디터 쓰레기 태그 완벽 정제
+ *  2. [UI/UX] 메이슨리(Pinterest) 원본 비율 레이아웃 완벽 복구 및 헤더 디자인 원복
+ *  3. [BugFix] 리뷰 개수가 3개 이하일 때 카드가 세로로 길게 늘어나는(Stretching) 버그 영구 차단
  */
 (function (window) {
   if (window.RIT_LIST_LOADED) return;
@@ -48,43 +47,28 @@
   const env = getDynamicConfig();
 
   const currentPath = window.location.pathname.toLowerCase();
-  const currentSearch = window.location.search.toLowerCase(); // 기존 로직을 위해 다시 부활
-  const urlParams = new URLSearchParams(window.location.search); // 정밀 타겟팅용 추가
+  const currentSearch = window.location.search.toLowerCase();
+  const urlParams = new URLSearchParams(window.location.search);
 
-  // 1. 읽기 페이지 차단 로직 (no 파라미터 오탐지 방지용 특수 로직)
-  const isBlockedReadPage =
-    currentPath.includes('/board/product/read.html') ||
-    urlParams.has('article_no') ||
-    urlParams.has('no');
-
-  // 2. 기타 예외 페이지
+  const isBlockedReadPage = currentPath.includes('/board/product/read.html') || urlParams.has('article_no') || urlParams.has('no');
   const isBlockedDetailPage = currentPath.includes('/product/detail.html');
   const isBlockedWritePage = currentPath.includes('/write.html') || currentPath.includes('/modify.html');
 
   if (isBlockedReadPage || isBlockedDetailPage || isBlockedWritePage) {
-    console.log("▶ [REVIEW-IT List] 예외 페이지 감지 -> 리스트 엔진 차단 및 뼈대 강제 삭제 가동");
-
     const killListGhosts = () => {
       document.querySelectorAll('.rit-list-container, #review-it-widget, #rit-widget-container').forEach(el => {
         el.style.setProperty('display', 'none', 'important');
         el.innerHTML = '';
       });
     };
-
     killListGhosts();
     window.addEventListener('DOMContentLoaded', killListGhosts);
-
     const ghostInterval = setInterval(killListGhosts, 200);
     setTimeout(() => clearInterval(ghostInterval), 3000);
-
     return;
   }
 
-  // 3. 리뷰 게시판 감지 (여기에 currentSearch가 쓰이고 있었습니다!)
-  const isReviewBoardPage =
-    currentPath.includes('/board/product/list') ||
-    currentPath.includes('상품-사용후기') ||
-    (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
+  const isReviewBoardPage = currentPath.includes('/board/product/list') || currentPath.includes('상품-사용후기') || (currentPath.includes('/board/') && (currentSearch.includes('board_no=4') || currentPath.includes('/4/')));
 
   if (!isReviewBoardPage) return;
 
@@ -106,21 +90,13 @@
     allFetchedReviews: [],
 
     async init() {
-      console.log("▶ [REVIEW-IT] 세계 최고 수준의 미니멀 리뷰 리스트 엔진 가동 v1.0.9");
-
       try {
         const res = await fetch(`${CONFIG.sbUrl}/widget_settings?mall_id=eq.${CONFIG.mallId}&select=list_design_type`, {
           headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` }
         });
         const data = await res.json();
-
-        if (data && data.length > 0 && data[0].list_design_type === 'cafe24') {
-          console.log("▶ [REVIEW-IT] Cafe24 기본 디자인 사용 모드 - 리스트 덮어쓰기를 취소합니다.");
-          return;
-        }
-      } catch (e) {
-        console.warn("설정값 로드 실패. 기본 REVIEW-IT 뷰로 렌더링합니다.");
-      }
+        if (data && data.length > 0 && data[0].list_design_type === 'cafe24') return;
+      } catch (e) { console.warn("설정 로드 실패. 기본 뷰 렌더링"); }
 
       this.hideConflicts();
       this.injectGridCSS();
@@ -137,20 +113,9 @@
 
     hideConflicts() {
       const selectors = [
-        '.xans-board-listpackage', '.xans-board-normalpackage',
-        '.boardList', 'table.boardList', 'table.xans-board-list',
-        '.boardSort', '.xans-board-empty', '#prdReview',
-        '.xans-product-review', '.review_list_item',
-        'div[id^="ec-product-review"]', '.board-list-wrap',
-        '.xans-board-movement', '.boardAdmin', '.xans-board-admin',
-        '#board_admin', '.xans-board-buttons', '.xans-board-button',
-        '.xans-board-paging', '.ec-base-paginate', '.xans-board-4',
-        '#review-it-widget', '#rit-widget-container', '.rit-list-container'
+        '.xans-board-listpackage', '.xans-board-normalpackage', '.boardList', 'table.boardList', 'table.xans-board-list', '.boardSort', '.xans-board-empty', '#prdReview', '.xans-product-review', '.review_list_item', 'div[id^="ec-product-review"]', '.board-list-wrap', '.xans-board-movement', '.boardAdmin', '.xans-board-admin', '#board_admin', '.xans-board-buttons', '.xans-board-button', '.xans-board-paging', '.ec-base-paginate', '.xans-board-4', '#review-it-widget', '#rit-widget-container', '.rit-list-container'
       ];
-
-      document.querySelectorAll(selectors.join(', ')).forEach(el => {
-        if (el) el.style.setProperty('display', 'none', 'important');
-      });
+      document.querySelectorAll(selectors.join(', ')).forEach(el => { if (el) el.style.setProperty('display', 'none', 'important'); });
     },
 
     injectGridCSS() {
@@ -170,38 +135,16 @@
         
         .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; box-sizing: border-box; }
         
-        /* 💡 1. 헤더 스타일 원복 및 스킨 충돌 강제 방어 (!important 적용) */
-        .rit-universal-header { 
-          text-align: center !important; 
-          margin-bottom: 40px !important; 
-          display: block !important;
-          width: 100% !important;
-        }
-        .rit-universal-title { 
-          font-size: 26px !important; 
-          font-weight: 700 !important; 
-          color: #18181b !important; 
-          margin: 0 0 10px 0 !important; 
-          letter-spacing: -0.5px !important; 
-          font-family: inherit !important; 
-          text-align: center !important;
-          display: block !important;
-        }
-        .rit-universal-subtitle { 
-          font-size: 14px !important; 
-          color: #71717a !important; 
-          font-weight: 400 !important; 
-          margin: 0 !important; 
-          word-break: keep-all !important; 
-          text-align: center !important;
-          display: block !important;
-        }
+        /* 💡 1. 헤더 디자인 완벽 원복 (가운데 정렬 및 폰트 스타일 유지 + 방어막 적용) */
+        .rit-universal-header { text-align: center !important; margin-bottom: 40px !important; display: block !important; width: 100% !important; }
+        .rit-universal-title { font-size: 26px !important; font-weight: 700 !important; color: #18181b !important; margin: 0 0 10px 0 !important; letter-spacing: -0.5px !important; font-family: inherit !important; display: block !important; text-align: center !important; line-height: 1.2 !important; }
+        .rit-universal-subtitle { font-size: 14px !important; color: #71717a !important; font-weight: 400 !important; margin: 0 auto !important; word-break: keep-all !important; display: block !important; text-align: center !important; }
         @media (min-width: 1024px) {
           .rit-universal-title { font-size: 32px !important; }
           .rit-universal-subtitle { font-size: 15px !important; }
         }
 
-        /* --- 대시보드 관련 CSS (기존 유지) --- */
+        /* --- 대시보드 및 게이지 영역 (기존 유지) --- */
         .rit-dashboard-card { background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; padding: 28px 32px; margin-bottom: 35px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 24px; }
         @media (min-width: 1024px) { .rit-dashboard-card { flex-direction: row; align-items: center; justify-content: space-between; } }
         .rit-dash-left { display: flex; flex-direction: column; gap: 15px; flex: 1; }
@@ -226,25 +169,28 @@
         .rit-product-chip-img { width: 22px; height: 22px; border-radius: 4px; object-fit: cover; }
         .rit-product-chip-name { font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* 💡 2. 가장 중요한 레이아웃 교체: CSS Grid 도입 및 높이 맞춤(Stretching) 방지 */
+        /* 💡 2. 메이슨리(비정형 격자) 원복 및 버그 완벽 패치 */
         .rit-masonry-grid { 
-          display: grid !important; 
-          grid-template-columns: repeat(2, 1fr) !important; /* 기본 모바일 2열 */
-          gap: 12px !important; 
-          align-items: start !important; /* 카드가 세로로 억지로 늘어나는 것을 방지 */
-          width: 100% !important; 
+          display: block !important; 
+          column-count: 2; 
+          column-gap: 12px; 
           box-sizing: border-box; 
+          width: 100% !important;
         }
-        @media (min-width: 768px) { 
-          .rit-masonry-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 18px !important; } 
-        }
-        @media (min-width: 1024px) { 
-          .rit-masonry-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 20px !important; } 
-        }
+        @media (min-width: 768px) { .rit-masonry-grid { column-count: 3; column-gap: 18px; } }
+        @media (min-width: 1024px) { .rit-masonry-grid { column-count: 4; column-gap: 20px; } }
         
         .rit-masonry-item { 
-          width: 100% !important;
-          margin-bottom: 0 !important; /* Grid의 gap이 간격을 대신하므로 0으로 처리 */
+          break-inside: avoid; 
+          page-break-inside: avoid;
+          -webkit-column-break-inside: avoid;
+          
+          /* 🔥 핵심 솔루션: 강제 늘어남 현상을 인라인 블록과 높이 고정으로 차단합니다. */
+          display: inline-block !important; 
+          width: 100% !important; 
+          height: max-content !important; 
+          
+          margin-bottom: 16px; 
           border-radius: 12px; 
           overflow: hidden; 
           background: #fff; 
@@ -252,18 +198,21 @@
           cursor: pointer; 
           transition: transform 0.2s; 
           border: 1px solid #f0f0f0; 
-          display: flex;
-          flex-direction: column;
         }
-
         .rit-masonry-item:hover { transform: translateY(-3px); }
-        .rit-masonry-img { width: 100%; height: auto; display: block; object-fit: cover; aspect-ratio: 4/5; /* 이미지 비율 일정하게 고정 */ } 
-        .rit-masonry-info { padding: 15px; display: flex; flex-direction: column; flex-grow: 1; }
-        .rit-masonry-subject { font-size: 13px; color: #18181b; font-weight: 700; line-height: 1.4; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-        .rit-masonry-desc { font-size: 12px; color: #52525b; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: keep-all; }
-        .rit-masonry-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #a1a1aa; border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto; }
+
+        .rit-masonry-img { 
+          width: 100% !important; 
+          height: auto !important; /* 이미지 고유 비율에 따라 자유롭게 떨어지도록 원복 */
+          display: block !important; 
+        } 
         
-        /* 모달 및 스켈레톤 (기존 유지) */
+        .rit-masonry-info { padding: 15px; }
+        .rit-masonry-subject { font-size: 13px; color: #18181b; font-weight: 700; line-height: 1.4; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; text-align: left !important; }
+        .rit-masonry-desc { font-size: 12px; color: #52525b; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: keep-all; text-align: left !important; }
+        .rit-masonry-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #a1a1aa; border-top: 1px solid #f4f4f5; padding-top: 10px; }
+        
+        /* --- 모달 관련 CSS --- */
         .rit-modal-swiper .swiper-wrapper { display: flex !important; }
         .rit-modal-swiper .swiper-slide { width: 100% !important; flex-shrink: 0 !important; background: #000 !important; }
         .rit-img-side { background: #000 !important; }
@@ -271,7 +220,6 @@
         @media (min-width: 768px) {
           .rit-modal-window { overflow: visible !important; }
           .rit-modal-header { position: absolute !important; top: -60px !important; left: 0; right: 0; background: transparent !important; padding: 0 !important; display: flex !important; z-index: 99999 !important; border: none !important; }
-          
           .btn-rit-grid { display: flex !important; align-items: center; backdrop-filter: blur(4px); padding: 6px 14px; border-radius: 20px; margin-right: 15px; transition: background 0.2s; }
           .btn-rit-grid:hover { background: rgba(255,255,255,0.25); }
           .rit-logo-text { font-size: 13px !important; color: #fff !important; opacity: 1 !important; text-shadow: 0 2px 4px rgba(0,0,0,0.6); font-weight: 800; border-left: 1px solid rgba(255,255,255,0.4); padding-left: 10px; margin-left: 5px; }
@@ -285,10 +233,8 @@
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
-
         .rit-skeleton-box { background-color: #f2f5f7; border-radius: 6px; position: relative; overflow: hidden; }
         .rit-skeleton-box::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%); animation: rit-shimmer 1.5s infinite; }
-
         .rit-dash-skeleton { display: flex; flex-direction: column; gap: 24px; padding: 28px 32px; background: #fff; border: 1px solid #f0f0f0; border-radius: 16px; margin-bottom: 35px; }
         @media (min-width: 1024px) { .rit-dash-skeleton { flex-direction: row; justify-content: space-between; } }
         .rit-dash-skeleton-left { flex: 1; display: flex; align-items: center; gap: 18px; }
@@ -326,7 +272,7 @@
         </div>
         <div class="rit-masonry-grid" id="rit-masonry-grid">
           ${[1, 2, 3, 4, 5, 6].map(() => `
-            <div class="rit-masonry-item rit-skeleton-box" style="height: 300px;"></div>
+            <div class="rit-masonry-item rit-skeleton-box" style="height: 300px !important;"></div>
           `).join('')}
         </div>
         <div id="rit-scroll-anchor" style="padding:30px; text-align:center;"></div>
@@ -463,7 +409,6 @@
                 widgetData.clean_text_body = stripHtml(scraped.text || r.content || '');
                 if (scraped.writer) widgetData.author_name = scraped.writer;
 
-                // 💡 추출 로직은 뒤에서 묵묵히 일하도록 살려둡니다.
                 if (scraped.productName) widgetData.scraped_product_name = scraped.productName;
                 if (scraped.productNo) widgetData.scraped_product_no = scraped.productNo;
                 if (scraped.productImg) widgetData.scraped_product_img = scraped.productImg;
@@ -516,17 +461,16 @@
         const revCount = r.product_review_count;
         const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
 
-        // 날짜 포맷팅 (YY.MM.DD 작성)
         const rawDate = r.original_date ? r.original_date : (r.created_at ? r.created_at.split('T')[0] : '');
         let formattedDate = rawDate;
-        if(rawDate) {
-           const dateObj = new Date(rawDate);
-           if(!isNaN(dateObj)) {
-               const yy = String(dateObj.getFullYear()).slice(-2);
-               const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-               const dd = String(dateObj.getDate()).padStart(2, '0');
-               formattedDate = `${yy}.${mm}.${dd} 작성`;
-           }
+        if (rawDate) {
+          const dateObj = new Date(rawDate);
+          if (!isNaN(dateObj)) {
+            const yy = String(dateObj.getFullYear()).slice(-2);
+            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            formattedDate = `${yy}.${mm}.${dd} 작성`;
+          }
         }
 
         const actualProductName = '상품 보기';
@@ -544,11 +488,10 @@
         `;
 
         const rawName = (r.author_name ? r.author_name : (r.writer || '고객')).trim();
-        
-        // 💡 [핵심 방어 1] 관리자 판별 로직 추가
+
         const adminKeywords = ['관리자', 'Official', '운영자', 'admin', '대표', '주인장'];
-        const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawName))) 
-                            || adminKeywords.some(k => rawName.includes(k));
+        const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawName)))
+          || adminKeywords.some(k => rawName.includes(k));
 
         let displayName = rawName;
         if (!isMallOwner && window.ReviewApp && typeof window.ReviewApp.maskName === 'function') {
@@ -559,17 +502,14 @@
           else displayName = rawName.substring(0, 2) + '**';
         }
 
-        // 💡 [핵심 방어 2] 관리자가 아닐 때만 구매 인증 배지 생성
         const verifiedBadgeHtml = !isMallOwner ? `
           <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
         ` : '';
 
         return `
           <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
-            
-            <!-- 💡 [결과] 이미지 래퍼 생성 및 배지 삽입 -->
             <div style="position: relative; width: 100%; overflow: hidden; background: rgba(0,0,0,0.02);">
-              <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'" style="width: 100%; height: auto; display: block; object-fit: cover;">
+              <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
               ${verifiedBadgeHtml}
             </div>
             
@@ -580,15 +520,11 @@
                  ${reviewCountHtml}
               </div>
               
-              <!-- 💡 [결과] 제목 최소 2줄 무조건 고정 -->
-              <div class="rit-masonry-subject" style="font-size: 13px; color: #18181b; font-weight: 700; line-height: 1.4; height: 2.8em; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal;">${r.subject}</div>
-              
-              <div class="rit-masonry-desc" style="font-size: 12px; color: #52525b; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: keep-all;">${cleanContent}</div>
-              
+              <div class="rit-masonry-subject">${r.subject}</div>
+              <div class="rit-masonry-desc">${cleanContent}</div>
               ${productChipHtml}
               
-              <!-- 💡 [결과] 하단 작성자/날짜 한 줄 고정 (ellipsis) -->
-              <div class="rit-masonry-meta" style="border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
+              <div class="rit-masonry-meta">
                 <div style="display: flex; align-items: center; gap: 6px; width: 100%; overflow: hidden;">
                   <span style="font-size: 11px; color: #71717a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%;">${displayName}</span>
                   <span style="font-size: 10px; color: #e4e4e7; flex-shrink: 0;">|</span>
