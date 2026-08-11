@@ -146,7 +146,7 @@
         
         .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; box-sizing: border-box; }
         @media (max-width: 767px) {
-          .rit-list-container { padding:0 1rem; }
+          .rit-list-container { padding:0; }
         }
         
         /* 💡 1. 헤더 디자인 완벽 원복: 과도한 block 설정을 풀고 본래의 유려한 중앙정렬 룩으로 복구 */

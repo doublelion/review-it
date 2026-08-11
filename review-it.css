@@ -602,10 +602,6 @@
     padding-right: 16px;
   }
 
-  #review-it-widget {
-    padding: 50px 0;
-  }
-
   .rit-main-swiper {
     /* padding-left: 12px;
     padding-right: 12px; */
@@ -1138,6 +1134,9 @@
 @media (max-width: 1023px) {
   .rit-main-grid-layout .rit-skeleton-card:nth-child(n+3) {
     display: none !important;
+  }
+  #review-it-widget {
+    padding: 50px 0;
   }
 }
 
