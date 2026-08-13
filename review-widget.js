@@ -92,7 +92,7 @@
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
-      ADMIN_KEYWORDS: ['관리자', 'Official', '운영자', 'admin', '대표', '주인장'],
+      ADMIN_KEYWORDS: ['관리자', 'official', '운영자', 'admin', '대표', '주인장', 'md', '스토어', '스태프', 'staff'],
       MALL_NAME: getMallName()
     };
   };
@@ -625,7 +625,9 @@
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-      const isMallOwner = (CONFIG.MALL_NAME && (rawName === CONFIG.MALL_NAME.trim() || CONFIG.MALL_NAME.includes(rawName))) || CONFIG.ADMIN_KEYWORDS.some(k => rawName.includes(k));
+      const isMallOwner = (CONFIG.MALL_NAME && (rawName === CONFIG.MALL_NAME.trim() || rawName.includes(CONFIG.MALL_NAME)))
+        || CONFIG.ADMIN_KEYWORDS.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
+
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
 
       const avgScore = d.product_avg_score || d.stars || 5;
@@ -661,8 +663,9 @@
         </div>
       `;
 
+      // isMallOwner가 true(관리자)이면 뱃지를 출력하지 않습니다('')
       const verifiedBadgeHtml = !isMallOwner ? `
-        <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
+      <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
 
       return `

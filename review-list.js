@@ -480,8 +480,11 @@
       `;
 
       const rawName = (r.author_name ? r.author_name : (r.writer || '고객')).trim();
-      const adminKeywords = ['관리자', 'Official', '운영자', 'admin', '대표', '주인장'];
-      const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawName))) || adminKeywords.some(k => rawName.includes(k));
+
+      const adminKeywords = ['관리자', 'official', '운영자', 'admin', '대표', '주인장', 'md', '스토어', '스태프', 'staff'];
+
+      const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || rawName.includes(CONFIG.mallName)))
+        || adminKeywords.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
 
       let displayName = rawName;
       if (!isMallOwner && window.ReviewApp && typeof window.ReviewApp.maskName === 'function') {
@@ -492,8 +495,9 @@
         else displayName = rawName.substring(0, 2) + '**';
       }
 
+      // isMallOwner가 true(관리자)이면 뱃지를 빈 문자열로 처리하여 숨김
       const verifiedBadgeHtml = !isMallOwner ? `
-        <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
+      <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
 
       return `
