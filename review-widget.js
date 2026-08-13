@@ -624,11 +624,20 @@
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
+      // 기존 코드 삭제 후 아래 코드로 교체 적용
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-      const isMallOwner = (CONFIG.MALL_NAME && (rawName === CONFIG.MALL_NAME.trim() || rawName.includes(CONFIG.MALL_NAME)))
-        || CONFIG.ADMIN_KEYWORDS.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
+
+      // 💡 수정된 핵심 로직: 쇼핑몰 이름이 작성자에 포함되거나, 반대로 작성자 이름이 쇼핑몰 이름에 포함되는 경우 모두 완벽히 잡아냅니다.
+      const isMallOwner = (CONFIG.MALL_NAME && (
+        rawName === CONFIG.MALL_NAME.trim() ||
+        rawName.includes(CONFIG.MALL_NAME) ||
+        (rawName.length >= 2 && CONFIG.MALL_NAME.includes(rawName)) // 양방향 체크 추가
+      )) || CONFIG.ADMIN_KEYWORDS.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
 
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
+
+
+
 
       const avgScore = d.product_avg_score || d.stars || 5;
       const revCount = d.product_review_count;
@@ -663,7 +672,7 @@
         </div>
       `;
 
-      // isMallOwner가 true(관리자)이면 뱃지를 출력하지 않습니다('')
+      // isMallOwner가 true(관리자)이면 뱃지를 출력하지 않습니다
       const verifiedBadgeHtml = !isMallOwner ? `
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
