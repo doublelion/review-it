@@ -624,10 +624,7 @@
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
-      // 기존 코드 삭제 후 아래 코드로 교체 적용
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-
-      // 💡 수정된 핵심 로직: 쇼핑몰 이름이 작성자에 포함되거나, 반대로 작성자 이름이 쇼핑몰 이름에 포함되는 경우 모두 완벽히 잡아냅니다.
       const isMallOwner = (CONFIG.MALL_NAME && (
         rawName === CONFIG.MALL_NAME.trim() ||
         rawName.includes(CONFIG.MALL_NAME) ||
@@ -635,10 +632,6 @@
       )) || CONFIG.ADMIN_KEYWORDS.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
 
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
-
-
-
-
       const avgScore = d.product_avg_score || d.stars || 5;
       const revCount = d.product_review_count;
       const reviewCountHtml = revCount ? `<span style="color:#e4e4e7; margin:0 2px;">|</span><span style="font-weight:500; color:#71717a;">리뷰 ${revCount.toLocaleString()}</span>` : '';
