@@ -68,10 +68,37 @@
       }
     },
 
+    // 💡 [수정 1] 탭 컨테이너(#prdReview)는 살려두고, 그 안의 내용물만 숨깁니다!
     hideDefaultReviews() {
-      document.querySelectorAll('#prdReview, .xans-product-review, a[name="use_review"]').forEach(el => {
+      // #prdReview 자체는 배열에서 뺐습니다.
+      const selectors = [
+        '.xans-product-review',
+        'a[name="use_review"]',
+        '#prdReview > table', // 기본 리뷰 테이블
+        '#prdReview > .board' // 기본 리뷰 보드 래퍼
+      ];
+      document.querySelectorAll(selectors.join(', ')).forEach(el => {
         if (el) el.style.setProperty('display', 'none', 'important');
       });
+    },
+
+    // 💡 [수정 2] 위젯을 탭 박스 바깥이 아니라, 탭 박스 '안'에 안전하게 넣습니다!
+    injectToBoard(container) {
+      const prdReview = document.querySelector('#prdReview');
+      const additional = document.querySelector('.xans-product-additional');
+      const prdDetail = document.querySelector('#prdDetail');
+
+      if (prdReview) {
+        // 기존: prdReview.parentNode.insertBefore(container, prdReview.nextSibling);
+        // 변경: 탭 영역 안쪽의 최하단에 자연스럽게 삽입
+        prdReview.appendChild(container);
+      } else if (additional) {
+        additional.appendChild(container);
+      } else if (prdDetail) {
+        prdDetail.appendChild(container);
+      } else {
+        document.body.appendChild(container);
+      }
     },
 
     renderEmptyState() {
