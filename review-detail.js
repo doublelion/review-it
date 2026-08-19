@@ -1,21 +1,40 @@
 /**
- * @Project: Review-It Detail Engine (Production Ready)
- * @Feature: Real Supabase Fetching, Smart Injection, Dynamic Layout
+ * @Project: Review-It Detail Engine (Production Master v1.3.0)
+ * @Feature: Universal ProductNo Extractor, 0-Review OliveYoung Summary, Tab Safe Injection
  */
 (function () {
-  console.log('%c[REVIEW-IT]%c Detail Production Engine Fired!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
+  console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
 
   // 기존 위젯 클린업
   document.querySelectorAll('.rit-oy-summary-wrap, .rit-under-thumb-wrap, #rit-detail-main-board, #rit-detail-css').forEach(el => el.remove());
+
+  // 💡 [핵심 해결] 카페24 모든 URL 패턴에서 product_no를 추출하는 만능 함수
+  const getProductNo = () => {
+    if (typeof window.iProductNo !== 'undefined' && window.iProductNo) return String(window.iProductNo);
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('product_no')) return urlParams.get('product_no');
+
+    // SEO URL 패턴 대응 (/product/상품명/14/...)
+    const pathMatches = window.location.pathname.match(/\/product\/(?:[^\/]+\/)?(\d+)/i);
+    if (pathMatches && pathMatches[1]) return pathMatches[1];
+
+    // Meta 태그 Fallback
+    const metaPrd = document.querySelector('meta[property="product:productId"], meta[name="product_no"]');
+    if (metaPrd && metaPrd.content) return metaPrd.content;
+
+    return null;
+  };
+
+  const productNo = getProductNo();
+  const mallId = (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID)
+    || window.location.hostname.split('.')[0];
 
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
-    mallId: new URLSearchParams(window.location.search).get('mall_id') || window.location.hostname.split('.')[0]
+    mallId: mallId
   };
-
-  const productNo = new URLSearchParams(window.location.search).get('product_no');
 
   const ReviewDetailApp = {
     settings: {},
@@ -26,20 +45,29 @@
       this.injectCSS();
       this.hideDefaultReviews();
 
-      if (!productNo) return;
+      if (!productNo) {
+        console.warn('[REVIEW-IT] 상품 번호 추출 불가로 실행을 중단합니다.');
+        return;
+      }
 
-      // 1. 실제 어드민 설정 & 리뷰 데이터 동시 Fetch
+      // 1. 설정 및 리뷰 동시 조회
       await Promise.all([this.loadSettings(), this.loadReviews()]);
 
-      // 2. 리뷰가 0개면 Empty State 렌더링 후 종료
+      // 2. 💡 [요청사항 반영] 리뷰가 0개여도 상단 올리브영 요약본은 기본 노출
+      if (this.settings.is_detail_summary_enabled !== false) {
+        this.renderTopSummary();
+      }
+
+      // 3. 리뷰가 0개인 경우: 하단에 Empty State 렌더링
       if (this.reviews.length === 0) {
         this.renderEmptyState();
         return;
       }
 
-      // 3. 실제 설정에 따른 동적 렌더링
-      if (this.settings.is_detail_gallery_enabled !== false) this.renderUnderThumbGallery();
-      if (this.settings.is_detail_summary_enabled !== false) this.renderTopSummary();
+      // 4. 리뷰가 있는 경우: 포토 갤러리 및 메인 보드 정상 렌더링
+      if (this.settings.is_detail_gallery_enabled !== false) {
+        this.renderUnderThumbGallery();
+      }
       this.renderMainDetailBoard();
     },
 
@@ -51,7 +79,6 @@
         const data = await res.json();
         if (data && data.length > 0) this.settings = data[0];
       } catch (e) {
-        console.warn("[REVIEW-IT] 설정을 불러오지 못해 기본값으로 동작합니다.");
         this.settings = { detail_display_type: 'masonry', is_detail_summary_enabled: true, is_detail_gallery_enabled: true };
       }
     },
@@ -64,33 +91,29 @@
         this.reviews = await res.json();
         this.photoReviews = this.reviews.filter(r => r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg);
       } catch (e) {
-        console.error("[REVIEW-IT] 리뷰 데이터 로드 실패:", e);
+        console.error("[REVIEW-IT] 리뷰 로드 실패:", e);
       }
     },
 
-    // 💡 [수정 1] 탭 컨테이너(#prdReview)는 살려두고, 그 안의 내용물만 숨깁니다!
     hideDefaultReviews() {
-      // #prdReview 자체는 배열에서 뺐습니다.
       const selectors = [
         '.xans-product-review',
         'a[name="use_review"]',
-        '#prdReview > table', // 기본 리뷰 테이블
-        '#prdReview > .board' // 기본 리뷰 보드 래퍼
+        '#prdReview > table',
+        '#prdReview > .board'
       ];
       document.querySelectorAll(selectors.join(', ')).forEach(el => {
         if (el) el.style.setProperty('display', 'none', 'important');
       });
     },
 
-    // 💡 [수정 2] 위젯을 탭 박스 바깥이 아니라, 탭 박스 '안'에 안전하게 넣습니다!
+    // 💡 탭 박스 안쪽 최하단 삽입
     injectToBoard(container) {
       const prdReview = document.querySelector('#prdReview');
       const additional = document.querySelector('.xans-product-additional');
       const prdDetail = document.querySelector('#prdDetail');
 
       if (prdReview) {
-        // 기존: prdReview.parentNode.insertBefore(container, prdReview.nextSibling);
-        // 변경: 탭 영역 안쪽의 최하단에 자연스럽게 삽입
         prdReview.appendChild(container);
       } else if (additional) {
         additional.appendChild(container);
@@ -101,7 +124,6 @@
       }
     },
 
-    // 💡 [수정 1] Empty State 렌더링 시 자체 삽입 로직 제거하고 공통 함수 호출
     renderEmptyState() {
       const container = document.createElement('div');
       container.id = 'rit-detail-main-board';
@@ -114,33 +136,14 @@
           <a href="/board/product/write.html?board_no=4&product_no=${productNo}" class="rit-btn-write">첫 리뷰 작성하고 혜택 받기</a>
         </div>
       `;
-      
-      // 기존의 복잡한 target.insertBefore 로직을 모두 지우고 아래 한 줄로 교체합니다.
       this.injectToBoard(container);
-    },
-
-    // 💡 [수정 2] 탭 스킨 방어력을 높인 완벽한 주입(Injection) 함수
-    injectToBoard(container) {
-      const prdReview = document.querySelector('#prdReview');
-      const additional = document.querySelector('.xans-product-additional'); 
-      const prdDetail = document.querySelector('#prdDetail');
-
-      if (prdReview) {
-        // [핵심] 탭 바깥(nextSibling)으로 빼지 말고, 탭 컨테이너 안쪽 맨 밑에 고이 모셔둡니다.
-        prdReview.appendChild(container);
-      } else if (additional) {
-        additional.appendChild(container);
-      } else if (prdDetail) {
-        prdDetail.appendChild(container);
-      } else {
-        document.body.appendChild(container);
-      }
     },
 
     renderUnderThumbGallery() {
       if (this.photoReviews.length === 0) return;
-      let targetEl = document.querySelector('.detailArea') || document.querySelector('.xans-product-image, .product-image-section');
-      if (!targetEl) return;
+      let targetEl = document.querySelector('.detailArea');
+      if (!targetEl) targetEl = document.querySelector('.xans-product-image, .product-image-section');
+      if (!targetEl || !targetEl.parentNode) return;
 
       const galleryContainer = document.createElement('div');
       galleryContainer.className = 'rit-under-thumb-wrap';
@@ -150,7 +153,7 @@
       const photosHtml = photos.map((r, index) => {
         const isLast = index === 4;
         return `
-          <div class="rit-thumb-item">
+          <div class="rit-thumb-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
             <img src="${r.image_urls[0]}" alt="review">
             ${isLast && hasMore ? `<div class="rit-thumb-more">+${this.photoReviews.length - 5}</div>` : ''}
           </div>
@@ -160,12 +163,14 @@
       galleryContainer.innerHTML = `
         <div class="rit-thumb-header">
           <span class="rit-thumb-title">포토리뷰 <span class="rit-count">(${this.photoReviews.length}건)</span></span>
+          <span class="rit-thumb-view-all" onclick="document.getElementById('rit-detail-main-board').scrollIntoView({behavior: 'smooth'})">전체보기</span>
         </div>
         <div class="rit-thumb-list">${photosHtml}</div>
       `;
-      targetEl.appendChild(galleryContainer);
+      targetEl.parentNode.insertBefore(galleryContainer, targetEl.nextSibling);
     },
 
+    // 💡 0건일 때도 자연스럽게 처리되는 올리브영 요약 뷰
     renderTopSummary() {
       let infoArea = document.querySelector('.xans-product-info, .infoArea, .prdInfo');
       if (!infoArea) {
@@ -174,25 +179,31 @@
       }
       if (!infoArea) return;
 
-      let totalStars = 0;
-      this.reviews.forEach(r => totalStars += (r.stars || 5));
-      const avgScore = (totalStars / this.reviews.length).toFixed(1);
+      let avgScore = '5.0';
+      const totalCount = this.reviews.length;
+
+      if (totalCount > 0) {
+        let totalStars = 0;
+        this.reviews.forEach(r => totalStars += (r.stars || 5));
+        avgScore = (totalStars / totalCount).toFixed(1);
+      }
+
       const avatarPhotos = this.photoReviews.slice(0, 2);
 
       const summaryContainer = document.createElement('div');
       summaryContainer.className = 'rit-oy-summary-wrap';
       summaryContainer.innerHTML = `
-        <div class="rit-oy-content" onclick="document.getElementById('rit-detail-main-board').scrollIntoView({behavior: 'smooth'})">
+        <div class="rit-oy-content" onclick="document.getElementById('rit-detail-main-board')?.scrollIntoView({behavior: 'smooth'})">
           <div class="rit-oy-left">
             <span class="rit-oy-star">★ ${avgScore}</span>
-            <span class="rit-oy-count">리뷰 ${this.reviews.length}건</span>
+            <span class="rit-oy-count">리뷰 ${totalCount}건</span>
           </div>
-          ${avatarPhotos.length > 0 ? `
           <div class="rit-oy-avatars">
-             ${avatarPhotos.map(r => `<img src="${r.image_urls[0]}" class="rit-oy-avatar">`).join('')}
-             <div class="rit-oy-avatar-more">+</div>
+            ${avatarPhotos.length > 0
+          ? avatarPhotos.map(r => `<img src="${r.image_urls[0]}" class="rit-oy-avatar">`).join('') + `<div class="rit-oy-avatar-more">+</div>`
+          : `<span style="font-size:11px; color:#94a3b8; font-weight:500;">첫 리뷰 작성 시 포인트 지급</span>`
+        }
           </div>
-          ` : ''}
         </div>
       `;
       const productNameEl = infoArea.querySelector('.name, .prd-name, h2, h3, .headingArea');
@@ -308,40 +319,20 @@
       }
     },
 
-    // 💡 [수정 2] 탭 스킨 방어력을 높인 완벽한 주입(Injection) 함수
-    injectToBoard(container) {
-      const prdReview = document.querySelector('#prdReview');
-      const additional = document.querySelector('.xans-product-additional'); 
-      const prdDetail = document.querySelector('#prdDetail');
-
-      if (prdReview) {
-        // [핵심] 탭 바깥(nextSibling)으로 빼지 말고, 탭 컨테이너 안쪽 맨 밑에 고이 모셔둡니다.
-        prdReview.appendChild(container);
-      } else if (additional) {
-        additional.appendChild(container);
-      } else if (prdDetail) {
-        prdDetail.appendChild(container);
-      } else {
-        document.body.appendChild(container);
-      }
-    },
-
     injectCSS() {
       const style = document.createElement('style');
       style.id = 'rit-detail-css';
       style.innerHTML = `
         .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; box-sizing: border-box; padding: 0 16px; clear: both; }
         
-        /* Empty State */
-        .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%); border: 1px dashed #cbd5e1; border-radius: 16px; padding: 60px 20px; text-align: center; margin-top: 40px; }
+        .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%); border: 1px dashed #cbd5e1; border-radius: 16px; padding: 60px 20px; text-align: center; margin: 20px 0; }
         .rit-empty-icon { font-size: 40px; margin-bottom: 15px; animation: bounce 2s infinite; }
         .rit-empty-title { font-size: 18px; font-weight: 800; color: #1e293b; margin-bottom: 10px; }
         .rit-empty-desc { font-size: 14px; color: #64748b; line-height: 1.6; margin-bottom: 25px; word-break: keep-all; }
         .rit-empty-desc strong { color: #3b82f6; }
         .rit-btn-write { display: inline-block; background: #18181b; color: #fff !important; padding: 14px 28px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         
-        /* 갤러리 & 요약본 */
-        .rit-under-thumb-wrap { margin-top: 30px; padding-top: 20px; border-top: 1px solid #f4f4f5; display:block; clear:both; width: 100%; box-sizing: border-box;}
+        .rit-under-thumb-wrap { margin: 30px auto 20px; padding-top: 20px; border-top: 1px solid #f4f4f5; display:block; clear:both; width: 100%; max-width: 1200px; box-sizing: border-box;}
         .rit-thumb-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
         .rit-thumb-title { font-size: 14px; font-weight: 800; color: #111; display:flex; align-items:center; gap:4px; }
         .rit-count { color: #a1a1aa; font-weight: 500; font-size: 13px; }
@@ -362,7 +353,6 @@
         .rit-oy-avatar:first-child { margin-left: 0; z-index: 3; }
         .rit-oy-avatar-more { width: 24px; height: 24px; border-radius: 50%; background: #e4e4e7; color: #52525b; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-left: -8px; position: relative; z-index: 1; border: 1.5px solid #fff; }
 
-        /* 대시보드 그래프 */
         .rit-dashboard-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; padding: 24px; margin-bottom: 30px; display: flex; flex-direction: column; gap: 20px; }
         @media (min-width: 768px) { .rit-dashboard-card { flex-direction: row; align-items: center; justify-content: space-between; } }
         .rit-dash-left { display: flex; gap: 15px; flex: 1; }
@@ -377,7 +367,6 @@
         .rit-gauge-fill { height: 100%; background: #f59e0b; border-radius: 4px; }
         .rit-gauge-percent { width: 28px; text-align: right; font-weight: 600; }
 
-        /* 메이슨리 격자 */
         .rit-masonry-grid { display: flex; flex-direction: row; align-items: flex-start; gap: 16px; width: 100%; box-sizing: border-box; }
         .rit-masonry-column { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 16px; }
         .rit-masonry-item { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
