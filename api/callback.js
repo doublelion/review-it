@@ -6,6 +6,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
+// 💡 대표님 개발자 센터 앱 설정에 맞춘 API 버전
 const CAFE24_API_VERSION = '2026-03-01';
 
 module.exports = async (req, res) => {
@@ -79,7 +80,7 @@ module.exports = async (req, res) => {
     console.log(`🎉 [설치 대성공] ${mall_id} 토큰 DB 저장 완료`);
 
     // =================================================================
-    // 3. 스크립트 자동 주입
+    // 3. 스크립트 자동 주입 (에러 상세 사유 로깅 추가)
     // =================================================================
     try {
       let shopIds = [1];
@@ -129,8 +130,10 @@ module.exports = async (req, res) => {
             })
           });
 
+          // 💡 스크립트 주입 실패 시 원인 파악을 위한 에러 디테일 출력
           if (!scriptRes.ok) {
-            console.error(`❌ [스크립트 주입 실패 - 상점 ${shop_no}]`);
+            const errDetail = await scriptRes.text();
+            console.error(`❌ [스크립트 주입 실패 - 상점 ${shop_no}] 사유: ${errDetail}`);
           } else {
             console.log(`✅ [스크립트 주입 성공 - 상점 ${shop_no}] ${src} 등록 완료!`);
           }
@@ -226,38 +229,8 @@ module.exports = async (req, res) => {
       console.error('🔥 초기 리뷰 동기화 프로세스 에러:', syncErr);
     }
 
-    // =================================================================
-    // 4-1. [핵심 추가] 실시간 웹훅(Webhook) 자동 등록
-    // =================================================================
-    try {
-      const webhookUrl = 'https://review-it-tau.vercel.app/api/webhook';
-
-      const webhookRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/webhooks`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          'X-Cafe24-Api-Version': CAFE24_API_VERSION
-        },
-        body: JSON.stringify({
-          request: {
-            client_id: CAFE24_CLIENT_ID,
-            event_type: "article_created", // 게시글(리뷰) 작성 감지
-            url: webhookUrl
-          }
-        })
-      });
-
-      if (webhookRes.ok) {
-        console.log(`✅ [웹훅 등록 성공] ${mall_id} - 실시간 리뷰 자동 수집망 장착 완료`);
-      } else {
-        const errText = await webhookRes.text();
-        // 이미 등록된 경우 오류를 뱉을 수 있으므로 경고 처리
-        console.warn(`⚠️ [웹훅 등록 안내] ${mall_id}: 이미 등록되었거나 실패 - ${errText}`);
-      }
-    } catch (webhookErr) {
-      console.error('🔥 웹훅 등록 중 서버 에러:', webhookErr);
-    }
+    // 💡 [안내] 웹훅(Webhook) 등록 로직은 카페24 정책상 API 호출이 불가하여 제거되었습니다.
+    // 💡 개발자 센터의 '웹훅' 탭에서 수동으로 등록해 주시기 바랍니다.
 
     // =================================================================
     // 5. 보안 입장권 생성 및 관리자 페이지 리다이렉트
