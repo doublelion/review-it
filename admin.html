@@ -261,6 +261,55 @@
           <p class="text-[10px] text-gray-400 mt-1">*모바일은 2개 최적화</p>
         </div>
 
+        <!-- [추가] 상세페이지 전용 위젯 설정 -->
+        <div class="col-span-1 lg:col-span-5 mt-4 pt-4 border-t border-gray-200">
+          <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">상세페이지 전용 설정</h3>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+            <!-- 레이아웃 타입 선택 -->
+            <div class="rit-setting-box flex-col items-start justify-center">
+              <span class="rit-label mb-2">하단 메인 리뷰 뷰 타입</span>
+              <div class="rit-switch-group w-full flex justify-between">
+                <label class="flex-1 text-center cursor-pointer">
+                  <input type="radio" name="detail_display_type" value="masonry" class="hidden peer" checked>
+                  <div
+                    class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
+                    메이슨리 (격자)</div>
+                </label>
+                <label class="flex-1 text-center cursor-pointer">
+                  <input type="radio" name="detail_display_type" value="swiper" class="hidden peer">
+                  <div
+                    class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
+                    가로 슬라이드</div>
+                </label>
+              </div>
+            </div>
+
+            <!-- 올리브영 스타일 상단 요약 토글 -->
+            <div class="rit-setting-box flex justify-between items-center w-full">
+              <span class="rit-label">상단 평점 요약 (올리브영 룩)</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="toggle-detail-summary" class="sr-only peer" checked>
+                <div
+                  class="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                </div>
+              </label>
+            </div>
+
+            <!-- 썸네일 하단 갤러리 토글 -->
+            <div class="rit-setting-box flex justify-between items-center w-full">
+              <span class="rit-label">대표 썸네일 하단 갤러리</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="toggle-detail-gallery" class="sr-only peer" checked>
+                <div
+                  class="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                </div>
+              </label>
+            </div>
+
+          </div>
+        </div>
+
         <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
           <span class="rit-label mb-2">위젯 노출 타입</span>
           <div class="rit-switch-group w-full flex justify-between">
@@ -532,7 +581,10 @@
           tagline: document.getElementById('input-tagline')?.value || '',
           grid_rows_desktop: parseInt(document.getElementById('select-grid-pc')?.value || 5),
           grid_rows_mobile: parseInt(document.getElementById('select-grid-mo')?.value || 2),
-          display_limit: parseInt(document.getElementById('input-limit')?.value || 15)
+          display_limit: parseInt(document.getElementById('input-limit')?.value || 15),
+          detail_display_type: document.querySelector('input[name="detail_display_type"]:checked')?.value || 'masonry',
+          is_detail_summary_enabled: document.getElementById('toggle-detail-summary')?.checked ?? true,
+          is_detail_gallery_enabled: document.getElementById('toggle-detail-gallery')?.checked ?? true
         };
 
         const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
