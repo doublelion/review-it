@@ -101,6 +101,7 @@
       }
     },
 
+    // 💡 [수정 1] Empty State 렌더링 시 자체 삽입 로직 제거하고 공통 함수 호출
     renderEmptyState() {
       const container = document.createElement('div');
       container.id = 'rit-detail-main-board';
@@ -113,7 +114,27 @@
           <a href="/board/product/write.html?board_no=4&product_no=${productNo}" class="rit-btn-write">첫 리뷰 작성하고 혜택 받기</a>
         </div>
       `;
+      
+      // 기존의 복잡한 target.insertBefore 로직을 모두 지우고 아래 한 줄로 교체합니다.
       this.injectToBoard(container);
+    },
+
+    // 💡 [수정 2] 탭 스킨 방어력을 높인 완벽한 주입(Injection) 함수
+    injectToBoard(container) {
+      const prdReview = document.querySelector('#prdReview');
+      const additional = document.querySelector('.xans-product-additional'); 
+      const prdDetail = document.querySelector('#prdDetail');
+
+      if (prdReview) {
+        // [핵심] 탭 바깥(nextSibling)으로 빼지 말고, 탭 컨테이너 안쪽 맨 밑에 고이 모셔둡니다.
+        prdReview.appendChild(container);
+      } else if (additional) {
+        additional.appendChild(container);
+      } else if (prdDetail) {
+        prdDetail.appendChild(container);
+      } else {
+        document.body.appendChild(container);
+      }
     },
 
     renderUnderThumbGallery() {
@@ -287,15 +308,22 @@
       }
     },
 
+    // 💡 [수정 2] 탭 스킨 방어력을 높인 완벽한 주입(Injection) 함수
     injectToBoard(container) {
       const prdReview = document.querySelector('#prdReview');
-      const additional = document.querySelector('.xans-product-additional');
+      const additional = document.querySelector('.xans-product-additional'); 
       const prdDetail = document.querySelector('#prdDetail');
 
-      if (prdReview) prdReview.parentNode.insertBefore(container, prdReview.nextSibling);
-      else if (additional) additional.appendChild(container);
-      else if (prdDetail) prdDetail.appendChild(container);
-      else document.body.appendChild(container);
+      if (prdReview) {
+        // [핵심] 탭 바깥(nextSibling)으로 빼지 말고, 탭 컨테이너 안쪽 맨 밑에 고이 모셔둡니다.
+        prdReview.appendChild(container);
+      } else if (additional) {
+        additional.appendChild(container);
+      } else if (prdDetail) {
+        prdDetail.appendChild(container);
+      } else {
+        document.body.appendChild(container);
+      }
     },
 
     injectCSS() {
