@@ -108,7 +108,8 @@ module.exports = async (req, res) => {
 
       const scriptUrls = [
         'https://review-it-tau.vercel.app/review-it.js',
-        'https://review-it-tau.vercel.app/review-widget.js'
+        'https://review-it-tau.vercel.app/review-widget.js',
+        'https://review-it-tau.vercel.app/review-detail.js' // ✨ 새롭게 추가된 상세페이지 엔진
       ];
 
       for (const shop_no of shopIds) {
