@@ -3,89 +3,92 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Review-It Admin Panel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
     body {
       font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
     }
 
-    .img-box {
-      width: 60px;
-      height: 60px;
-      min-width: 60px;
+    /* 커스텀 스크롤바 */
+    ::-webkit-scrollbar {
+      width: 6px;
     }
 
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* 사이드바 메뉴 활성화 스타일 */
+    .nav-item {
+      transition: all 0.2s ease-in-out;
+    }
+
+    .nav-item.active {
+      background-color: #eff6ff;
+      color: #2563eb;
+      border-right: 3px solid #2563eb;
+      font-weight: 700;
+    }
+
+    .nav-item:hover:not(.active) {
+      background-color: #f1f5f9;
+    }
+
+    /* 셋팅 박스 공통 */
     .rit-setting-box {
-      display: flex;
-      align-items: center;
-      gap: 15px;
       background: #fff;
-      padding: 15px 20px;
+      padding: 20px;
       border-radius: 12px;
-      border: 1px solid #eee;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
       height: 100%;
     }
 
     .rit-label {
-      font-size: 14px;
-      font-weight: bold;
-      color: #444;
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 12px;
     }
 
     .rit-switch-group {
       display: flex;
-      gap: 5px;
-      background: #f1f1f1;
+      gap: 4px;
+      background: #f1f5f9;
       padding: 4px;
       border-radius: 8px;
+      width: 100%;
     }
 
-    .rit-btn-toggle {
-      padding: 6px 15px;
-      border-radius: 6px;
-      font-size: 13px;
-      border: none;
-      cursor: pointer;
-      transition: 0.2s;
-      background: transparent;
-      color: #666;
-    }
-
-    .rit-btn-toggle.active {
-      background: #000;
-      color: #fff;
-    }
-
-    .btn-save-main {
-      background: #2563eb;
-      color: white;
-      padding: 8px 20px;
-      border-radius: 8px;
-      font-weight: bold;
-      transition: 0.3s;
-    }
-
-    .btn-save-main:hover {
-      background: #1d4ed8;
-      transform: translateY(-1px);
-    }
-
-    /* 공지사항 무한 흐르는 띠 배너 애니메이션 */
+    /* 무한 흐르는 띠 배너 */
     .ticker-wrapper {
       width: 100%;
       overflow: hidden;
-      background-color: #111827;
-      position: relative;
+      background-color: #0f172a;
       display: flex;
     }
 
     .ticker-track {
       display: flex;
       width: max-content;
-      animation: ticker-scroll 18s linear infinite;
+      animation: ticker-scroll 25s linear infinite;
     }
 
     .ticker-wrapper:hover .ticker-track {
@@ -101,337 +104,434 @@
         transform: translateX(-50%);
       }
     }
+
+    /* 모달 및 애니메이션 */
+    .view-section {
+      display: none;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .view-section.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 토글 스위치 베이스 */
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #2563eb;
+    }
+
+    .toggle-checkbox:checked+.toggle-label {
+      background-color: #2563eb;
+    }
   </style>
 </head>
 
-<body class="bg-[#f8f9fa] min-h-screen">
+<body class="flex h-screen overflow-hidden text-gray-800">
 
-  <div class="ticker-wrapper border-b border-gray-800 z-50">
-    <div class="ticker-track py-2">
+  <!-- 💡 [모바일 대응] 사이드바 배경 오버레이 -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 hidden md:hidden"
+    onclick="toggleSidebar()"></div>
 
-      <!-- 그룹 1 -->
-      <div class="flex items-center gap-3 px-4">
-        <span
-          class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Update</span>
-        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
-          최신 업데이트 로그 (2026.07.22) - 메이슨리(Masonry) 게시판 스타일 토글 기능 추가 및 성능 최적화 완료 🎉
-        </span>
-
-        <span class="w-8 inline-block"></span>
-
-        <span
-          class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Coming
-          Soon</span>
-        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
-          🚀 <strong class="text-purple-300">상품 상세페이지 전용 리뷰 위젯</strong> 출시 임박! 상세페이지 하단에 찰떡같이 스며들어 구매 전환율을 폭발시킬 최적화된 위젯이
-          곧 찾아옵니다.
-        </span>
-        <span class="w-8 inline-block"></span>
-      </div>
-
-      <!-- 그룹 2 (그룹 1과 동일한 내용으로 무한 루프 구현) -->
-      <div class="flex items-center gap-3 px-4">
-        <span
-          class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Update</span>
-        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
-          최신 업데이트 로그 (2026.07.22) - 메이슨리(Masonry) 게시판 스타일 토글 기능 추가 및 성능 최적화 완료 🎉
-        </span>
-
-        <span class="w-8 inline-block"></span>
-
-        <span
-          class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Coming
-          Soon</span>
-        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
-          🚀 <strong class="text-purple-300">상품 상세페이지 전용 리뷰 위젯</strong> 출시 임박! 상세페이지 하단에 찰떡같이 스며들어 구매 전환율을 폭발시킬 최적화된 위젯이
-          곧 찾아옵니다.
-        </span>
-        <span class="w-8 inline-block"></span>
-      </div>
-
-      <!-- 그룹 3 (그룹 1과 동일한 내용으로 무한 루프 구현) -->
-      <div class="flex items-center gap-3 px-4">
-        <span
-          class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Update</span>
-        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
-          최신 업데이트 로그 (2026.07.22) - 메이슨리(Masonry) 게시판 스타일 토글 기능 추가 및 성능 최적화 완료 🎉
-        </span>
-
-        <span class="w-8 inline-block"></span>
-
-        <span
-          class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm uppercase shrink-0">Coming
-          Soon</span>
-        <span class="text-[12px] text-gray-200 font-medium tracking-wide whitespace-nowrap">
-          🚀 <strong class="text-purple-300">상품 상세페이지 전용 리뷰 위젯</strong> 출시 임박! 상세페이지 하단에 찰떡같이 스며들어 구매 전환율을 폭발시킬 최적화된 위젯이
-          곧 찾아옵니다.
-        </span>
-        <span class="w-8 inline-block"></span>
-      </div>
-
-    </div>
-  </div>
-
-
-  <div class="mt-8 max-w-6xl mx-auto">
-    <div
-      class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4 border-b border-gray-200 pb-6">
-      <div>
-        <div class="flex items-center gap-3 mb-2">
-          <h1 class="text-3xl font-extrabold text-gray-900 tracking-tighter">Review-It 관리자</h1>
-          <span id="integration-badge"
-            class="hidden items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm">
-            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-            스크립트 자동 연동 됨
-          </span>
-        </div>
-        <p class="text-gray-500 mt-1">
-          <span id="display-mall-name" class="font-bold text-gray-700 uppercase">SHOP</span> 몰의 리뷰
-          <span id="total-count" class="font-bold text-blue-600">0</span>개가 수집되었습니다.
-        </p>
-      </div>
+  <!-- 💡 좌측 사이드바 네비게이션 -->
+  <aside id="sidebar"
+    class="fixed inset-y-0 left-0 bg-white w-64 border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col h-full">
+    <div class="h-16 flex items-center px-6 border-b border-gray-100">
+      <h1 class="text-xl font-extrabold tracking-tighter text-gray-900">REVIEW-IT</h1>
+      <span class="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">PRO</span>
     </div>
 
-    <div class="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
-      <div class="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl -mr-10 -mt-10 opacity-50"></div>
-      <div class="relative z-10">
-        <h2 class="text-[15px] font-bold text-blue-900 flex items-center gap-2 mb-3">
-          <span class="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs">✔</span>
-          [완료] REVIEW-IT 설치가 성공적으로 완료되었습니다!
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-          <div class="bg-white/60 p-4 rounded-lg">
-            <h3 class="font-bold mb-1 text-gray-800">1. 스크립트 자동 주입 완료</h3>
-            <p class="text-xs text-gray-600 leading-relaxed">
-              별도의 스크립트 삽입이나 코딩 작업이 필요 없습니다.
-              <strong>REVIEW-IT이 자동으로 쇼핑몰과 연동</strong>되어, 지금 즉시 리뷰 수집 및 위젯 기능을 사용하실 수 있습니다.
-            </p>
-          </div>
-          <div class="bg-white/60 p-4 rounded-lg">
-            <h3 class="font-bold mb-1 text-gray-800">2. 리뷰 위젯 100% 자동 노출</h3>
-            <p class="text-xs text-gray-600 leading-relaxed">
-              위젯 컨테이너 생성부터 데이터 연동까지 <strong>모든 과정이 자동으로 처리</strong>됩니다. <br>
-              운영 중인 쇼핑몰 메인 페이지 하단에 리뷰 위젯이 즉시 노출되며, 아래 설정 변경 시 실시간으로 반영됩니다.
-            </p>
-          </div>
+    <nav class="flex-1 overflow-y-auto py-4">
+      <ul class="space-y-1">
+        <li>
+          <a href="#" onclick="switchTab('dashboard')" id="nav-dashboard"
+            class="nav-item active flex items-center px-6 py-3 text-sm text-gray-600">
+            <span class="mr-3 text-lg">📊</span> 대시보드
+          </a>
+        </li>
+        <li class="pt-4 pb-2 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider">환경 설정</li>
+        <li>
+          <a href="#" onclick="switchTab('main-widget')" id="nav-main-widget"
+            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600">
+            <span class="mr-3 text-lg">⚙️</span> 공통 / 메인 위젯
+          </a>
+        </li>
+        <li>
+          <a href="#" onclick="switchTab('detail-widget')" id="nav-detail-widget"
+            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600">
+            <span class="mr-3 text-lg">🛍️</span> 상세페이지 위젯
+          </a>
+        </li>
+        <li class="pt-4 pb-2 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider">리뷰 관리</li>
+        <li>
+          <a href="#" onclick="switchTab('reviews')" id="nav-reviews"
+            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600">
+            <span class="mr-3 text-lg">💬</span> 수집된 리뷰 목록
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="p-4 border-t border-gray-100 bg-gray-50">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+        <span class="text-xs font-bold text-gray-700 uppercase" id="display-mall-name">SHOP</span>
+      </div>
+      <p class="text-[10px] text-gray-500">API 연동 정상 작동 중</p>
+    </div>
+  </aside>
+
+  <!-- 💡 우측 메인 콘텐츠 영역 -->
+  <div class="flex-1 flex flex-col h-full md:ml-64 relative overflow-hidden">
+
+    <!-- 모바일 전용 헤더 (햄버거 메뉴) -->
+    <header
+      class="md:hidden flex items-center justify-between h-14 bg-white border-b border-gray-200 px-4 z-30 flex-shrink-0">
+      <h1 class="text-lg font-extrabold tracking-tighter text-gray-900">REVIEW-IT</h1>
+      <button onclick="toggleSidebar()" class="p-2 text-gray-600 focus:outline-none">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- 공지사항 띠 배너 -->
+    <div class="ticker-wrapper flex-shrink-0">
+      <div class="ticker-track py-2">
+        <div class="flex items-center gap-3 px-4">
+          <span
+            class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Update</span>
+          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 상세페이지 전용 모듈 및 어드민 UI 전면 개편 완료
+            🎉</span><span class="w-8 inline-block"></span>
+          <span
+            class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Notice</span>
+          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">설정 변경 후에는 반드시 '전체 설정 저장' 버튼을
+            눌러주세요.</span><span class="w-8 inline-block"></span>
         </div>
-        <p class="mt-3 text-[11px] text-blue-600 font-medium">
-          * 본 시스템은 Cafe24 최신 API 규격(2026-03-01)을 완벽하게 지원하며, 몰 속도 저하를 최소화하는 비동기 방식으로 구동됩니다.
-        </p>
+        <!-- 루프 복제 -->
+        <div class="flex items-center gap-3 px-4">
+          <span
+            class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Update</span>
+          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 상세페이지 전용 모듈 및 어드민 UI 전면 개편 완료
+            🎉</span><span class="w-8 inline-block"></span>
+          <span
+            class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Notice</span>
+          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">설정 변경 후에는 반드시 '전체 설정 저장' 버튼을
+            눌러주세요.</span><span class="w-8 inline-block"></span>
+        </div>
       </div>
     </div>
 
-    <div class="mb-10 space-y-4">
-      <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">위젯 환경 설정</h2>
-      <!-- grid-cols 수정: 아이템이 늘어남에 따라 5열 또는 적절히 배치 -->
-      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+    <!-- 스크롤 가능한 본문 영역 -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-8">
 
-        <!-- [추가됨] 메인페이지 위젯 노출 토글 -->
-        <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
-          <span class="rit-label mb-2">메인페이지 위젯 노출</span>
-          <div class="rit-switch-group w-full flex justify-between">
-            <label class="flex-1 text-center cursor-pointer">
-              <input type="radio" name="main_exposure" value="true" class="hidden peer" checked>
-              <div
-                class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
-                ON</div>
-            </label>
-            <label class="flex-1 text-center cursor-pointer">
-              <input type="radio" name="main_exposure" value="false" class="hidden peer">
-              <div
-                class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
-                OFF</div>
-            </label>
-          </div>
-        </div>
+      <!-- ==========================================
+           TAB 1: 대시보드
+      =========================================== -->
+      <section id="tab-dashboard" class="view-section active max-w-5xl mx-auto">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">안녕하세요, 운영자님! 👋</h2>
 
-        <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
-          <span class="rit-label mb-2">그리드 상세 설정</span>
-          <div class="flex gap-2 w-full">
-            <select id="select-grid-pc" class="flex-1 p-2 border rounded text-xs">
-              <option value="4">PC 4개씩</option>
-              <option value="5" selected>PC 5개씩</option>
-            </select>
-            <select id="select-grid-mo" class="flex-1 p-2 border rounded text-xs">
-              <option value="1">MO 1개</option>
-              <option value="2" selected>MO 2개</option>
-              <option value="3">MO 3개</option>
-            </select>
-          </div>
-          <p class="text-[10px] text-gray-400 mt-1">*모바일은 2개 최적화</p>
-        </div>
-
-        <!-- [추가] 상세페이지 전용 위젯 설정 -->
-        <div class="col-span-1 lg:col-span-5 mt-4 pt-4 border-t border-gray-200">
-          <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">상세페이지 전용 설정</h3>
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-            <!-- 레이아웃 타입 선택 -->
-            <div class="rit-setting-box flex-col items-start justify-center">
-              <span class="rit-label mb-2">하단 메인 리뷰 뷰 타입</span>
-              <div class="rit-switch-group w-full flex justify-between">
-                <label class="flex-1 text-center cursor-pointer">
-                  <input type="radio" name="detail_display_type" value="masonry" class="hidden peer" checked>
-                  <div
-                    class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
-                    메이슨리 (격자)</div>
-                </label>
-                <label class="flex-1 text-center cursor-pointer">
-                  <input type="radio" name="detail_display_type" value="swiper" class="hidden peer">
-                  <div
-                    class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
-                    가로 슬라이드</div>
-                </label>
-              </div>
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-6 shadow-sm mb-8">
+          <h2 class="text-[15px] font-bold text-blue-900 flex items-center gap-2 mb-3">
+            <span class="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs">✔</span>
+            [완료] REVIEW-IT 시스템 연동이 완벽하게 완료되었습니다!
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-4">
+            <div class="bg-white/80 p-5 rounded-xl border border-white">
+              <h3 class="font-bold mb-2 text-gray-800">1. 스크립트 자동 주입</h3>
+              <p class="text-xs text-gray-600 leading-relaxed">별도의 코딩 없이 메인/리스트/상세페이지 위젯 스크립트가 쇼핑몰에 자동 적용되었습니다.</p>
             </div>
+            <div class="bg-white/80 p-5 rounded-xl border border-white">
+              <h3 class="font-bold mb-2 text-gray-800">2. 리뷰 데이터 동기화</h3>
+              <p class="text-xs text-gray-600 leading-relaxed">카페24 상품사용후기 게시판의 리뷰를 실시간으로 가져옵니다. 누적 리뷰: <strong
+                  id="total-count-dash" class="text-blue-600">0</strong>개</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-            <!-- 올리브영 스타일 상단 요약 토글 -->
-            <div class="rit-setting-box flex justify-between items-center w-full">
-              <span class="rit-label">상단 평점 요약 (올리브영 룩)</span>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="toggle-detail-summary" class="sr-only peer" checked>
+      <!-- ==========================================
+           TAB 2: 공통 / 메인 위젯 설정
+      =========================================== -->
+      <section id="tab-main-widget" class="view-section max-w-5xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">공통 / 메인 위젯 설정</h2>
+          <button onclick="saveHeaderSettings()"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5">설정
+            저장하기</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <!-- 메인페이지 위젯 노출 -->
+          <div class="rit-setting-box">
+            <span class="rit-label">메인페이지 위젯 노출</span>
+            <div class="rit-switch-group">
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="main_exposure" value="true" class="hidden peer" checked>
                 <div
-                  class="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
-                </div>
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
+                  ON</div>
+              </label>
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="main_exposure" value="false" class="hidden peer">
+                <div
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
+                  OFF</div>
               </label>
             </div>
+          </div>
 
-            <!-- 썸네일 하단 갤러리 토글 -->
-            <div class="rit-setting-box flex justify-between items-center w-full">
-              <span class="rit-label">대표 썸네일 하단 갤러리</span>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="toggle-detail-gallery" class="sr-only peer" checked>
+          <!-- 위젯 노출 타입 -->
+          <div class="rit-setting-box">
+            <span class="rit-label">위젯 노출 레이아웃</span>
+            <div class="rit-switch-group">
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="display_type" value="grid" class="hidden peer" checked>
                 <div
-                  class="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
-                </div>
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
+                  메이슨리 격자</div>
+              </label>
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="display_type" value="swiper" class="hidden peer">
+                <div
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
+                  가로 슬라이드</div>
               </label>
             </div>
+          </div>
 
+          <!-- 그리드 단 수 설정 -->
+          <div class="rit-setting-box">
+            <span class="rit-label">그리드 단 수 설정</span>
+            <div class="flex gap-2 w-full">
+              <select id="select-grid-pc"
+                class="flex-1 p-2 border border-gray-200 rounded text-xs outline-none bg-white">
+                <option value="4">PC 4단</option>
+                <option value="5" selected>PC 5단</option>
+              </select>
+              <select id="select-grid-mo"
+                class="flex-1 p-2 border border-gray-200 rounded text-xs outline-none bg-white">
+                <option value="1">MO 1단</option>
+                <option value="2" selected>MO 2단</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 리스트 게시판 디자인 -->
+          <div class="rit-setting-box">
+            <span class="rit-label">리뷰 게시판 스킨</span>
+            <div class="rit-switch-group">
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="list_design" value="review_it" class="hidden peer" checked>
+                <div
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
+                  Review-It 뷰</div>
+              </label>
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="list_design" value="cafe24" class="hidden peer">
+                <div
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
+                  기존 카페24 뷰</div>
+              </label>
+            </div>
           </div>
         </div>
 
-        <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
-          <span class="rit-label mb-2">위젯 노출 타입</span>
-          <div class="rit-switch-group w-full flex justify-between">
-            <button onclick="updateWidgetType('grid')" id="btn-grid" class="rit-btn-toggle flex-1 active">나열형</button>
-            <button onclick="updateWidgetType('swiper')" id="btn-swiper" class="rit-btn-toggle flex-1">슬라이드</button>
-          </div>
-        </div>
-
-        <div class="lg:col-span-1 rit-setting-box flex-col items-start justify-center">
-          <span class="rit-label mb-2">리스트 디자인 설정</span>
-          <div class="rit-switch-group w-full flex justify-between">
-            <label class="flex-1 text-center cursor-pointer">
-              <input type="radio" name="list_design" value="review_it" class="hidden peer" checked>
-              <div
-                class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition tracking-tight">
-                Review-It 뷰</div>
-            </label>
-            <label class="flex-1 text-center cursor-pointer">
-              <input type="radio" name="list_design" value="cafe24" class="hidden peer">
-              <div
-                class="peer-checked:bg-black peer-checked:text-white px-3 py-1.5 rounded-md text-[12px] text-gray-500 font-bold transition">
-                Cafe24 뷰</div>
-            </label>
-          </div>
-        </div>
-
-        <div class="lg:col-span-1 flex items-center justify-end">
-          <button onclick="saveHeaderSettings()" class="btn-save-main w-full h-full py-4 shadow-lg">전체 설정 저장</button>
-        </div>
-
-        <!-- 하단 헤더 문구 커스텀 영역 (기존과 동일하되 lg:col-span-5 로 변경) -->
-        <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">
-              <span class="w-1 h-4 bg-blue-500 rounded-full"></span>위젯 헤더 문구 커스텀
-            </h3>
+        <!-- 헤더 문구 커스텀 -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div class="flex justify-between items-center mb-5 border-b border-gray-100 pb-4">
+            <h3 class="text-md font-bold text-gray-800">위젯 타이틀 커스텀</h3>
             <div class="flex items-center gap-2">
-              <span class="text-[11px] font-bold text-gray-500 uppercase" id="header-toggle-text">노출 켜짐</span>
+              <span class="text-[11px] font-bold text-blue-600 uppercase" id="header-toggle-text">노출 켜짐</span>
               <label class="relative inline-flex items-center cursor-pointer">
-
-                <input type="checkbox" id="toggle-header" class="sr-only peer" checked
-                  onchange="updateToggleText(); saveHeaderSettings(currentWidgetType);">
+                <input type="checkbox" id="toggle-header" class="sr-only peer" checked onchange="updateToggleText()">
                 <div
-                  class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                  class="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
                 </div>
               </label>
             </div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Tagline (상단 소제목)</label>
+              <label class="block text-[11px] font-bold text-gray-500 mb-1.5">상단 소제목 (Tagline)</label>
               <input type="text" id="input-tagline" placeholder="예: Verified Authenticity"
-                class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none disabled:bg-gray-100 disabled:text-gray-400 transition-colors">
+                class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 transition-colors">
             </div>
             <div>
-              <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Main Title (메인 제목)</label>
-              <input type="text" id="input-title" placeholder="예: 리얼 포토 피드"
-                class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none disabled:bg-gray-100 disabled:text-gray-400 transition-colors">
+              <label class="block text-[11px] font-bold text-gray-500 mb-1.5">메인 제목 (Main Title)</label>
+              <input type="text" id="input-title" placeholder="예: Product Reviews"
+                class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 transition-colors">
             </div>
             <div class="md:col-span-2">
-              <label class="block text-[11px] font-bold text-gray-400 uppercase mb-1">Description (상세 설명)</label>
-              <textarea id="input-description" rows="3" placeholder="위젯 하단에 노출될 설명 문구를 입력하세요."
-                class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm outline-none resize-none disabled:bg-gray-100 disabled:text-gray-400 transition-colors"></textarea>
+              <label class="block text-[11px] font-bold text-gray-500 mb-1.5">상세 설명 (Description)</label>
+              <textarea id="input-description" rows="2" placeholder="고객이 직접 남긴 생생한 리얼 피드를 확인해보세요."
+                class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 resize-none transition-colors"></textarea>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div
-        class="flex flex-col md:flex-row justify-between items-center p-5 border-b border-gray-100 bg-gray-50/50 gap-4">
-        <h2 class="text-sm font-bold text-gray-600">수집된 리뷰 관리</h2>
-        <div class="flex gap-2 w-full md:w-auto">
-          <input type="text" id="search-input" placeholder="작성자 또는 제목 검색"
-            class="flex-1 md:w-64 px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm bg-white">
-          <button onclick="handleSearch()"
-            class="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-gray-800 transition shadow-md">검색</button>
+      <!-- ==========================================
+           TAB 3: 상세페이지 위젯 설정
+      =========================================== -->
+      <section id="tab-detail-widget" class="view-section max-w-5xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">상세페이지 전용 설정</h2>
+          <button onclick="saveHeaderSettings()"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5">설정
+            저장하기</button>
         </div>
-      </div>
 
-      <table class="w-full text-left border-collapse">
-        <thead>
-          <tr class="bg-gray-50 border-b border-gray-100">
-            <th class="p-5 text-xs font-bold text-gray-400 uppercase w-24">작성자</th>
-            <th class="p-5 text-xs font-bold text-gray-400 uppercase">리뷰 상세</th>
-            <th class="p-5 text-xs font-bold text-gray-400 uppercase w-32 text-center">별점</th>
-            <th class="p-5 text-xs font-bold text-gray-400 uppercase w-32 text-center">노출 제어</th>
-          </tr>
-        </thead>
-        <tbody id="admin-list" class="divide-y divide-gray-50"></tbody>
-      </table>
-    </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="rit-setting-box">
+            <span class="rit-label mb-2">하단 메인 리뷰 레이아웃</span>
+            <div class="rit-switch-group">
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="detail_display_type" value="masonry" class="hidden peer" checked>
+                <div
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
+                  메이슨리 (격자)</div>
+              </label>
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="detail_display_type" value="swiper" class="hidden peer">
+                <div
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
+                  가로 슬라이드</div>
+              </label>
+            </div>
+          </div>
 
-    <div class="flex justify-center items-center mt-8 gap-4 mb-10">
-      <button onclick="changePage(-1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50"
-        id="prev-btn">이전</button>
-      <span id="page-info" class="text-sm font-medium text-gray-600 font-mono italic">Page 1</span>
-      <button onclick="changePage(1)" class="px-4 py-2 bg-white border rounded-lg text-sm disabled:opacity-50"
-        id="next-btn">다음</button>
-    </div>
+          <div class="rit-setting-box flex flex-row items-center justify-between">
+            <div>
+              <span class="rit-label block !mb-1">상단 평점 요약</span>
+              <p class="text-[10px] text-gray-400">올리브영 스타일 리뷰 요약본 노출</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="toggle-detail-summary" class="sr-only peer" checked>
+              <div
+                class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+              </div>
+            </label>
+          </div>
+
+          <div class="rit-setting-box flex flex-row items-center justify-between">
+            <div>
+              <span class="rit-label block !mb-1">포토 갤러리</span>
+              <p class="text-[10px] text-gray-400">메인 썸네일 하단 5장 갤러리 노출</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="toggle-detail-gallery" class="sr-only peer" checked>
+              <div
+                class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+              </div>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           TAB 4: 리뷰 관리 목록
+      =========================================== -->
+      <section id="tab-reviews" class="view-section max-w-5xl mx-auto">
+        <div
+          class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4 border-b border-gray-200 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">수집된 리뷰 목록</h2>
+            <p class="text-sm text-gray-500 mt-1">총 <span id="total-count-list"
+                class="font-bold text-blue-600">0</span>개의 리뷰가 안전하게 보관되어 있습니다.</p>
+          </div>
+          <div class="flex gap-2 w-full sm:w-auto">
+            <input type="text" id="search-input" placeholder="작성자 또는 내용 검색"
+              class="flex-1 sm:w-64 px-4 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 transition-colors bg-white">
+            <button onclick="handleSearch()"
+              class="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-gray-800 transition shadow-sm">검색</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr class="bg-gray-50 border-b border-gray-200">
+                  <th class="px-5 py-4 text-xs font-bold text-gray-500 uppercase w-24">작성자</th>
+                  <th class="px-5 py-4 text-xs font-bold text-gray-500 uppercase">리뷰 내용</th>
+                  <th class="px-5 py-4 text-xs font-bold text-gray-500 uppercase w-32 text-center">별점</th>
+                  <th class="px-5 py-4 text-xs font-bold text-gray-500 uppercase w-32 text-center">상태 관리</th>
+                </tr>
+              </thead>
+              <tbody id="admin-list" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+
+          <!-- 페이지네이션 -->
+          <div class="flex justify-center items-center p-5 bg-gray-50 border-t border-gray-100 gap-4">
+            <button onclick="changePage(-1)"
+              class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition"
+              id="prev-btn">이전</button>
+            <span id="page-info" class="text-sm font-bold text-gray-600 font-mono">Page 1</span>
+            <button onclick="changePage(1)"
+              class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition"
+              id="next-btn">다음</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
   </div>
 
   <script>
+    // ==========================================
+    // UI 로직: 사이드바 및 탭 전환
+    // ==========================================
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      sidebar.classList.toggle('-translate-x-full');
+      overlay.classList.toggle('hidden');
+    }
+
+    function switchTab(tabId) {
+      // 1. 모든 탭 숨기기
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      // 2. 선택된 탭 보이기
+      document.getElementById('tab-' + tabId).classList.add('active');
+
+      // 3. 네비게이션 활성화 표시 변경
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById('nav-' + tabId).classList.add('active');
+
+      // 모바일에서 클릭 시 메뉴 닫기
+      if (window.innerWidth < 768) { toggleSidebar(); }
+    }
+
+    // ==========================================
+    // 리뷰 앱 핵심 코어 로직 (DB & API)
+    // ==========================================
     const SB_URL = 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1';
     const SB_KEY = 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt';
 
     const params = new URLSearchParams(window.location.search);
-
-    // 💡 [수정 1] 상단에서 한 번만 let으로 선언하여 중복 충돌을 방지합니다.
     let MALL_ID = params.get('mall_id') || window.location.hostname.split('.')[0];
     const AUTH_SIG = params.get('auth_sig');
 
-    // 초기 렌더링 시에는 주소창의 MALL_ID를 일단 보여줍니다 (이후 검증 실패 시 튕겨냄)
     document.getElementById('display-mall-name').innerText = MALL_ID;
 
     let currentPage = 0;
     const itemsPerPage = 15;
     let currentSearchKeyword = '';
-    let currentWidgetType = 'grid';
 
-    // 토글 텍스트 및 인풋 활성화/비활성화 업데이트 함수
     function updateToggleText() {
       const isChecked = document.getElementById('toggle-header').checked;
       const toggleText = document.getElementById('header-toggle-text');
@@ -460,18 +560,11 @@
           if (urls.trim().startsWith('[')) urls = JSON.parse(urls);
           else if (urls.trim() !== '') urls = [urls];
         }
-      } catch (e) {
-        console.warn("어드민 이미지 파싱 오류:", e);
-      }
+      } catch (e) { console.warn("이미지 파싱 오류:", e); }
 
       if (!Array.isArray(urls) || urls.length === 0) return null;
-
       const spamKeywords = /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty|ico_point|ico_review/i;
-      const validImg = urls.find(url => {
-        if (!url || typeof url !== 'string') return false;
-        return !spamKeywords.test(url) && !url.toLowerCase().includes('.gif');
-      });
-
+      const validImg = urls.find(url => typeof url === 'string' && !spamKeywords.test(url) && !url.toLowerCase().includes('.gif'));
       return validImg || null;
     }
 
@@ -485,103 +578,54 @@
         if (data && data.length > 0) {
           const s = data[0];
 
-          // 1. 텍스트 필드 바인딩 (요소 존재 여부 안전하게 체크)
-          const taglineEl = document.getElementById('input-tagline');
-          if (taglineEl) taglineEl.value = s.tagline || '';
+          // 텍스트 필드
+          if (document.getElementById('input-tagline')) document.getElementById('input-tagline').value = s.tagline || '';
+          if (document.getElementById('input-title')) document.getElementById('input-title').value = s.title || '';
+          if (document.getElementById('input-description')) document.getElementById('input-description').value = s.description || '';
 
-          const titleEl = document.getElementById('input-title');
-          if (titleEl) titleEl.value = s.title || '';
+          // 상단 공통 토글
+          if (document.getElementById('toggle-header')) document.getElementById('toggle-header').checked = s.is_header_enabled !== false;
 
-          const descEl = document.getElementById('input-description');
-          if (descEl) descEl.value = s.description || '';
+          // 메인 그리드 및 타입
+          if (s.grid_rows_desktop && document.getElementById('select-grid-pc')) document.getElementById('select-grid-pc').value = s.grid_rows_desktop;
+          if (s.grid_rows_mobile && document.getElementById('select-grid-mo')) document.getElementById('select-grid-mo').value = s.grid_rows_mobile;
 
-          // 2. 헤더 노출 여부 토글
-          const isHeaderEnabled = s.is_header_enabled !== false;
-          const headerToggleEl = document.getElementById('toggle-header');
-          if (headerToggleEl) headerToggleEl.checked = isHeaderEnabled;
+          const dTypeRadio = document.querySelector(`input[name="display_type"][value="${s.display_type || 'grid'}"]`);
+          if (dTypeRadio) dTypeRadio.checked = true;
 
-          // 3. 그리드 상세 설정 및 Limit 처리 (🚨 기존 에러 유발 원인 해결)
-          const gridPcEl = document.getElementById('select-grid-pc');
-          if (s.grid_rows_desktop && gridPcEl) gridPcEl.value = s.grid_rows_desktop;
+          const lTypeRadio = document.querySelector(`input[name="list_design"][value="${s.list_design_type || 'review_it'}"]`);
+          if (lTypeRadio) lTypeRadio.checked = true;
 
-          const gridMoEl = document.getElementById('select-grid-mo');
-          if (s.grid_rows_mobile && gridMoEl) gridMoEl.value = s.grid_rows_mobile;
+          const mExpRadio = document.querySelector(`input[name="main_exposure"][value="${s.is_main_exposed !== false}"]`);
+          if (mExpRadio) mExpRadio.checked = true;
 
-          const limitEl = document.getElementById('input-limit');
-          if (s.display_limit && limitEl) limitEl.value = s.display_limit;
+          // 상세페이지 전용
+          const detailTypeRadio = document.querySelector(`input[name="detail_display_type"][value="${s.detail_display_type || 'masonry'}"]`);
+          if (detailTypeRadio) detailTypeRadio.checked = true;
 
-          // 4. 위젯 노출 타입 세팅
-          currentWidgetType = s.display_type || 'grid';
+          if (document.getElementById('toggle-detail-summary')) document.getElementById('toggle-detail-summary').checked = s.is_detail_summary_enabled !== false;
+          if (document.getElementById('toggle-detail-gallery')) document.getElementById('toggle-detail-gallery').checked = s.is_detail_gallery_enabled !== false;
 
-          // 5. 리스트 디자인 설정 (라디오 버튼)
-          const designType = s.list_design_type || 'review_it';
-          const designRadioBtn = document.querySelector(`input[name="list_design"][value="${designType}"]`);
-          if (designRadioBtn) designRadioBtn.checked = true;
-
-          // 6. 메인페이지 위젯 노출 토글 (라디오 버튼 - 문자열 'false' 방어 로직 추가)
-          let isMainExposed = true;
-          if (s.is_main_exposed === false || s.is_main_exposed === 'false') {
-            isMainExposed = false;
-          }
-          const mainExpRadio = document.querySelector(`input[name="main_exposure"][value="${isMainExposed}"]`);
-          if (mainExpRadio) mainExpRadio.checked = true;
-
-        } else {
-          // DB에 설정이 아예 없을 때의 기본값 세팅 처리
-          const taglineEl = document.getElementById('input-tagline');
-          if (taglineEl) taglineEl.value = 'Verified Authenticity';
-
-          const titleEl = document.getElementById('input-title');
-          if (titleEl) titleEl.value = 'People Choice';
-
-          const descEl = document.getElementById('input-description');
-          if (descEl) descEl.value = '당신의 선택에 확신을 더하는 기록 텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.';
-
-          const headerToggleEl = document.getElementById('toggle-header');
-          if (headerToggleEl) headerToggleEl.checked = true;
-
-          currentWidgetType = 'grid';
         }
-
-        // 마지막으로 UI 토글 텍스트 및 활성화 상태 동기화
         updateToggleText();
-        refreshSettingUI(currentWidgetType);
-
-      } catch (err) {
-        console.error("설정 로드 실패:", err);
-      }
+      } catch (err) { console.error("설정 로드 실패:", err); }
     }
 
-    async function saveHeaderSettings(targetType = null) {
+    async function saveHeaderSettings() {
       try {
-        const typeToSave = targetType || currentWidgetType;
-
-        // 1. 헤더 노출 여부 (토글)
-        const headerToggleEl = document.getElementById('toggle-header');
-        const isHeaderEnabled = headerToggleEl ? headerToggleEl.checked : true;
-
-        // 2. 메인페이지 위젯 노출 여부 (라디오 버튼 안전 탐색)
-        // 💡 [핵심 포인트] 브라우저가 참조할 isMainExposed 변수를 확실하게 선언합니다.
-        const mainExpEl = document.querySelector('input[name="main_exposure"]:checked');
-        const isMainExposed = mainExpEl ? (mainExpEl.value === 'true') : true;
-
-        // 3. 리스트 디자인 타입 (라디오 버튼 안전 탐색)
-        const listDesignEl = document.querySelector('input[name="list_design"]:checked');
-        const listDesignType = listDesignEl ? listDesignEl.value : 'review_it';
-
-        // 서버(Supabase)로 보낼 최종 페이로드 데이터
         const payload = {
           mall_id: MALL_ID,
-          display_type: typeToSave,
-          is_header_enabled: isHeaderEnabled,
-          is_main_exposed: isMainExposed, // 💡 선언된 변수가 정상적으로 들어갑니다.
-          list_design_type: listDesignType,
+          // 메인/공통 설정
+          display_type: document.querySelector('input[name="display_type"]:checked')?.value || 'grid',
+          list_design_type: document.querySelector('input[name="list_design"]:checked')?.value || 'review_it',
+          is_main_exposed: document.querySelector('input[name="main_exposure"]:checked')?.value === 'true',
+          is_header_enabled: document.getElementById('toggle-header')?.checked ?? true,
           title: document.getElementById('input-title')?.value || '',
           description: document.getElementById('input-description')?.value || '',
           tagline: document.getElementById('input-tagline')?.value || '',
           grid_rows_desktop: parseInt(document.getElementById('select-grid-pc')?.value || 5),
           grid_rows_mobile: parseInt(document.getElementById('select-grid-mo')?.value || 2),
-          display_limit: parseInt(document.getElementById('input-limit')?.value || 15),
+          // 상세페이지 전용 설정
           detail_display_type: document.querySelector('input[name="detail_display_type"]:checked')?.value || 'masonry',
           is_detail_summary_enabled: document.getElementById('toggle-detail-summary')?.checked ?? true,
           is_detail_gallery_enabled: document.getElementById('toggle-detail-gallery')?.checked ?? true
@@ -598,22 +642,11 @@
           body: JSON.stringify(payload)
         });
 
-        if (res.ok) {
-          if (!targetType) alert('✅ 설정이 안전하게 저장되었습니다.\n쇼핑몰 위젯에 즉시 반영됩니다.');
-        } else {
-          const errRes = await res.json();
-          throw new Error(errRes.message || '위젯 설정 반영 실패');
-        }
+        if (res.ok) alert('✅ 설정이 안전하게 저장되었습니다.\n쇼핑몰 위젯에 즉시 반영됩니다.');
+        else throw new Error(await res.text());
       } catch (err) {
         alert('❌ 저장 중 오류 발생: ' + err.message);
-        console.error('저장 에러 상세:', err);
       }
-    }
-
-    async function updateWidgetType(type) {
-      currentWidgetType = type;
-      refreshSettingUI(type);
-      await saveHeaderSettings(type);
     }
 
     async function loadAdminData() {
@@ -623,7 +656,7 @@
         let query = `${SB_URL}/reviews?mall_id=eq.${MALL_ID}&select=*&order=created_at.desc`;
 
         if (currentSearchKeyword) {
-          query += `&or=(subject.ilike.*${currentSearchKeyword}*,writer.ilike.*${currentSearchKeyword}*,author_name.ilike.*${currentSearchKeyword}*)`;
+          query += `&or=(subject.ilike.*${currentSearchKeyword}*,writer.ilike.*${currentSearchKeyword}*,author_name.ilike.*${currentSearchKeyword}*,content.ilike.*${currentSearchKeyword}*)`;
         }
 
         const res = await fetch(query, {
@@ -632,6 +665,9 @@
 
         const total = res.headers.get('content-range')?.split('/')[1] || 0;
         document.getElementById('total-count').innerText = total;
+        document.getElementById('total-count-dash').innerText = total;
+        document.getElementById('total-count-list').innerText = total;
+
         renderList(await res.json());
         updatePagination(total);
       } catch (err) { console.error("로드 실패:", err); }
@@ -644,16 +680,15 @@
         return;
       }
       list.innerHTML = data.map(rv => {
-        const thumbnail = getCleanThumbnail(rv.image_urls);
-        const displayImg = thumbnail ? thumbnail : 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg';
-
+        const thumbnail = getCleanThumbnail(rv.image_urls) || 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg';
         const rawContent = rv.content ? rv.content.replace(/<[^>]*>?/gm, '') : '';
         const displayContent = rawContent.trim() ? rawContent : '본문 내용이 없는 리뷰입니다.';
         const displayName = rv.author_name ? rv.author_name : (rv.writer || '고객');
 
+        // 💡 [개선] 리스트 제목(Subject) 처리 로직
         let displaySubject = (rv.subject || '').trim();
         if (!displaySubject || displaySubject === '포토 리뷰입니다.') {
-          displaySubject = displayContent.length > 25 ? displayContent.substring(0, 25) + '...' : displayContent;
+          displaySubject = displayContent.length > 20 ? displayContent.substring(0, 20) + '...' : displayContent;
         }
 
         const starCount = rv.stars ?? 5;
@@ -661,28 +696,28 @@
         const inactiveStars = '☆'.repeat(5 - starCount);
 
         return `
-        <tr class="hover:bg-blue-50/30 transition-colors">
-          <td class="p-5 font-semibold text-gray-700 text-sm whitespace-nowrap">${displayName}</td>
-          <td class="p-5">
-            <div class="flex items-center gap-4">
-              <div class="img-box rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
-                <img src="${displayImg}" class="w-full h-full object-cover" onerror="this.src='https://review-it-tau.vercel.app/assets/rit_noimg.jpg'">
+        <tr class="hover:bg-blue-50/20 transition-colors">
+          <td class="px-5 py-4 font-semibold text-gray-700 text-sm whitespace-nowrap">${displayName}</td>
+          <td class="px-5 py-4">
+            <div class="flex items-start gap-4">
+              <div class="w-14 h-14 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex-shrink-0">
+                <img src="${thumbnail}" class="w-full h-full object-cover" onerror="this.src='https://review-it-tau.vercel.app/assets/rit_noimg.jpg'">
               </div>
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-bold text-gray-900 mb-1 truncate">${displaySubject}</div>
+              <div class="flex-1 min-w-0 flex flex-col justify-center">
+                <div class="text-[13px] font-bold text-gray-900 mb-1 truncate" title="${displaySubject}">${displaySubject}</div>
+                <div class="text-[12px] text-gray-500 line-clamp-1">${displayContent}</div>
               </div>
             </div>
           </td>
-          <td class="p-5 text-center">
-            <div class="inline-flex items-center px-3 py-1.5 bg-amber-50 rounded-md shadow-sm border border-amber-100">
-              <span class="text-amber-500 text-sm tracking-widest">${activeStars}<span class="text-amber-200">${inactiveStars}</span></span>
-              <span class="ml-2 text-amber-800 font-bold text-sm">${starCount}.0</span>
+          <td class="px-5 py-4 text-center">
+            <div class="inline-flex items-center px-2.5 py-1 bg-amber-50 rounded shadow-sm border border-amber-100">
+              <span class="text-amber-500 text-xs tracking-widest">${activeStars}<span class="text-amber-200">${inactiveStars}</span></span>
             </div>
           </td>
-          <td class="p-5 text-center">
+          <td class="px-5 py-4 text-center">
             <button onclick="toggleVisibility('${rv.id}', ${rv.is_visible})" 
-              class="w-24 py-2 rounded-full text-[11px] font-black transition-all shadow-sm ${rv.is_visible ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border text-gray-500 hover:bg-gray-50'}">
-              ${rv.is_visible ? '노출중' : '대기중'}
+              class="w-full max-w-[80px] py-1.5 rounded-full text-[11px] font-black transition-all shadow-sm ${rv.is_visible ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border border-gray-300 text-gray-500 hover:bg-gray-50'}">
+              ${rv.is_visible ? '노출 ON' : '노출 OFF'}
             </button>
           </td>
         </tr>`;
@@ -692,62 +727,34 @@
     function handleSearch() { currentSearchKeyword = document.getElementById('search-input').value; currentPage = 0; loadAdminData(); }
 
     function updatePagination(total) {
-      const totalPages = Math.ceil(total / itemsPerPage);
-      document.getElementById('page-info').innerText = `PAGE ${currentPage + 1} / ${totalPages || 1}`;
+      const totalPages = Math.ceil(total / itemsPerPage) || 1;
+      document.getElementById('page-info').innerText = `PAGE ${currentPage + 1} / ${totalPages}`;
       document.getElementById('prev-btn').disabled = currentPage === 0;
       document.getElementById('next-btn').disabled = (currentPage + 1) >= totalPages;
     }
 
     function changePage(step) { currentPage += step; loadAdminData(); window.scrollTo(0, 0); }
 
-    function refreshSettingUI(type) {
-      document.querySelectorAll('.rit-btn-toggle').forEach(btn => btn.classList.remove('active'));
-      const target = document.getElementById(`btn-${type}`);
-      if (target) target.classList.add('active');
-    }
-
     async function toggleVisibility(id, currentStatus) {
       try {
         const res = await fetch(`${SB_URL}/reviews?id=eq.${id}&mall_id=eq.${MALL_ID}`, {
           method: 'PATCH',
-          headers: {
-            'apikey': SB_KEY,
-            'Authorization': `Bearer ${SB_KEY}`,
-            'Content-Type': 'application/json'
-          },
+          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ is_visible: !currentStatus })
         });
         if (res.ok) loadAdminData();
-      } catch (err) {
-        console.error("노출 상태 변경 실패:", err);
-      }
+      } catch (err) { console.error("노출 상태 변경 실패:", err); }
     }
 
     async function checkAuthentication() {
-      // 로컬 개발 환경은 패스
       if (window.location.hostname === 'localhost') return true;
-
-      if (!AUTH_SIG || !MALL_ID) {
-        alert("올바르지 않은 접근입니다.");
-        window.location.href = '/index.html';
-        return false;
-      }
-
+      if (!AUTH_SIG || !MALL_ID) { alert("올바르지 않은 접근입니다."); window.location.href = '/index.html'; return false; }
       try {
-        // 💡 주의: 이 API 경로는 대표님의 실제 검증 라우터 주소에 맞게 나중에 연결해야 합니다.
-        // 백엔드 구현 전까지는 일단 개발 테스트를 위해 이 부분이 주석 처리되어 있거나 우회되도록 임시 처리할 수도 있습니다.
         const authCheck = await fetch(`/api/auth?mall_id=${MALL_ID}&auth_sig=${AUTH_SIG}`);
-
-        if (!authCheck.ok) {
-          throw new Error("인증 실패");
-        }
-
+        if (!authCheck.ok) throw new Error("인증 실패");
         const authResult = await authCheck.json();
-
-        // 💡 여기서 백엔드가 넘겨준 '진짜' 상점 ID로 덮어씌웁니다.
         MALL_ID = authResult.verified_mall_id;
         document.getElementById('display-mall-name').innerText = MALL_ID;
-
         return true;
       } catch (err) {
         alert("🔒 보안 경고: 변조된 접근이 감지되었거나 로그인이 만료되었습니다.");
@@ -756,40 +763,11 @@
       }
     }
 
-    async function checkMallStatus() {
-      try {
-        const res = await fetch(`${SB_URL}/active_malls?select=status&mall_id=eq.${MALL_ID}`, {
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
-        });
-        const data = await res.json();
-
-        if (!data || data.length === 0 || data[0].status !== 'active') {
-          alert("서비스 이용 기간이 만료되었거나 앱이 삭제된 상태입니다.");
-          window.location.href = 'https://store.cafe24.com/';
-          return false;
-        }
-
-        const badge = document.getElementById('integration-badge');
-        badge.classList.remove('hidden');
-        badge.classList.add('flex');
-
-        return true;
-      } catch (err) {
-        console.error("상태 검증 실패:", err);
-        return false;
-      }
-    }
-
     window.onload = async () => {
-      // 💡 [수정 2] checkAuthentication은 비동기 함수이므로 반드시 await를 붙여서 검증이 끝날 때까지 기다려야 합니다!
       const isAuthValid = await checkAuthentication();
-
       if (isAuthValid) {
-        const isActive = await checkMallStatus();
-        if (isActive) {
-          loadSettings();
-          loadAdminData();
-        }
+        loadSettings();
+        loadAdminData();
       }
     };
   </script>
