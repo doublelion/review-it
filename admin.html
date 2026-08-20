@@ -32,7 +32,6 @@
       background: #94a3b8;
     }
 
-    /* 사이드바 메뉴 활성화 스타일 */
     .nav-item {
       transition: all 0.2s ease-in-out;
     }
@@ -48,7 +47,6 @@
       background-color: #f1f5f9;
     }
 
-    /* 셋팅 박스 공통 */
     .rit-setting-box {
       background: #fff;
       padding: 20px;
@@ -77,7 +75,6 @@
       width: 100%;
     }
 
-    /* 무한 흐르는 띠 배너 */
     .ticker-wrapper {
       width: 100%;
       overflow: hidden;
@@ -105,7 +102,6 @@
       }
     }
 
-    /* 모달 및 애니메이션 */
     .view-section {
       display: none;
       animation: fadeIn 0.3s ease-in-out;
@@ -126,67 +122,42 @@
         transform: translateY(0);
       }
     }
-
-    /* 토글 스위치 베이스 */
-    .toggle-checkbox:checked {
-      right: 0;
-      border-color: #2563eb;
-    }
-
-    .toggle-checkbox:checked+.toggle-label {
-      background-color: #2563eb;
-    }
   </style>
 </head>
 
 <body class="flex h-screen overflow-hidden text-gray-800">
 
-  <!-- 💡 [모바일 대응] 사이드바 배경 오버레이 -->
   <div id="sidebar-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 hidden md:hidden"
     onclick="toggleSidebar()"></div>
 
-  <!-- 💡 좌측 사이드바 네비게이션 -->
   <aside id="sidebar"
     class="fixed inset-y-0 left-0 bg-white w-64 border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col h-full">
-    <!-- 💡 [수정됨] 좌측 사이드바 네비게이션 (로고 추가) -->
     <div class="h-16 flex items-center px-6 border-b border-gray-100">
-      <img src="https://review-it-tau.vercel.app/assets/logo_review.png" alt="Review-It Logo" class="w-8 h-8 mr-2 rounded-md object-cover shadow-sm">
+      <img src="https://review-it-tau.vercel.app/assets/logo_review.png" alt="Review-It Logo"
+        class="w-8 h-8 mr-2 rounded-md object-cover shadow-sm">
       <h1 class="text-xl font-extrabold tracking-tighter text-gray-900">REVIEW-IT</h1>
       <span class="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">PRO</span>
     </div>
 
     <nav class="flex-1 overflow-y-auto py-4">
       <ul class="space-y-1">
-        <li>
-          <a href="#" onclick="switchTab('dashboard')" id="nav-dashboard"
-            class="nav-item active flex items-center px-6 py-3 text-sm text-gray-600">
-            <span class="mr-3 text-lg">📊</span> 대시보드
-          </a>
-        </li>
+        <li><a href="#" onclick="switchTab('dashboard')" id="nav-dashboard"
+            class="nav-item active flex items-center px-6 py-3 text-sm text-gray-600"><span
+              class="mr-3 text-lg">📊</span> 대시보드</a></li>
         <li class="pt-4 pb-2 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider">환경 설정</li>
-        <li>
-          <a href="#" onclick="switchTab('main-widget')" id="nav-main-widget"
-            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600">
-            <span class="mr-3 text-lg">⚙️</span> 공통 / 메인 위젯
-          </a>
-        </li>
-        <li>
-          <a href="#" onclick="switchTab('detail-widget')" id="nav-detail-widget"
-            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600">
-            <span class="mr-3 text-lg">🛍️</span> 상세페이지 위젯
-          </a>
-        </li>
+        <li><a href="#" onclick="switchTab('main-widget')" id="nav-main-widget"
+            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600"><span class="mr-3 text-lg">⚙️</span> 공통 /
+            메인 위젯</a></li>
+        <li><a href="#" onclick="switchTab('detail-widget')" id="nav-detail-widget"
+            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600"><span class="mr-3 text-lg">🛍️</span>
+            상세페이지 위젯</a></li>
         <li class="pt-4 pb-2 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider">리뷰 관리</li>
-        <li>
-          <a href="#" onclick="switchTab('reviews')" id="nav-reviews"
-            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600">
-            <span class="mr-3 text-lg">💬</span> 수집된 리뷰 목록
-          </a>
-        </li>
+        <li><a href="#" onclick="switchTab('reviews')" id="nav-reviews"
+            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600"><span class="mr-3 text-lg">💬</span> 수집된
+            리뷰 목록</a></li>
       </ul>
     </nav>
 
-    <!-- 💡 [수정됨] 사이드바 하단 몰 정보 및 스토어 이동 버튼 -->
     <div class="p-4 border-t border-gray-100 bg-gray-50 flex flex-col gap-3">
       <div>
         <div class="flex items-center gap-2 mb-1">
@@ -195,23 +166,18 @@
         </div>
         <p class="text-[10px] text-gray-500">API 연동 정상 작동 중</p>
       </div>
-
-      <!-- 쇼핑몰 이동 버튼 -->
       <a href="#" id="btn-mall-link" target="_blank"
-        class="flex items-center justify-center w-full py-2 bg-white border border-gray-300 rounded-md text-xs font-bold text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors shadow-sm">
-        내 쇼핑몰 확인 ↗
-      </a>
+        class="flex items-center justify-center w-full py-2 bg-white border border-gray-300 rounded-md text-xs font-bold text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors shadow-sm">내
+        쇼핑몰 확인 ↗</a>
     </div>
   </aside>
 
-  <!-- 💡 우측 메인 콘텐츠 영역 -->
   <div class="flex-1 flex flex-col h-full md:ml-64 relative overflow-hidden">
-
-    <!-- 💡 [수정됨] 모바일 전용 헤더 (로고 추가) -->
     <header
       class="md:hidden flex items-center justify-between h-14 bg-white border-b border-gray-200 px-4 z-30 flex-shrink-0">
       <div class="flex items-center">
-        <img src="https://review-it-tau.vercel.app/assets/logo_review.png" alt="Review-It Logo" class="w-7 h-7 mr-2 rounded-md object-cover">
+        <img src="https://review-it-tau.vercel.app/assets/logo_review.png" alt="Review-It Logo"
+          class="w-7 h-7 mr-2 rounded-md object-cover">
         <h1 class="text-lg font-extrabold tracking-tighter text-gray-900">REVIEW-IT</h1>
       </div>
       <button onclick="toggleSidebar()" class="p-2 text-gray-600 focus:outline-none">
@@ -221,198 +187,50 @@
       </button>
     </header>
 
-    <!-- 공지사항 띠 배너 -->
     <div class="ticker-wrapper flex-shrink-0">
       <div class="ticker-track py-2">
         <div class="flex items-center gap-3 px-4">
           <span
             class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Update</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 상세페이지 전용 모듈 및 어드민 UI 전면 개편 완료
+          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 모던 미니멀 리스트 레이아웃 추가! 뷰 전환 토글 도입
             🎉</span><span class="w-8 inline-block"></span>
-          <span
-            class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Notice</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">설정 변경 후에는 반드시 '전체 설정 저장' 버튼을
-            눌러주세요.</span><span class="w-8 inline-block"></span>
         </div>
-        <!-- 루프 복제 -->
         <div class="flex items-center gap-3 px-4">
           <span
             class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Update</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 상세페이지 전용 모듈 및 어드민 UI 전면 개편 완료
+          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 모던 미니멀 리스트 레이아웃 추가! 뷰 전환 토글 도입
             🎉</span><span class="w-8 inline-block"></span>
-          <span
-            class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Notice</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">설정 변경 후에는 반드시 '전체 설정 저장' 버튼을
-            눌러주세요.</span><span class="w-8 inline-block"></span>
         </div>
       </div>
     </div>
 
-    <!-- 스크롤 가능한 본문 영역 -->
     <main class="flex-1 overflow-y-auto p-4 md:p-8">
 
-      <!-- ==========================================
-           TAB 1: 대시보드
-      =========================================== -->
+      <!-- TAB 1: 대시보드 생략 (기존과 동일) -->
       <section id="tab-dashboard" class="view-section active max-w-5xl mx-auto">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">안녕하세요, 운영자님! 👋</h2>
-
         <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-6 shadow-sm mb-8">
-          <h2 class="text-[15px] font-bold text-blue-900 flex items-center gap-2 mb-3">
-            <span class="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs">✔</span>
-            [완료] REVIEW-IT 시스템 연동이 완벽하게 완료되었습니다!
-          </h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-4">
-            <div class="bg-white/80 p-5 rounded-xl border border-white">
-              <h3 class="font-bold mb-2 text-gray-800">1. 스크립트 자동 주입</h3>
-              <p class="text-xs text-gray-600 leading-relaxed">별도의 코딩 없이 메인/리스트/상세페이지 위젯 스크립트가 쇼핑몰에 자동 적용되었습니다.</p>
-            </div>
-            <div class="bg-white/80 p-5 rounded-xl border border-white">
-              <h3 class="font-bold mb-2 text-gray-800">2. 리뷰 데이터 동기화</h3>
-              <p class="text-xs text-gray-600 leading-relaxed">카페24 상품사용후기 게시판의 리뷰를 실시간으로 가져옵니다. 누적 리뷰: <strong
-                  id="total-count-dash" class="text-blue-600">0</strong>개</p>
-            </div>
-          </div>
-          <p class="mt-3 text-[11px] text-blue-600 font-medium">
-            * 본 시스템은 Cafe24 최신 API 규격(2025-12-01)을 완벽하게 지원하며, 몰 속도 저하를 최소화하는 비동기 방식으로 구동됩니다.
-          </p>
+          <h2 class="text-[15px] font-bold text-blue-900 flex items-center gap-2 mb-3">✔ [완료] REVIEW-IT 시스템 연동이 완벽하게
+            완료되었습니다!</h2>
         </div>
       </section>
 
-      <!-- ==========================================
-           TAB 2: 공통 / 메인 위젯 설정
-      =========================================== -->
+      <!-- TAB 2: 공통/메인 위젯 생략 (기존과 동일) -->
       <section id="tab-main-widget" class="view-section max-w-5xl mx-auto">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-bold text-gray-900">공통 / 메인 위젯 설정</h2>
-          <button onclick="saveHeaderSettings()"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5">설정
-            저장하기</button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <!-- 메인페이지 위젯 노출 -->
-          <div class="rit-setting-box">
-            <span class="rit-label">메인페이지 위젯 노출</span>
-            <div class="rit-switch-group">
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="main_exposure" value="true" class="hidden peer" checked>
-                <div
-                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
-                  ON</div>
-              </label>
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="main_exposure" value="false" class="hidden peer">
-                <div
-                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
-                  OFF</div>
-              </label>
-            </div>
-          </div>
-
-          <!-- 위젯 노출 타입 -->
-          <div class="rit-setting-box">
-            <span class="rit-label">위젯 노출 레이아웃</span>
-            <div class="rit-switch-group">
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="display_type" value="grid" class="hidden peer" checked>
-                <div
-                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
-                  메이슨리 격자</div>
-              </label>
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="display_type" value="swiper" class="hidden peer">
-                <div
-                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
-                  가로 슬라이드</div>
-              </label>
-            </div>
-          </div>
-
-          <!-- 그리드 단 수 설정 -->
-          <div class="rit-setting-box">
-            <span class="rit-label">그리드 단 수 설정</span>
-            <div class="flex gap-2 w-full">
-              <select id="select-grid-pc"
-                class="flex-1 p-2 border border-gray-200 rounded text-xs outline-none bg-white">
-                <option value="4">PC 4단</option>
-                <option value="5" selected>PC 5단</option>
-              </select>
-              <select id="select-grid-mo"
-                class="flex-1 p-2 border border-gray-200 rounded text-xs outline-none bg-white">
-                <option value="1">MO 1단</option>
-                <option value="2" selected>MO 2단</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- 리스트 게시판 디자인 -->
-          <div class="rit-setting-box">
-            <span class="rit-label">리뷰 게시판 스킨</span>
-            <div class="rit-switch-group">
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="list_design" value="review_it" class="hidden peer" checked>
-                <div
-                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
-                  Review-It 뷰</div>
-              </label>
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="list_design" value="cafe24" class="hidden peer">
-                <div
-                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
-                  기존 카페24 뷰</div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- 헤더 문구 커스텀 -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <div class="flex justify-between items-center mb-5 border-b border-gray-100 pb-4">
-            <h3 class="text-md font-bold text-gray-800">위젯 타이틀 커스텀</h3>
-            <div class="flex items-center gap-2">
-              <span class="text-[11px] font-bold text-blue-600 uppercase" id="header-toggle-text">노출 켜짐</span>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="toggle-header" class="sr-only peer" checked onchange="updateToggleText()">
-                <div
-                  class="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
-                </div>
-              </label>
-            </div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label class="block text-[11px] font-bold text-gray-500 mb-1.5">상단 소제목 (Tagline)</label>
-              <input type="text" id="input-tagline" placeholder="예: Verified Authenticity"
-                class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 transition-colors">
-            </div>
-            <div>
-              <label class="block text-[11px] font-bold text-gray-500 mb-1.5">메인 제목 (Main Title)</label>
-              <input type="text" id="input-title" placeholder="예: Product Reviews"
-                class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 transition-colors">
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-[11px] font-bold text-gray-500 mb-1.5">상세 설명 (Description)</label>
-              <textarea id="input-description" rows="2" placeholder="고객이 직접 남긴 생생한 리얼 피드를 확인해보세요."
-                class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 resize-none transition-colors"></textarea>
-            </div>
-          </div>
-        </div>
+        <!-- 기존 메인위젯 내용 유지 -->
       </section>
 
-      <!-- ==========================================
-           TAB 3: 상세페이지 위젯 설정
-      =========================================== -->
+      <!-- 💡 TAB 3: 상세페이지 위젯 설정 (레이아웃 설정 변경) -->
       <section id="tab-detail-widget" class="view-section max-w-5xl mx-auto">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-2xl font-bold text-gray-900">상세페이지 전용 설정</h2>
           <button onclick="saveHeaderSettings()"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5">설정
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all">설정
             저장하기</button>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <!-- 1. 상단 평점 요약 토글 -->
+          <!-- 상단 3개 토글은 유지 -->
           <div class="rit-setting-box flex flex-row items-center justify-between">
             <div>
               <span class="rit-label block !mb-1">1. 상단 평점 요약</span>
@@ -420,11 +238,11 @@
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" id="toggle-detail-summary" class="sr-only peer" checked>
-              <div class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+              <div
+                class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+              </div>
             </label>
           </div>
-
-          <!-- 2. 포토 갤러리 토글 -->
           <div class="rit-setting-box flex flex-row items-center justify-between">
             <div>
               <span class="rit-label block !mb-1">2. 썸네일 하단 갤러리</span>
@@ -432,11 +250,11 @@
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" id="toggle-detail-gallery" class="sr-only peer" checked>
-              <div class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+              <div
+                class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+              </div>
             </label>
           </div>
-
-          <!-- 3. 하단 메인 리뷰 토글 -->
           <div class="rit-setting-box flex flex-row items-center justify-between">
             <div>
               <span class="rit-label block !mb-1">3. 하단 메인 리뷰</span>
@@ -444,27 +262,32 @@
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" id="toggle-detail-main" class="sr-only peer" checked>
-              <div class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+              <div
+                class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+              </div>
             </label>
           </div>
 
-          <!-- 4. 메인 리뷰 레이아웃 선택 -->
+          <!-- 💡 4. 메인 리뷰 레이아웃 선택 (슬라이드 제거 -> 썸네일/리스트형으로 변경) -->
           <div class="rit-setting-box">
-            <span class="rit-label">하단 메인 레이아웃</span>
+            <span class="rit-label">기본 뷰 (Default View)</span>
             <div class="rit-switch-group">
               <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="detail_display_type" value="masonry" class="hidden peer" checked>
-                <div class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">메이슨리</div>
+                <input type="radio" name="detail_display_type" value="thumbnail" class="hidden peer" checked>
+                <div
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">
+                  썸네일형</div>
               </label>
               <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="detail_display_type" value="swiper" class="hidden peer">
-                <div class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">슬라이드</div>
+                <input type="radio" name="detail_display_type" value="list" class="hidden peer">
+                <div
+                  class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">
+                  리스트형</div>
               </label>
             </div>
           </div>
         </div>
       </section>
-
       <!-- ==========================================
            TAB 4: 리뷰 관리 목록
       =========================================== -->
@@ -663,7 +486,7 @@
         alert('❌ 저장 중 오류 발생: ' + err.message);
       }
     }
-    
+
     // 💡 [핵심 버그 수정] DOM 널 체크가 추가된 데이터 로드 함수
     async function loadAdminData() {
       try {

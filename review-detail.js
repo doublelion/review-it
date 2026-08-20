@@ -1,11 +1,10 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v2.1.0 - Ultimate Layout Fixes)
- * @Feature: Masonry Conflict Resolved, Fallback Stats Sync, Grid View Optimized
+ * @Project: Review-It Detail Engine (Production Master v3.0 - Ultimate Zara/COS List UX)
+ * @Feature: View Toggle (Thumbnail vs List), Modern Minimal List Layout
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
 
-  // 기존 위젯 클린업
   document.querySelectorAll('.rit-oy-summary-wrap, .rit-thumb-wrap, .rit-detail-container, #ritDtlModal').forEach(el => el.remove());
 
   const getProductNo = () => {
@@ -50,6 +49,7 @@
     listOrder: [],
     photoReviews: [],
     isFallbackDemo: false,
+    viewType: 'thumbnail', // 💡 현재 활성화된 뷰 타입 (thumbnail or list)
 
     async init() {
       this.injectCSS();
@@ -57,8 +57,9 @@
       if (!productNo) return;
 
       await this.loadSettings();
-      await this.loadReviewsAndParse();
+      this.viewType = this.settings.detail_display_type === 'list' ? 'list' : 'thumbnail';
 
+      await this.loadReviewsAndParse();
       this.initModal();
 
       if (this.settings.is_detail_summary_enabled !== false) this.renderTopSummary();
@@ -74,7 +75,7 @@
         const data = await res.json();
         if (data && data.length > 0) this.settings = data[0];
       } catch (e) {
-        this.settings = { detail_display_type: 'grid', is_detail_summary_enabled: true, is_detail_gallery_enabled: true, is_detail_main_enabled: true };
+        this.settings = { detail_display_type: 'thumbnail', is_detail_summary_enabled: true, is_detail_gallery_enabled: true, is_detail_main_enabled: true };
       }
     },
 
@@ -160,7 +161,6 @@
         let res = await fetch(`${baseUrl}&product_no=eq.${productNo}&order=created_at.desc`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
         let list = await res.json();
 
-        // 💡 특정 상품의 리뷰가 0개라면, 전체 리뷰 15개를 땡겨오는 Fallback 로직 (확인 완)
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
           const fbRes = await fetch(`${baseUrl}&order=created_at.desc&limit=15`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
@@ -215,7 +215,6 @@
       let infoArea = document.querySelector('.xans-product-info, .infoArea, .prdInfo, .product-info-section');
       if (!infoArea) return;
 
-      // 💡 [핵심 픽스] Fallback 여부와 상관없이 무조건 땡겨온 데이터의 갯수를 표시합니다.
       const realCount = this.listOrder.length;
       let avgScore = '5.0';
 
@@ -223,9 +222,7 @@
         let totalStars = 0;
         this.listOrder.forEach(id => totalStars += (this.data[id].stars || 5));
         avgScore = (totalStars / realCount).toFixed(1);
-      } else {
-        avgScore = '0.0';
-      }
+      } else { avgScore = '0.0'; }
 
       const avatarPhotos = this.photoReviews.slice(0, 2);
       let avatarsHtml = '';
@@ -244,9 +241,7 @@
             <span class="rit-oy-star">★ ${avgScore}</span>
             <span class="rit-oy-count">리뷰 ${realCount}건</span>
           </div>
-          <div class="rit-oy-avatars">
-            ${avatarsHtml}
-          </div>
+          <div class="rit-oy-avatars">${avatarsHtml}</div>
         </div>
       `;
       const productNameEl = infoArea.querySelector('.name, .prd-name, h2, h3, .headingArea');
@@ -263,8 +258,6 @@
 
       let photosHtml = '';
       const displayPhotos = this.photoReviews.slice(0, 5);
-
-      // 💡 [핵심 픽스] 썸네일 카운트도 Fallback 무시하고 데이터 갯수대로 출력
       const displayCount = this.photoReviews.length;
 
       if (displayPhotos.length === 0) {
@@ -303,7 +296,6 @@
       container.id = 'rit-detail-main-board';
       container.className = 'rit-detail-container cboth';
 
-      // 💡 [핵심 픽스] 메인 대시보드도 Fallback 무시하고 데이터 갯수대로 출력
       const realCount = this.listOrder.length;
       const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
       let avgScore = '0.0';
@@ -362,8 +354,25 @@
         `;
       }
 
-      const isSwiper = this.settings.detail_display_type === 'swiper';
-      contentHtml += `<div id="rit-main-grid" class="${isSwiper ? 'swiper rit-main-swiper' : ''}">${isSwiper ? '<div class="swiper-wrapper"></div>' : ''}</div>`;
+      // 💡 [핵심 UX] 뷰 전환 토글 (썸네일형 / 리스트형) 추가
+      const viewToggleHtml = `
+        <div class="rit-controls-area">
+          <div class="rit-controls-count">총 <strong>${realCount}</strong>개의 리뷰</div>
+          <div class="rit-view-toggles">
+            <button id="rit-view-btn-thumbnail" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.switchViewType('thumbnail')" class="rit-view-btn ${this.viewType === 'thumbnail' ? 'active' : ''}">
+              <svg width="14" height="14" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              썸네일형
+            </button>
+            <button id="rit-view-btn-list" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.switchViewType('list')" class="rit-view-btn ${this.viewType === 'list' ? 'active' : ''}">
+              <svg width="14" height="14" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              리스트형
+            </button>
+          </div>
+        </div>
+      `;
+
+      contentHtml += viewToggleHtml;
+      contentHtml += `<div id="rit-main-grid"></div>`;
 
       container.innerHTML = `
         ${dashboardHtml}
@@ -373,68 +382,78 @@
       this.injectToBoard(container);
 
       if (this.listOrder.length > 0) {
-        if (isSwiper) this.initSwiper();
-        else this.renderGrid();
+        this.renderGrid();
       }
     },
 
+    // 💡 토글 스위치 동작 함수
+    switchViewType(type) {
+      this.viewType = type;
+      document.getElementById('rit-view-btn-thumbnail').classList.remove('active');
+      document.getElementById('rit-view-btn-list').classList.remove('active');
+      document.getElementById(`rit-view-btn-${type}`).classList.add('active');
+      this.renderGrid();
+    },
+
+    // 💡 모던 & 미니멀 '리스트형' UI 템플릿 (ZARA / COS 트렌드)
+    getListItemHTML(id) {
+      const d = this.data[id];
+      const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
+      const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || rawName.includes(CONFIG.mallName))) || CONFIG.adminKeywords.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
+      const displayName = isMallOwner ? rawName : this.maskName(rawName);
+
+      const rawDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
+      let formattedDate = rawDate ? rawDate.replace(/-/g, '.') : '';
+
+      const validImages = d.all_images.filter(img => img && !img.includes('rit_noimg.jpg'));
+      const imagesHtml = validImages.length > 0 ? `
+        <div class="rit-list-images">
+          ${validImages.slice(0, 4).map(img => `<img src="${img}" class="rit-list-img-thumb" onerror="this.style.display='none';">`).join('')}
+        </div>
+      ` : '';
+
+      return `
+      <div class="rit-list-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')">
+        <div class="rit-list-meta">
+          <div class="rit-list-stars">${'★'.repeat(d.stars || 5)}</div>
+          <div class="rit-list-author">${displayName}</div>
+          <div class="rit-list-date">${formattedDate}</div>
+        </div>
+        <div class="rit-list-content">
+          <div class="rit-list-subject">${d.subject || '리뷰'}</div>
+          <div class="rit-list-text">${d.clean_text_body || ''}</div>
+          ${imagesHtml}
+        </div>
+      </div>`;
+    },
+
+    // 💡 기존 썸네일형(그리드/메이슨리) UI 템플릿
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.defaultImg;
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-
       const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || rawName.includes(CONFIG.mallName))) || CONFIG.adminKeywords.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
       const avgScore = d.stars || 5;
 
       const rawDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
-      let formattedDate = rawDate;
-      if (rawDate) {
-        const dateObj = new Date(rawDate);
-        if (!isNaN(dateObj)) {
-          const yy = String(dateObj.getFullYear()).slice(-2);
-          const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-          const dd = String(dateObj.getDate()).padStart(2, '0');
-          formattedDate = `${yy}.${mm}.${dd} 작성`;
-        }
-      }
+      let formattedDate = rawDate ? rawDate.replace(/-/g, '.') : '';
 
       const verifiedBadgeHtml = !isMallOwner ? `
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
 
-      const actualProductName = '상품 보기';
-      const actualProductImg = d.product_img || thumb;
-      const productLink = productNo ? `/product/detail.html?product_no=${productNo}` : '';
-
-      const productChipHtml = `
-        <div class="rit-product-chip" 
-             ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} 
-             onmouseover="this.style.background='#f1f5f9'" 
-             onmouseout="this.style.background='#f8fafc'"
-             style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; cursor: pointer;">
-          <img src="${actualProductImg}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
-          <span style="font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${actualProductName}</span>
-        </div>
-      `;
-
-      // rit-masonry-item 전용 래퍼 
       return `
       <div class="rit-masonry-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')">
-        <div class="rit-card-img-container" style="position: relative; width: 100%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
-          <img src="${thumb}" class="rit-card-img" loading="lazy" 
-              onerror="this.onerror=null; this.src='${CONFIG.defaultImg}';"
-              style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
+        <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
+          <img src="${thumb}" class="rit-card-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}';" style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
           ${verifiedBadgeHtml}
         </div>
-        
         <div class="rit-card-info" style="position: relative; z-index: 3; background: #fff; padding: 16px 14px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display:flex; align-items:center; gap:5px; margin-bottom:8px; font-size:11px; font-weight:700; color:#52525b;">
-             <span style="color:#fbbf24;">★</span>
-             <span>${Number(avgScore).toFixed(1)}</span>
+             <span style="color:#fbbf24;">★</span><span>${Number(avgScore).toFixed(1)}</span>
           </div>
           <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; height: 2.8em; color: #222; margin-bottom: 12px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${d.subject || d.clean_text_body || ''}</div>
-          ${productChipHtml}
           <div class="rit-card-meta" style="border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
             <div style="display: flex; align-items: center; gap: 6px; width: 100%; overflow: hidden;">
               <span style="font-size: 11px; color: #71717a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${displayName}</span>
@@ -450,32 +469,30 @@
       const grid = document.getElementById('rit-main-grid');
       if (!grid) return;
 
-      let cols = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 768 ? 3 : 2);
-      if (this.listOrder.length < cols) cols = this.listOrder.length;
+      // 💡 선택된 View Type에 따라 렌더링을 분기합니다.
+      if (this.viewType === 'list') {
+        grid.innerHTML = this.listOrder.map(id => this.getListItemHTML(id)).join('');
+        grid.style.display = 'flex';
+        grid.style.flexDirection = 'column';
+        grid.style.gap = '0'; // 리스트는 CSS의 padding/border로 간격을 조절합니다.
+      } else {
+        let cols = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 768 ? 3 : 2);
+        if (this.listOrder.length < cols) cols = this.listOrder.length;
+        const columnDOMs = Array.from({ length: cols }, () => []);
+        this.listOrder.forEach((id, i) => columnDOMs[i % cols].push(this.getCardHTML(id)));
 
-      const columnDOMs = Array.from({ length: cols }, () => []);
+        grid.innerHTML = columnDOMs.map(col => `
+          <div class="rit-masonry-column" style="display:flex; flex-direction:column; flex:1; gap:16px;">
+            ${col.join('')}
+          </div>
+        `).join('');
 
-      this.listOrder.forEach((id, i) => {
-        columnDOMs[i % cols].push(this.getCardHTML(id));
-      });
-
-      grid.innerHTML = columnDOMs.map(col => `
-        <div class="rit-masonry-column" style="display:flex; flex-direction:column; flex:1; gap:16px;">
-          ${col.join('')}
-        </div>
-      `).join('');
-
-      grid.style.display = 'flex';
-      grid.style.alignItems = 'flex-start'; // 💡 강제 세로 늘어남 방지
-      grid.style.gap = '16px';
-      grid.style.width = '100%';
-    },
-
-    initSwiper() {
-      const wrapper = document.querySelector('.rit-main-swiper .swiper-wrapper');
-      if (!wrapper) return;
-      wrapper.innerHTML = this.listOrder.map(id => `<div class="swiper-slide" style="width:260px; height:auto;">${this.getCardHTML(id)}</div>`).join('');
-      if (typeof Swiper !== 'undefined') new Swiper('.rit-main-swiper', { slidesPerView: 'auto', spaceBetween: 16, freeMode: true, grabCursor: true });
+        grid.style.display = 'flex';
+        grid.style.flexDirection = 'row';
+        grid.style.alignItems = 'flex-start';
+        grid.style.gap = '16px';
+        grid.style.width = '100%';
+      }
     },
 
     initModal() {
@@ -714,7 +731,6 @@
         .cboth { clear: both !important; display: block !important; }
         .rit-thumb-wrap, .rit-oy-summary-wrap, .rit-detail-container { font-family: 'Pretendard', sans-serif !important; font-size: 13px !important; box-sizing: border-box !important; }
         
-        /* Empty State */
         .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%) !important; border: 1px dashed #cbd5e1 !important; border-radius: 12px !important; padding: 60px 20px !important; text-align: center !important; width: 100% !important; margin: 40px 0 !important; }
         .rit-empty-icon { font-size: 40px !important; margin-bottom: 15px !important; animation: bounce 2s infinite !important; }
         .rit-empty-title { font-size: 18px !important; font-weight: 800 !important; color: #1e293b !important; margin-bottom: 10px !important; }
@@ -727,7 +743,6 @@
         .rit-main-title { font-size: 20px !important; font-weight: 800 !important; margin: 0 !important; color: #111 !important; }
         .rit-desc { font-size: 13px !important; color: #71717a !important; margin-top: 5px !important; }
 
-        /* Thumbnail CSS */
         .rit-thumb-wrap { margin: 25px 0 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
         .rit-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
         .rit-thumb-title { font-size: 14px !important; font-weight: 800 !important; color: #111 !important; }
@@ -743,20 +758,18 @@
         .rit-dummy-item img { opacity: 0.1 !important; filter: grayscale(100%) !important; }
         .rit-dummy-text { position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; font-size: 10px !important; font-weight: 700 !important; color: #64748b !important; line-height: 1.3 !important; }
 
-        /* Top Summary */
         .rit-oy-summary-wrap { margin: 15px 0 !important; padding: 12px 16px !important; background: #f8fafc !important; border-radius: 8px !important; cursor: pointer !important; border: 1px solid #f1f5f9 !important; width: 100% !important; }
         .rit-oy-content { display: flex !important; justify-content: space-between !important; align-items: center !important; }
         .rit-oy-left { display: flex !important; align-items: center !important; gap: 8px !important; }
         .rit-oy-star { font-size: 14px !important; font-weight: 800 !important; color: #18181b !important; }
         .rit-oy-count { font-size: 12px !important; color: #71717a !important; border-left: 1px solid #e4e4e7 !important; padding-left: 8px !important; }
         .rit-oy-avatars { display: flex !important; align-items: center !important; }
-        .rit-oy-avatar { width: 24px !important; height: 24px !important; border-radius: 50% !important; object-fit: cover !important; border: 1.5px solid #ff425c !important; margin-left: -8px !important; position: relative !important; z-index: 2 !important; }
+        .rit-oy-avatar { width: 24px !important; height: 24px !important; border-radius: 50% !important; object-fit: cover !important; border: 2px solid #fff !important; margin-left: -8px !important; position: relative !important; z-index: 2 !important; }
         .rit-oy-avatar:first-child { margin-left: 0 !important; z-index: 3 !important; }
         .rit-oy-avatar-more { width: 24px !important; height: 24px !important; border-radius: 50% !important; background: #e4e4e7 !important; color: #52525b !important; font-size: 10px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: -8px !important; border: 1.5px solid #fff !important; }
         
-        /* Dashboard Container */
         .rit-detail-container { width: 100% !important; max-width: 100% !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
-        .rit-dashboard-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; margin-bottom: 30px !important;}
+        .rit-dashboard-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; margin-bottom: 20px !important;}
         @media (min-width: 768px) { .rit-dashboard-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
         @media (max-width: 767px) { .rit-detail-container { padding: 0 !important; } .rit-dashboard-card { border-radius: 0 !important; border-left: none !important; border-right: none !important; } }
         .rit-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
@@ -771,11 +784,34 @@
         .rit-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
         .rit-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
 
-        /* 💡 Masonry Item Override (이 코드가 카드가 잘리는 현상을 완벽히 방어합니다) */
+        /* 💡 뷰 전환 토글바 (모던 디자인) */
+        .rit-controls-area { display: flex !important; justify-content: space-between !important; align-items: center !important; margin-bottom: 20px !important; padding-bottom: 15px !important; border-bottom: 1px solid #e4e4e7 !important; }
+        .rit-controls-count { font-size: 14px !important; color: #111 !important; }
+        .rit-controls-count strong { font-weight: 800 !important; }
+        .rit-view-toggles { display: flex !important; gap: 4px !important; background: #f4f4f5 !important; padding: 4px !important; border-radius: 6px !important; }
+        .rit-view-btn { display: flex !important; align-items: center !important; gap: 4px !important; background: transparent !important; border: none !important; color: #71717a !important; padding: 6px 10px !important; border-radius: 4px !important; cursor: pointer !important; font-size: 12px !important; font-weight: 600 !important; transition: all 0.2s !important; }
+        .rit-view-btn svg { fill: currentColor; width: 14px; height: 14px; }
+        .rit-view-btn.active { background: #fff !important; color: #111 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important; }
+
+        /* 💡 Masonry Item Override */
         .rit-masonry-item { position: relative !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; border-radius: 12px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important; background: #fff !important; width: 100% !important; cursor: pointer !important; border: 1px solid #f0f0f0 !important; transition: transform 0.2s ease !important; height: auto !important; }
         .rit-masonry-item:hover { transform: translateY(-3px) !important; }
 
-        /* 💡 GRID VIEW Overlay Style (비율 정상화) */
+        /* 💡 ZARA/COS 스타일 모던 리스트 (List View) CSS */
+        .rit-list-item { display: flex !important; flex-direction: column !important; padding: 24px 0 !important; border-bottom: 1px solid #f0f0f0 !important; cursor: pointer !important; transition: background 0.2s !important; }
+        @media (min-width: 768px) { .rit-list-item { flex-direction: row !important; gap: 40px !important; } }
+        .rit-list-meta { width: 180px !important; flex-shrink: 0 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; margin-bottom: 16px !important; }
+        @media (max-width: 767px) { .rit-list-meta { flex-direction: row !important; align-items: center !important; gap: 12px !important; margin-bottom: 10px !important; } }
+        .rit-list-stars { color: #111 !important; font-size: 14px !important; letter-spacing: 1px !important; }
+        .rit-list-author { font-size: 13px !important; color: #52525b !important; font-weight: 700 !important; }
+        .rit-list-date { font-size: 12px !important; color: #a1a1aa !important; }
+        .rit-list-content { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 10px !important; }
+        .rit-list-subject { font-size: 14px !important; font-weight: 700 !important; color: #111 !important; }
+        .rit-list-text { font-size: 13px !important; color: #444 !important; line-height: 1.6 !important; display: -webkit-box !important; -webkit-line-clamp: 3 !important; -webkit-box-orient: vertical !important; overflow: hidden !important; word-break: keep-all !important; }
+        .rit-list-images { display: flex !important; gap: 8px !important; margin-top: 8px !important; }
+        .rit-list-img-thumb { width: 80px !important; height: 80px !important; border-radius: 6px !important; object-fit: cover !important; border: 1px solid #f0f0f0 !important; }
+
+        /* 모달 오버레이 설정 보강 */
         #ritDtlGridView { position:absolute; inset:0; background:#fff; z-index:100; overflow-y:auto; padding:20px; }
         #ritDtlGridView.rit-hidden { display:none !important; }
         #ritDtlGridInner { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
