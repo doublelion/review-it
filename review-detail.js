@@ -1,10 +1,11 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v3.2 - Mobile UX & Scroll Patch)
- * @Feature: Cafe24 Tab Scroll Fix, Mobile Grid Padding, Dashboard Layout Optimized
+ * @Project: Review-It Detail Engine (Production Master v3.5 - Mobile First & Tab Auto-Scroll)
+ * @Feature: Cafe24 Mobile Tab Override, Box-sizing Fixed, Responsive UI Perfected
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
 
+  // 기존 위젯 클린업
   document.querySelectorAll('.rit-oy-summary-wrap, .rit-thumb-wrap, .rit-detail-container, #ritDtlModal').forEach(el => el.remove());
 
   const getProductNo = () => {
@@ -49,7 +50,7 @@
     listOrder: [],
     photoReviews: [],
     isFallbackDemo: false,
-    viewType: 'thumbnail', 
+    viewType: 'thumbnail',
 
     async init() {
       this.injectCSS();
@@ -67,28 +68,40 @@
       if (this.settings.is_detail_main_enabled !== false) this.renderMainDetailBoard();
     },
 
-    // 💡 [핵심 픽스] 카페24 모바일 탭 UI 대응 스크롤 전용 함수
+    // 💡 [핵심 픽스 1] 카페24 모바일 탭 강제 열기 및 스크롤 추적 고도화
     scrollToReviews() {
-      // 1. 카페24 탭 강제 활성화 시도 (후기/리뷰 관련 탭 찾기)
-      const tabs = document.querySelectorAll('a[href*="Review"], a[href*="review"], li[id*="review"], .tab_review, a[name="use_review"], a[href="#prdReview"]');
-      for (let tab of tabs) {
-        if (tab.innerText.includes('후기') || tab.innerText.includes('리뷰') || tab.id.includes('review')) {
+      let isTabClicked = false;
+      // 카페24 모바일 및 PC 탭 셀렉터 전면 대응
+      const tabSelectors = [
+        'a[href*="#prdReview"]', 'a[href*="prdReview"]', 'a[name="use_review_mobile"]',
+        'a[name="use_review"]', '.tabProduct a[href*="Review"]', 'li[id*="review"] a'
+      ];
+
+      for (let selector of tabSelectors) {
+        const tabs = document.querySelectorAll(selector);
+        for (let tab of tabs) {
           if (typeof tab.click === 'function') {
             tab.click();
-            break;
+            isTabClicked = true;
+            // 탭 클릭 시 UI 동기화를 위해 부모 li에 selected 클래스 부여
+            const parentLi = tab.closest('li');
+            if (parentLi && parentLi.parentElement) {
+              Array.from(parentLi.parentElement.children).forEach(sibling => sibling.classList.remove('selected'));
+              parentLi.classList.add('selected');
+            }
           }
         }
       }
-      
-      // 2. 탭이 열리면서 높이값이 계산될 시간을 확보한 뒤 스크롤 이동
+
+      // DOM 렌더링 후(애니메이션 고려) 스크롤 부드럽게 이동
       setTimeout(() => {
         const target = document.getElementById('rit-detail-main-board');
         if (target) {
-          const yOffset = -60; // 상단 고정 헤더 등을 고려한 오프셋
-          const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
-          window.scrollTo({top: y, behavior: 'smooth'});
+          // 헤더 높이만큼 여유 오프셋(-70px) 부여
+          const y = target.getBoundingClientRect().top + window.pageYOffset - 70;
+          window.scrollTo({ top: y, behavior: 'smooth' });
         }
-      }, 300);
+      }, isTabClicked ? 300 : 50);
     },
 
     async loadSettings() {
@@ -259,7 +272,6 @@
 
       const summaryContainer = document.createElement('div');
       summaryContainer.className = 'rit-oy-summary-wrap cboth';
-      // 💡 [수정] 클릭 시 커스텀 스크롤 함수 적용
       summaryContainer.innerHTML = `
         <div class="rit-oy-content" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.scrollToReviews()">
           <div class="rit-oy-left">
@@ -280,7 +292,7 @@
 
       const galleryContainer = document.createElement('div');
       galleryContainer.className = 'rit-thumb-wrap cboth';
-      
+
       let photosHtml = '';
       const displayPhotos = this.photoReviews.slice(0, 5);
       const displayCount = this.photoReviews.length;
@@ -306,7 +318,6 @@
         }).join('');
       }
 
-      // 💡 [수정] 전체보기 클릭 시 커스텀 스크롤 함수 적용
       galleryContainer.innerHTML = `
         <div class="rit-thumb-header">
           <span class="rit-thumb-title">포토리뷰 <span class="rit-count">(${displayCount}건)</span></span>
@@ -339,7 +350,7 @@
       const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
 
       const dashboardHtml = `
-        <div class="rit-dtl-dash-card" style="margin-top:20px;">
+        <div class="rit-dtl-dash-card">
           <div class="rit-dtl-dash-left">
             <div class="rit-dtl-dash-score-box">
               <div class="rit-dtl-dash-big-score">${avgScore}</div> 
@@ -495,7 +506,7 @@
         grid.innerHTML = this.listOrder.map(id => this.getListItemHTML(id)).join('');
         grid.style.display = 'flex';
         grid.style.flexDirection = 'column';
-        grid.style.gap = '0'; 
+        grid.style.gap = '0';
       } else {
         let cols = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 768 ? 3 : 2);
         if (this.listOrder.length < cols) cols = this.listOrder.length;
@@ -524,7 +535,7 @@
       modalContainer.id = 'ritDtlModal';
       modalContainer.className = 'rit-modal-container';
       modalContainer.style.display = 'none';
-      
+
       modalContainer.innerHTML = `
       <div class="rit-modal-bg" onclick="ReviewDetailApp.closeModal()"></div>
       
@@ -754,7 +765,9 @@
         .cboth { clear: both !important; display: block !important; }
         .rit-thumb-wrap, .rit-oy-summary-wrap, .rit-detail-container { font-family: 'Pretendard', sans-serif !important; font-size: 13px !important; box-sizing: border-box !important; }
         
-        .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%) !important; border: 1px dashed #cbd5e1 !important; border-radius: 12px !important; padding: 60px 20px !important; text-align: center !important; width: 100% !important; margin: 40px 0 !important; }
+        /* 💡 Empty State CSS Fixes */
+        .rit-empty-state { box-sizing: border-box !important; background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%) !important; border: 1px dashed #cbd5e1 !important; border-radius: 12px !important; padding: 40px 16px !important; text-align: center !important; width: 100% !important; margin: 20px 0 !important; }
+        @media (min-width: 768px) { .rit-empty-state { padding: 60px 20px !important; margin: 40px 0 !important; } }
         .rit-empty-icon { font-size: 40px !important; margin-bottom: 15px !important; animation: bounce 2s infinite !important; }
         .rit-empty-title { font-size: 18px !important; font-weight: 800 !important; color: #1e293b !important; margin-bottom: 10px !important; }
         .rit-empty-desc { font-size: 14px !important; color: #64748b !important; line-height: 1.6 !important; margin-bottom: 25px !important; }
@@ -764,8 +777,9 @@
         
         .rit-header-area { margin-bottom: 20px !important; }
         .rit-main-title { font-size: 20px !important; font-weight: 800 !important; margin: 0 !important; color: #111 !important; }
-        .rit-desc { max-width:100%!important; font-size: 13px !important; color: #71717a !important; margin-top: 5px !important; }
+        .rit-desc { font-size: 13px !important; color: #71717a !important; margin-top: 5px !important; }
 
+        /* Thumbnail CSS */
         .rit-thumb-wrap { margin: 25px 0 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
         .rit-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
         .rit-thumb-title { font-size: 14px !important; font-weight: 800 !important; color: #111 !important; }
@@ -781,6 +795,7 @@
         .rit-dummy-item img { opacity: 0.1 !important; filter: grayscale(100%) !important; }
         .rit-dummy-text { position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; font-size: 10px !important; font-weight: 700 !important; color: #64748b !important; line-height: 1.3 !important; }
 
+        /* Top Summary */
         .rit-oy-summary-wrap { margin: 15px 0 !important; padding: 12px 16px !important; background: #f8fafc !important; border-radius: 8px !important; cursor: pointer !important; border: 1px solid #f1f5f9 !important; width: 100% !important; }
         .rit-oy-content { display: flex !important; justify-content: space-between !important; align-items: center !important; }
         .rit-oy-left { display: flex !important; align-items: center !important; gap: 8px !important; }
@@ -791,12 +806,13 @@
         .rit-oy-avatar:first-child { margin-left: 0 !important; z-index: 3 !important; }
         .rit-oy-avatar-more { width: 24px !important; height: 24px !important; border-radius: 50% !important; background: #e4e4e7 !important; color: #52525b !important; font-size: 10px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: -8px !important; border: 1.5px solid #fff !important; }
         
-        .rit-detail-container { width: 100% !important; max-width: 100% !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
+        /* 💡 Dashboard Container CSS Fixes */
+        .rit-detail-container { box-sizing: border-box !important; width: 100% !important; max-width: 100% !important; margin: 20px auto 40px !important; padding: 0 16px !important; overflow: hidden !important; }
+        @media (min-width: 768px) { .rit-detail-container { margin: 30px auto 60px !important; } }
         
-        /* 💡 Dashboard Container - box-sizing 추가로 width 100% 여도 영역 안벗어나게 수정 */
-        .rit-dtl-dash-card { box-sizing: border-box !important; background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; margin-bottom: 30px !important;}
-        @media (min-width: 768px) { .rit-dtl-dash-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
-        @media (max-width: 767px) { .rit-detail-container { padding: 0 !important; } .rit-dtl-dash-card { border-radius: 0 !important; border-left: none !important; border-right: none !important; } }
+        .rit-dtl-dash-card { box-sizing: border-box !important; background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 20px 16px !important; display: flex !important; flex-direction: column !important; gap: 16px !important; margin-bottom: 20px !important; width: 100% !important; }
+        @media (min-width: 768px) { .rit-dtl-dash-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: 24px !important; gap: 20px !important; margin-bottom: 30px !important; } }
+        
         .rit-dtl-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
         .rit-dtl-dash-score-box { display: flex !important; align-items: center !important; gap: 15px !important; }
         .rit-dtl-dash-big-score { font-size: 36px !important; font-weight: 800 !important; color: #111 !important; line-height: 1 !important; }
@@ -834,14 +850,13 @@
         .rit-list-images { display: flex !important; gap: 8px !important; margin-top: 8px !important; }
         .rit-list-img-thumb { width: 80px !important; height: 80px !important; border-radius: 6px !important; object-fit: cover !important; border: 1px solid #f0f0f0 !important; }
 
-        /* 💡 Modal Grid Overlay Fixes (Mobile padding reduced) */
+        /* Modal Grid Overlay */
         #ritDtlGridView { position:absolute; inset:0; background:#fff; z-index:100; overflow-y:auto; box-sizing: border-box !important; padding:20px; }
         @media (max-width: 767px) { #ritDtlGridView { padding: 10px 2px !important; } }
         #ritDtlGridView.rit-hidden { display:none !important; }
         
         #ritDtlGridInner { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
         
-        /* 💡 [수정 3] 그리드 썸네일 라운드 완벽 제거 */
         .rit-grid-thumb { aspect-ratio:1/1; cursor:pointer; overflow:hidden; border-radius: 0 !important; }
         .rit-grid-thumb img { width:100%; height:100%; object-fit:cover; }
         
