@@ -380,7 +380,7 @@
             <a href="${writeUrl}" class="rit-btn-write">첫 리뷰 작성하고 혜택 받기</a>
           </div>
           <div class="rit-header-area">
-            <h2 class="rit-main-title">다른 고객들의 베스트 리뷰</h2>
+            <h2 class="rit-main-title rit-view-title">다른 고객들의 베스트 리뷰</h2>
             <p class="rit-desc">현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!</p>
           </div>
         `;
@@ -791,6 +791,7 @@
         
         .rit-header-area { margin-bottom: 20px !important; }
         .rit-main-title { font-size: 20px !important; font-weight: 800 !important; margin: 0 !important; color: #111 !important; }
+        .rit-main-title.rit-view-title { font-size: 20px!important; }
         .rit-desc { font-size: 13px !important; color: #71717a !important; margin-top: 5px !important; }
 
         .rit-thumb-wrap { margin: 25px 0 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; }
@@ -825,7 +826,7 @@
         .rit-oy-avatar:first-child { margin-left: 0 !important; z-index: 3 !important; }
         .rit-oy-avatar-more { width: 24px !important; height: 24px !important; border-radius: 50% !important; background: #e4e4e7 !important; color: #52525b !important; font-size: 10px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: -8px !important; border: 1.5px solid #fff !important; }
         
-        .rit-detail-container { margin: 20px auto 40px !important; padding: 0 16px !important; }
+        .rit-detail-container { margin: 20px auto 40px !important; }
         .rit-dtl-dash-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 20px 16px !important; display: flex !important; flex-direction: column !important; gap: 16px !important; margin-bottom: 20px !important; }
         .rit-dtl-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
         .rit-dtl-dash-score-box { display: flex !important; align-items: center !important; gap: 15px !important; }
@@ -907,7 +908,7 @@
            ========================================================= */
         @media (min-width: 768px) {
           .rit-empty-state { padding: 60px 20px !important; margin: 40px 0 !important; }
-          .rit-detail-container { margin: 30px auto 60px !important; }
+          .rit-detail-container { margin: 30px auto 60px !important; padding: 0 16px !important; }
           .rit-dtl-dash-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; padding: 24px !important; gap: 20px !important; margin-bottom: 30px !important; }
           .rit-dtl-dash-gauge-box { border-left: 1px solid #f3f3f3 !important; padding-left: 24px !important; }
           
