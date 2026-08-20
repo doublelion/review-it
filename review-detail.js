@@ -354,7 +354,8 @@
 
       const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
 
-      const dashboardHtml = `
+      // 💡 1. 자바스크립트 수정 (renderMainDetailBoard 함수 내부 HTML 부분)
+    const dashboardHtml = `
         <div class="rit-dtl-dash-card">
           <div class="rit-dtl-dash-left">
             <div class="rit-dtl-dash-score-box">
@@ -368,9 +369,12 @@
           <div class="rit-dtl-dash-gauge-box">
             ${[5, 4, 3, 2, 1].map(star => {
         const pct = realCount === 0 ? 0 : Math.round((starCounts[star] / realCount) * 100);
+        // 트렌디하고 가벼운 모던 톤앤매너 텍스트 맵핑
+        const starLabels = { 5: '최고예요', 4: '좋아요', 3: '괜찮아요', 2: '아쉬워요', 1: '별로예요' };
+        
         return `
                 <div class="rit-dtl-gauge-row">
-                  <span class="rit-dtl-gauge-label">${star}점</span>
+                  <span class="rit-dtl-gauge-label">${starLabels[star]}</span>
                   <div class="rit-dtl-gauge-bg"><div class="rit-dtl-gauge-fill" style="width: ${pct}%;"></div></div>
                   <span class="rit-dtl-gauge-percent">${pct}%</span>
                 </div>
@@ -787,6 +791,13 @@
           word-break: break-word !important; 
           overflow-wrap: break-word !important; 
         }
+
+        /* GAUGE */
+        .rit-dtl-gauge-row { display: flex !important; align-items: center !important; gap: 10px !important; font-size: 12px !important; color: #888 !important; }
+        .rit-dtl-gauge-label { width: 48px !important; font-weight: 600 !important; color: #52525b !important; white-space: nowrap !important; text-align: left !important; letter-spacing: -0.5px !important; }
+        .rit-dtl-gauge-bg { flex: 1 !important; height: 8px !important; background: #f1f5f9 !important; border-radius: 4px !important; overflow: hidden !important; }
+        .rit-dtl-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
+        .rit-dtl-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
 
         /* =========================================================
            UI Components (Mobile First)
