@@ -1,12 +1,12 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v1.8.0 - UI Synced & Isolated)
- * @Feature: Independent Modal Popup, Main Widget UI/UX Ported, Strict Class Isolation
+ * @Project: Review-It Detail Engine (Production Master v1.9.0 - UI Identical to Main)
+ * @Feature: Identical Class Names, Sync Main Modal UX, Lazy Loading Images
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
 
-  // 기존 위젯 클린업 (자사 위젯 찌꺼기만 제거)
-  document.querySelectorAll('.rit-dtl-oy-summary-wrap, .rit-dtl-thumb-wrap, .rit-dtl-container, #rit-dtl-css, #ritDtlModal').forEach(el => el.remove());
+  // 기존 위젯 클린업
+  document.querySelectorAll('.rit-oy-summary-wrap, .rit-thumb-wrap, .rit-detail-container, #ritDtlModal').forEach(el => el.remove());
 
   const getProductNo = () => {
     if (typeof window.iProductNo !== 'undefined' && window.iProductNo) return String(window.iProductNo);
@@ -52,6 +52,7 @@
     isFallbackDemo: false,
 
     async init() {
+      // 메인 CSS를 동일하게 호출하여 스타일 깨짐 방지
       this.injectCSS();
       this.hideDefaultReviews();
       if (!productNo) return;
@@ -74,7 +75,7 @@
         const data = await res.json();
         if (data && data.length > 0) this.settings = data[0];
       } catch (e) {
-        this.settings = { detail_display_type: 'masonry', is_detail_summary_enabled: true, is_detail_gallery_enabled: true, is_detail_main_enabled: true };
+        this.settings = { detail_display_type: 'grid', is_detail_summary_enabled: true, is_detail_gallery_enabled: true, is_detail_main_enabled: true };
       }
     },
 
@@ -91,6 +92,7 @@
       return name.substring(0, 2) + '**';
     },
 
+    // 💡 [사진 연동 완벽 동기화] 메인 위젯의 스크래핑 엔진 완벽 이식
     async _fetchAndSeparateContent(articleNo, boardNo = '4') {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
@@ -98,9 +100,15 @@
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
         const readArea = doc.querySelector('.xans-board-read-4, .xans-board-read, #board_read');
-        let extractedDate = null, extractedWriter = null;
+        let extractedDate = null, extractedWriter = null, extractedSubject = null;
 
         if (readArea) {
+          const titleEl = readArea.querySelector('.head h3, .head h2, .title h3, .title h2, .title p, .boardView .title, td.subject');
+          if (titleEl) {
+            let tempTitle = titleEl.innerText.replace(/^제목\s*:?\s*/i, '').trim();
+            extractedSubject = tempTitle.split('\n')[0].replace(/\s+/g, ' ').trim();
+          }
+
           const dateEl = readArea.querySelector('.date, .write-date, td.date, .info .date');
           if (dateEl) {
             const match = dateEl.innerText.trim().match(/\d{4}\s*[-./]\s*\d{2}\s*[-./]\s*\d{2}/);
@@ -115,22 +123,36 @@
           }
         }
 
-        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content');
+        const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail');
         const extractedImages = [];
         const uniqueSet = new Set();
 
-        const processImg = (src) => {
-          if (!src || CONFIG.spamKeywords.test(src) || src.includes('.gif')) return;
+        const processImage = (src, elToRemove = null) => {
+          if (!src || CONFIG.spamKeywords.test(src) || src.includes('.gif') || src.includes('blank')) {
+            if (elToRemove) elToRemove.remove();
+            return;
+          }
           let finalSrc = src.replace(/\/(tiny|small|medium)\//gi, '/big/');
           finalSrc = finalSrc.startsWith('//') ? 'https:' + finalSrc : (finalSrc.startsWith('/') ? window.location.origin + finalSrc : finalSrc);
           if (!uniqueSet.has(finalSrc)) { uniqueSet.add(finalSrc); extractedImages.push(finalSrc); }
+          if (elToRemove) elToRemove.remove();
         };
 
         if (contentArea) {
-          contentArea.querySelectorAll('img').forEach(img => { processImg(img.getAttribute('src')); img.remove(); });
+          contentArea.querySelectorAll('img').forEach(img => processImage(img.getAttribute('src'), img));
+          contentArea.querySelectorAll('div[style*="background-image"]').forEach(div => {
+            const match = div.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+            if (match && match[1]) {
+              processImage(match[1]);
+              div.style.backgroundImage = 'none';
+            }
+          });
         }
 
-        return { images: extractedImages, text: contentArea ? contentArea.innerHTML.trim() : "", date: extractedDate, writer: extractedWriter };
+        let cleanText = contentArea ? contentArea.innerHTML.trim() : "";
+        if (cleanText === "" && extractedImages.length > 0) cleanText = "포토 리뷰입니다.";
+
+        return { images: extractedImages, text: cleanText, date: extractedDate, writer: extractedWriter, subject: extractedSubject };
       } catch (e) { return null; }
     },
 
@@ -151,12 +173,10 @@
         this.photoReviews = [];
 
         await Promise.all(list.slice(0, 15).map(async (r) => {
-          const parsed = await this._fetchAndSeparateContent(r.article_no, r.board_no);
-          r.clean_text_body = parsed ? this.cleanEditorText(parsed.text || r.content) : this.cleanEditorText(r.content);
-          r.all_images = (parsed && parsed.images.length > 0) ? parsed.images : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg]);
-          if (parsed && parsed.date) r.original_date = parsed.date;
-          if (parsed && parsed.writer) r.author_name = parsed.writer;
-
+          // 상세 렌더링을 위해 기본 정보만 먼저 파싱 (깊은 파싱은 모달 클릭 시 진행)
+          r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
+          r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.defaultImg];
+          
           this.data[r.id] = r;
           this.listOrder.push(r.id);
           if (r.all_images[0] !== CONFIG.defaultImg) this.photoReviews.push(r);
@@ -197,16 +217,16 @@
 
       const avatarPhotos = this.isFallbackDemo ? [] : this.photoReviews.slice(0, 2);
       const summaryContainer = document.createElement('div');
-      summaryContainer.className = 'rit-dtl-oy-summary-wrap cboth';
+      summaryContainer.className = 'rit-oy-summary-wrap cboth'; // 동일 네임스페이스
       summaryContainer.innerHTML = `
-        <div class="rit-dtl-oy-content" onclick="document.getElementById('rit-dtl-main-board')?.scrollIntoView({behavior: 'smooth'})">
-          <div class="rit-dtl-oy-left">
-            <span class="rit-dtl-oy-star">★ ${avgScore}</span>
-            <span class="rit-dtl-oy-count">리뷰 ${realCount}건</span>
+        <div class="rit-oy-content" onclick="document.getElementById('rit-detail-main-board')?.scrollIntoView({behavior: 'smooth'})">
+          <div class="rit-oy-left">
+            <span class="rit-oy-star">★ ${avgScore}</span>
+            <span class="rit-oy-count">리뷰 ${realCount}건</span>
           </div>
-          <div class="rit-dtl-oy-avatars">
+          <div class="rit-oy-avatars">
             ${realCount > 0 && avatarPhotos.length > 0
-          ? avatarPhotos.map(r => `<img src="${r.all_images[0]}" class="rit-dtl-oy-avatar">`).join('') + `<div class="rit-dtl-oy-avatar-more">+</div>`
+          ? avatarPhotos.map(r => `<img src="${r.all_images[0]}" class="rit-oy-avatar">`).join('') + `<div class="rit-oy-avatar-more">+</div>`
           : `<span style="font-size:11px; color:#94a3b8; font-weight:500;">첫 리뷰 작성 시 혜택 지급 ✨</span>`
         }
           </div>
@@ -222,16 +242,19 @@
       if (!targetEl || !targetEl.parentNode) return;
 
       const galleryContainer = document.createElement('div');
-      galleryContainer.className = 'rit-dtl-thumb-wrap cboth';
+      galleryContainer.className = 'rit-thumb-wrap cboth';
       let photosHtml = '';
       const realPhotos = this.isFallbackDemo ? 0 : this.photoReviews.length;
+
+      // 💡 [링크 오류 수정] 더미 데이터일 때 동적 productNo를 정확히 바인딩
+      const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
 
       if (this.isFallbackDemo || realPhotos === 0) {
         const dummyArr = [1, 2, 3, 4, 5];
         photosHtml = dummyArr.map((num, index) => `
-          <div class="rit-dtl-thumb-item rit-dtl-dummy-item" onclick="window.location.href='/board/product/write.html?board_no=4&product_no=${productNo}'">
+          <div class="rit-thumb-item rit-dummy-item" onclick="window.location.href='${writeUrl}'">
             <img src="${CONFIG.defaultImg}" alt="sample">
-            ${index === 2 ? `<div class="rit-dtl-dummy-text">첫 포토 리뷰를<br>기다려요!</div>` : ''}
+            ${index === 2 ? `<div class="rit-dummy-text">첫 포토 리뷰를<br>기다려요!</div>` : ''}
           </div>
         `).join('');
       } else {
@@ -240,28 +263,28 @@
         photosHtml = photos.map((r, index) => {
           const isLast = index === 4;
           return `
-            <div class="rit-dtl-thumb-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${r.id}')">
+            <div class="rit-thumb-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${r.id}')">
               <img src="${r.all_images[0]}" alt="review" onerror="this.src='${CONFIG.defaultImg}'">
-              ${isLast && hasMore ? `<div class="rit-dtl-thumb-more"><span>${realPhotos}<br>더보기</span></div>` : ''}
+              ${isLast && hasMore ? `<div class="rit-thumb-more"><span>${realPhotos}<br>더보기</span></div>` : ''}
             </div>
           `;
         }).join('');
       }
 
       galleryContainer.innerHTML = `
-        <div class="rit-dtl-thumb-header">
-          <span class="rit-dtl-thumb-title">포토리뷰 <span class="rit-dtl-count">(${realPhotos}건)</span></span>
-          <span class="rit-dtl-thumb-view-all" onclick="document.getElementById('rit-dtl-main-board')?.scrollIntoView({behavior: 'smooth'})">전체보기</span>
+        <div class="rit-thumb-header">
+          <span class="rit-thumb-title">포토리뷰 <span class="rit-count">(${realPhotos}건)</span></span>
+          <span class="rit-thumb-view-all" onclick="document.getElementById('rit-detail-main-board')?.scrollIntoView({behavior: 'smooth'})">전체보기</span>
         </div>
-        <div class="rit-dtl-thumb-list">${photosHtml}</div>
+        <div class="rit-thumb-list">${photosHtml}</div>
       `;
       targetEl.parentNode.insertBefore(galleryContainer, targetEl.nextSibling);
     },
 
     renderMainDetailBoard() {
       const container = document.createElement('div');
-      container.id = 'rit-dtl-main-board';
-      container.className = 'rit-dtl-container cboth';
+      container.id = 'rit-detail-main-board';
+      container.className = 'rit-detail-container cboth';
 
       const realCount = this.isFallbackDemo ? 0 : this.listOrder.length;
       const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
@@ -277,25 +300,27 @@
         avgScore = (totalStars / realCount).toFixed(1);
       }
 
+      const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
+
       const dashboardHtml = `
-        <div class="rit-dtl-dashboard-card">
-          <div class="rit-dtl-dash-left">
-            <div class="rit-dtl-dash-score-box">
-              <div class="rit-dtl-dash-big-score">${avgScore}</div> 
-              <div class="rit-dtl-dash-score-info">
-                <div class="rit-dtl-dash-stars" style="color:${realCount === 0 ? '#e4e4e7' : '#f59e0b'}; font-size:16px;">★★★★★</div>
-                <div class="rit-dtl-dash-count-text">총 <strong>${realCount}개</strong>의 리뷰</div>
+        <div class="rit-dashboard-card" style="margin-top:20px;">
+          <div class="rit-dash-left">
+            <div class="rit-dash-score-box">
+              <div class="rit-dash-big-score">${avgScore}</div> 
+              <div class="rit-dash-score-info">
+                <div class="rit-dash-stars" style="color:${realCount === 0 ? '#e4e4e7' : '#f59e0b'}; font-size:16px;">★★★★★</div>
+                <div class="rit-dash-count-text">총 <strong>${realCount}개</strong>의 리뷰</div>
               </div>
             </div>
           </div>
-          <div class="rit-dtl-dash-gauge-box">
+          <div class="rit-dash-gauge-box">
             ${[5, 4, 3, 2, 1].map(star => {
         const pct = realCount === 0 ? 0 : Math.round((starCounts[star] / realCount) * 100);
         return `
-                <div class="rit-dtl-gauge-row">
-                  <span class="rit-dtl-gauge-label">${star}점</span>
-                  <div class="rit-dtl-gauge-bg"><div class="rit-dtl-gauge-fill" style="width: ${pct}%;"></div></div>
-                  <span class="rit-dtl-gauge-percent">${pct}%</span>
+                <div class="rit-gauge-row">
+                  <span class="rit-gauge-label">${star}점</span>
+                  <div class="rit-gauge-bg"><div class="rit-gauge-fill" style="width: ${pct}%;"></div></div>
+                  <span class="rit-gauge-percent">${pct}%</span>
                 </div>
               `;
       }).join('')}
@@ -306,26 +331,23 @@
       let contentHtml = '';
       if (this.isFallbackDemo) {
         contentHtml += `
-          <div class="rit-dtl-empty-state" style="margin-bottom: 50px;">
-            <div class="rit-dtl-empty-icon">✨</div>
-            <h3 class="rit-dtl-empty-title">이 상품의 첫 번째 리뷰어가 되어주세요!</h3>
-            <p class="rit-dtl-empty-desc">아직 작성된 리뷰가 없습니다.<br>지금 첫 포토 리뷰를 남겨주시면 <strong>특별한 혜택</strong>을 드립니다!</p>
-            <a href="/board/product/write.html?board_no=4&product_no=${productNo}" class="rit-dtl-btn-write">첫 리뷰 작성하고 혜택 받기</a>
+          <div class="rit-empty-state" style="margin-bottom: 50px;">
+            <div class="rit-empty-icon">✨</div>
+            <h3 class="rit-empty-title">이 상품의 첫 번째 리뷰어가 되어주세요!</h3>
+            <p class="rit-empty-desc">아직 작성된 리뷰가 없습니다.<br>지금 첫 포토 리뷰를 남겨주시면 <strong>특별한 혜택</strong>을 드립니다!</p>
+            <a href="${writeUrl}" class="rit-btn-write">첫 리뷰 작성하고 혜택 받기</a>
           </div>
-          <div class="rit-dtl-header">
-            <h2 class="rit-dtl-title">다른 고객들의 베스트 리뷰</h2>
-            <p style="font-size:13px; color:#71717a; margin-top:5px;">현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!</p>
+          <div class="rit-header-area" style="text-align:left; margin-bottom:20px;">
+            <h2 class="rit-main-title" style="margin:0; font-size:20px;">다른 고객들의 베스트 리뷰</h2>
+            <p class="rit-desc" style="font-size:13px; color:#71717a; margin-top:5px;">현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!</p>
           </div>
         `;
       }
 
       const isSwiper = this.settings.detail_display_type === 'swiper';
-      contentHtml += `<div id="rit-dtl-grid" class="${isSwiper ? 'swiper rit-dtl-swiper' : 'rit-dtl-masonry-grid'}">${isSwiper ? '<div class="swiper-wrapper"></div>' : ''}</div>`;
+      contentHtml += `<div id="rit-main-grid" class="${isSwiper ? 'swiper rit-main-swiper' : 'rit-main-grid-layout'}">${isSwiper ? '<div class="swiper-wrapper"></div>' : ''}</div>`;
 
       container.innerHTML = `
-        <div class="rit-dtl-header" style="margin-top: 60px;">
-          <h2 class="rit-dtl-title">${this.settings.title || 'Product Reviews'}</h2>
-        </div>
         ${dashboardHtml}
         ${contentHtml}
       `;
@@ -338,42 +360,70 @@
       }
     },
 
-    // 💡 [수정] 메인 위젯의 카드 디자인 패턴을 적용 (네임스페이스 rit-dtl- 적용)
+    // 💡 [클래스 네임 메인위젯과 100% 동일화] CSS가 완벽히 먹히도록 수정
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.defaultImg;
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-      const isMallOwner = CONFIG.adminKeywords.some(k => rawName.toLowerCase().includes(k.toLowerCase())) || rawName.includes(CONFIG.mallName);
+      
+      // 관리자 체크
+      const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || rawName.includes(CONFIG.mallName))) || CONFIG.adminKeywords.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
-
-      let formattedDate = d.original_date || (d.created_at ? d.created_at.split('T')[0] : '');
-      if (formattedDate) formattedDate = formattedDate.replace(/-/g, '.');
-
       const avgScore = d.stars || 5;
 
-      // 구매 인증 뱃지 (관리자가 아닐 때만)
+      const rawDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
+      let formattedDate = rawDate;
+      if (rawDate) {
+        const dateObj = new Date(rawDate);
+        if (!isNaN(dateObj)) {
+          const yy = String(dateObj.getFullYear()).slice(-2);
+          const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const dd = String(dateObj.getDate()).padStart(2, '0');
+          formattedDate = `${yy}.${mm}.${dd} 작성`;
+        }
+      }
+
       const verifiedBadgeHtml = !isMallOwner ? `
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
 
+      // 상품 칩 (현재 상세페이지이므로 "상품 보기"라는 칩은 생략하거나 그대로 둬도 무방하나 UI 호환을 위해 추가)
+      const actualProductName = '상품 보기';
+      const actualProductImg = d.product_img || thumb;
+      const productLink = productNo ? `/product/detail.html?product_no=${productNo}` : '';
+
+      const productChipHtml = `
+        <div class="rit-product-chip" 
+             ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} 
+             onmouseover="this.style.background='#f1f5f9'" 
+             onmouseout="this.style.background='#f8fafc'"
+             style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; cursor: pointer;">
+          <img src="${actualProductImg}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
+          <span style="font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${actualProductName}</span>
+        </div>
+      `;
+
       return `
-      <div class="rit-dtl-card" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')" style="cursor:pointer; position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff; height: 100%;">
-        <div class="rit-dtl-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
-          <img src="${thumb}" class="rit-dtl-card-img" onerror="this.src='${CONFIG.defaultImg}'" style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
+      <div class="rit-card" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff; height: 100%; aspect-ratio: auto !important; cursor:pointer;">
+        <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
+          <img src="${thumb}" class="rit-card-img" loading="lazy" 
+              onerror="this.onerror=null; this.src='${CONFIG.defaultImg}';"
+              style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
           ${verifiedBadgeHtml}
         </div>
         
-        <div class="rit-dtl-card-info" style="position: relative; z-index: 3; background: #fff; padding: 16px 14px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+        <div class="rit-card-info" style="position: relative; z-index: 3; background: #fff; padding: 16px 14px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display:flex; align-items:center; gap:5px; margin-bottom:8px; font-size:11px; font-weight:700; color:#52525b;">
              <span style="color:#fbbf24;">★</span>
              <span>${Number(avgScore).toFixed(1)}</span>
           </div>
-          <div class="rit-dtl-card-subject" style="font-size: 13px; line-height: 1.4; height: 2.8em; color: #222; margin-bottom: 12px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${d.subject || ''}</div>
-          
-          <div class="rit-dtl-card-meta" style="border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; overflow: hidden;">
-              <span style="font-size: 11px; color: #71717a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${displayName}</span>
-              <span style="font-size: 11px; color: #a1a1aa; flex-shrink: 0; white-space: nowrap;">${formattedDate} 작성</span>
+          <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; height: 2.8em; color: #222; margin-bottom: 12px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${d.subject || d.clean_text_body || ''}</div>
+          ${productChipHtml}
+          <div class="rit-card-meta" style="border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
+            <div style="display: flex; align-items: center; gap: 6px; width: 100%; overflow: hidden;">
+              <span style="font-size: 11px; color: #71717a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${displayName}</span>
+              <span style="font-size: 10px; color: #e4e4e7; flex-shrink: 0;">|</span>
+              <span style="font-size: 11px; color: #a1a1aa; flex-shrink: 0; white-space: nowrap;">${formattedDate}</span>
             </div>
           </div>
         </div>
@@ -381,55 +431,60 @@
     },
 
     initMasonry() {
-      const grid = document.getElementById('rit-dtl-grid');
+      const grid = document.getElementById('rit-main-grid');
       if (!grid) return;
-      let cols = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 768 ? 3 : 2);
-      if (this.listOrder.length < cols) cols = this.listOrder.length;
-      const columnDOMs = Array.from({ length: cols }, () => []);
-      this.listOrder.forEach((id, i) => columnDOMs[i % cols].push(this.getCardHTML(id)));
-      grid.innerHTML = columnDOMs.map(col => `<div class="rit-dtl-masonry-column">${col.join('')}</div>`).join('');
+      
+      const pcCols = 5;
+      const moCols = 2;
+      grid.style.setProperty('--pc-cols', pcCols);
+      grid.style.setProperty('--mo-cols', moCols);
+      
+      grid.innerHTML = this.listOrder.map(id => this.getCardHTML(id)).join('');
     },
 
     initSwiper() {
-      const wrapper = document.querySelector('.rit-dtl-swiper .swiper-wrapper');
+      const wrapper = document.querySelector('.rit-main-swiper .swiper-wrapper');
       if (!wrapper) return;
-      wrapper.innerHTML = this.listOrder.map(id => `<div class="swiper-slide" style="width:260px; height:auto;">${this.getCardHTML(id)}</div>`).join('');
-      if (typeof Swiper !== 'undefined') new Swiper('.rit-dtl-swiper', { slidesPerView: 'auto', spaceBetween: 16, freeMode: true, grabCursor: true });
+      wrapper.innerHTML = this.listOrder.map(id => `<div class="swiper-slide">${this.getCardHTML(id)}</div>`).join('');
+      if (typeof Swiper !== 'undefined') new Swiper('.rit-main-swiper', { slidesPerView: 'auto', spaceBetween: 16, freeMode: true, grabCursor: true });
     },
 
-    // 💡 [수정] 메인 위젯의 모달 UI/UX 완벽 이식 (네임스페이스 rit-dtl- 적용)
+    // 💡 [모달 메인위젯과 100% 동일화] 클래스와 HTML 구조 완벽 이식
     initModal() {
-      if (document.getElementById('ritDtlModal')) return;
-      const m = document.createElement('div');
-      m.id = 'ritDtlModal';
-      m.className = 'rit-dtl-modal-container';
-      m.style.display = 'none';
-      m.innerHTML = `
-        <div class="rit-dtl-modal-bg" onclick="ReviewDetailApp.closeModal()"></div>
-        <button class="rit-dtl-nav-btn rit-dtl-prev" onclick="ReviewDetailApp.navigateReview(-1)">&#10094;</button>
-        <button class="rit-dtl-nav-btn rit-dtl-next" onclick="ReviewDetailApp.navigateReview(1)">&#10095;</button>
-        
-        <div class="rit-dtl-modal-window">
-          <div class="rit-dtl-modal-header">
-              <span class="rit-dtl-logo">${CONFIG.mallName}</span>
-              <div class="rit-dtl-header-buttons">
-                  <button onclick="ReviewDetailApp.closeModal()" class="rit-dtl-btn-close">✕</button>
-              </div>
-          </div>
-          <div class="rit-dtl-modal-body">
-              <div id="ritDtlDetailView" class="rit-dtl-flex-container">
-                <div id="ritDtlModalImg" class="rit-dtl-img-side"></div>
-                <div class="rit-dtl-txt-side">
-                  <div id="ritDtlMetaArea"></div>
-                  <h3 id="ritDtlSubject" class="rit-dtl-subject"></h3>
-                  <div id="ritDtlContent" class="rit-dtl-body-text"></div>
-                  <div id="ritDtlCommList"></div>
-                </div>
-              </div>
-          </div>
+      let modalContainer = document.getElementById('ritDtlModal'); // 충돌 방지용 ID만 다르게
+      if (modalContainer) return;
+
+      modalContainer = document.createElement('div');
+      modalContainer.id = 'ritDtlModal';
+      modalContainer.className = 'rit-modal-container'; // 메인과 완벽히 동일 클래스
+      modalContainer.style.display = 'none';
+      modalContainer.innerHTML = `
+      <div class="rit-modal-bg" onclick="ReviewDetailApp.closeModal()"></div>
+      
+      <button class="rit-nav-btn rit-nav-prev" onclick="ReviewDetailApp.navigateReview(-1)" style="position:fixed; left:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10094;</button>
+      <button class="rit-nav-btn rit-nav-next" onclick="ReviewDetailApp.navigateReview(1)" style="position:fixed; right:3%; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999; text-shadow: 0 4px 10px rgba(0,0,0,0.4);">&#10095;</button>
+
+      <div class="rit-modal-window">
+        <div class="rit-modal-header">
+            <span class="rit-logo-text">${CONFIG.mallName}</span>
+            <div class="rit-header-buttons">
+              <button onclick="ReviewDetailApp.closeModal()" class="btn-rit-close">✕</button>
+            </div>
         </div>
+        <div class="rit-modal-body">
+            <div id="ritDtlDetailView" class="rit-flex-container">
+              <div id="ritDtlModalImg" class="rit-img-side"></div>
+              <div class="rit-txt-side">
+                <div id="ritDtlMetaArea"></div>
+                <h3 id="ritDtlSubject" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; word-break: keep-all; margin-bottom: 15px;"></h3>
+                <div id="ritDtlContent" class="rit-body-text"></div>
+                <div id="ritDtlCommList"></div>
+              </div>
+            </div>
+        </div>
+      </div>
       `;
-      document.body.appendChild(m);
+      document.body.appendChild(modalContainer);
     },
 
     openModal(id) {
@@ -454,165 +509,192 @@
       this.renderDetail(this.listOrder[nextIndex]);
     },
 
+    // 💡 [사진 렌더링 로직 강화] 클릭 시 상세 정보 한 번 더 Fetch 하여 이미지 유실 방지
     async renderDetail(id) {
       this.currentReviewId = id;
       const d = this.data[id];
       const imgSide = document.getElementById('ritDtlModalImg');
       const contentSide = document.getElementById('ritDtlContent');
+      const subjectSide = document.getElementById('ritDtlSubject');
 
-      const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-      const isMallOwner = CONFIG.adminKeywords.some(k => rawName.toLowerCase().includes(k.toLowerCase())) || rawName.includes(CONFIG.mallName);
-      const displayName = isMallOwner ? rawName : this.maskName(rawName);
+      const rawDisplayName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
+      const isMallOwner = CONFIG.mallName && (rawDisplayName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawDisplayName));
+      const updatedDisplayName = isMallOwner ? rawDisplayName : this.maskName(rawDisplayName);
 
-      contentSide.innerHTML = '<div style="padding: 20px 0;">본문을 불러오는 중입니다...</div>';
+      contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
+
+      // 💡 메인위젯과 동일하게 클릭 시점(Lazy)에 상세 데이터 파싱 보강 (사진 누락 해결 핵심)
+      if (!d.is_parsed) {
+        const separateData = await this._fetchAndSeparateContent(d.article_no, d.board_no);
+        if (separateData) {
+          d.clean_text_body = separateData.text || d.content;
+          d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
+          if (separateData.date) d.original_date = separateData.date;
+          if (separateData.writer) d.author_name = separateData.writer;
+          if (separateData.subject) d.subject = separateData.subject;
+        }
+        d.is_parsed = true;
+      }
 
       const validImages = d.all_images.filter(img => img && !img.includes('rit_noimg.jpg'));
 
       if (validImages.length > 0) {
-        const swiperControls = validImages.length > 1 ? `<div class="rit-dtl-fraction"></div><div class="swiper-button-next"></div><div class="swiper-button-prev"></div>` : '';
+        const swiperControls = validImages.length > 1 ? `
+          <div class="rit-fraction"></div>
+          <div class="swiper-button-next"></div><div class="swiper-button-prev"></div>
+        ` : '';
+
         imgSide.innerHTML = `
-          <div class="swiper rit-dtl-modal-swiper" style="width:100%; height:100%;">
-            <div class="swiper-wrapper">
-              ${validImages.map(img => `
-                <div class="swiper-slide" style="position:relative; background:#111; display:flex; align-items:center; justify-content:center; width:100%; box-sizing: border-box;">
-                  <div style="position:absolute; inset:-20px; background-image:url('${img}'); background-size:cover; background-position: center; filter:blur(20px); opacity:0.4; pointer-events: none;"></div>
-                  <img src="${img}" onerror="this.src='${CONFIG.defaultImg}'" style="position:relative; max-width:100%; max-height:100%; object-fit:contain; z-index:1;">
-                </div>`).join('')}
+      <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
+        <div class="swiper-wrapper">
+          ${validImages.map(img => `
+            <div class="swiper-slide" style="position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center; width: 100% !important; box-sizing: border-box;">
+              <div style="position: absolute; inset: -20px; background-image: url('${img}'); background-size: cover; background-position: center; filter: blur(20px); opacity: 0.4; pointer-events: none;"></div>
+              <img src="${img}" alt="review" 
+                   onerror="this.onerror=null; document.getElementById('ritDtlModalImg').innerHTML = \`<div class='rit-no-image'><span>REVIEW-IT</span></div>\`;"
+                   style="position: relative; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1;">
             </div>
-            ${swiperControls}
-          </div>`;
+          `).join('')}
+        </div>
+        ${swiperControls}
+      </div>`;
 
         if (window.Swiper) {
-          if (window.ritDtlActiveSwiper) window.ritDtlActiveSwiper.destroy(false, false);
+          if (window.ritDtlActiveModalSwiper) window.ritDtlActiveModalSwiper.destroy(false, false);
           setTimeout(() => {
-            window.ritDtlActiveSwiper = new Swiper('.rit-dtl-modal-swiper', {
-              pagination: validImages.length > 1 ? { el: '.rit-dtl-fraction', type: 'fraction' } : false,
+            window.ritDtlActiveModalSwiper = new Swiper('.rit-modal-swiper', {
+              pagination: validImages.length > 1 ? { el: '.rit-fraction', type: 'fraction' } : false,
               navigation: validImages.length > 1 ? { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' } : false,
               centeredSlides: true, loop: validImages.length > 1, observer: true, observeParents: true
             });
           }, 50);
         }
       } else {
-        imgSide.innerHTML = `<div style="display:flex; height:100%; align-items:center; justify-content:center; color:#555; background:#111; font-weight:700; letter-spacing:1px;">No Image</div>`;
+        imgSide.innerHTML = `<div class="rit-no-image"><span>REVIEW-IT</span></div>`;
       }
 
-      let fDate = d.original_date || (d.created_at ? d.created_at.split('T')[0] : '');
+      const displayDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
+
       document.getElementById('ritDtlMetaArea').innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-          <div><span style="font-weight:800; font-size:14px; color:#111;">${displayName}</span> <span style="color:#aaa; font-size:12px; margin-left:8px;">${fDate.replace(/-/g, '.')}</span></div>
-          <div style="color:#f59e0b; font-size:14px; letter-spacing:2px;">${'★'.repeat(d.stars || 5)}</div>
+        <div class="rit-meta-container">
+          <div class="rit-meta-top">
+            <span class="rit-author">${updatedDisplayName}</span> 
+            <span class="rit-date">${displayDate.replace(/-/g, '.')}</span>
+            <div class="rit-stars-gold"><img src="${CONFIG.starPath}${d.stars || 5}.svg" class="rit-star-img"></div>
+          </div>
         </div>`;
-      document.getElementById('ritDtlSubject').innerText = d.subject || '';
-      contentSide.innerHTML = d.clean_text_body || "본문 내용이 없습니다.";
+        
+      subjectSide.innerText = d.subject || '';
+      contentSide.innerHTML = this.cleanEditorText(d.clean_text_body || "본문 내용이 없습니다.");
+
       this.loadComments(d.article_no, d.board_no);
     },
 
     async loadComments(articleNo, boardNo) {
       const commContainer = document.getElementById('ritDtlCommList');
       if (!commContainer) return;
-      commContainer.innerHTML = '<div style="padding:15px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; margin-top:20px;">담당자가 확인 중입니다 :)</div>';
+      commContainer.innerHTML = '<div style="padding:15px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; margin-top:20px;">댓글 연결 중...</div>';
+
       try {
         const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const commentRows = doc.querySelectorAll('.xans-board-commentlist li, .boardComment li, .commentList li');
+        const commentRows = doc.querySelectorAll('.xans-board-commentlist li, .boardComment li, .commentList li, .replyArea li, [class*="comment"] li');
 
         const comments = Array.from(commentRows).map(el => {
-          let writer = (el.querySelector('.name, .writer')?.innerText || "고객").trim();
-          let isOfficial = CONFIG.adminKeywords.some(k => writer.includes(k)) || writer.includes(CONFIG.mallName);
-          const content = (el.querySelector('.comment, .content')?.innerText || "").trim();
+          let writer = (el.querySelector('.name, .writer, strong')?.innerText || "고객").trim();
+          let isOfficial = false;
+
+          const isAdminBadge = el.querySelector('img[src*="admin"], img[src*="staff"]');
+          if (isAdminBadge || CONFIG.adminKeywords.some(k => writer.includes(k)) || writer.includes(CONFIG.mallName)) {
+            isOfficial = true;
+          } else {
+            writer = this.maskName(writer);
+          }
+
+          const content = (el.querySelector('.comment, .content, span[id^="comment_"]')?.innerText || "").trim();
           const date = (el.querySelector('.date')?.innerText || "").trim();
-          return { writer: isOfficial ? writer : this.maskName(writer), content, date, isOfficial };
-        }).filter(c => c.content && !c.content.includes('비밀번호'));
+          return { writer, content, date, isOfficial };
+        }).filter(c => c.content.length > 0 && !c.content.includes('비밀번호'));
 
-        if (comments.length === 0) return;
-
-        commContainer.innerHTML = `<div style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; font-weight:800; font-size:12px; letter-spacing:1px; text-transform:uppercase;">Comments (${comments.length})</div>` +
-          comments.map(c => `
-          <div style="margin-top:10px; padding:14px; border-radius:10px; font-size:12px; border: 1px solid ${c.isOfficial ? '#e2e8f0' : 'transparent'}; background:${c.isOfficial ? '#f0f4f8' : '#f9f9f9'};">
-            <div style="font-weight:800; display:flex; justify-content:space-between; margin-bottom:6px;">
-              <span style="color:${c.isOfficial ? '#000' : '#111'};">${c.writer} ${c.isOfficial ? '<span style="color:#3b82f6;">✓</span>' : ''}</span>
-              <span style="color:#bbb; font-weight:400; font-size:11px;">${c.date}</span>
-            </div>
-            <div style="color:#444; line-height:1.5; font-weight:400;">${c.content}</div>
-          </div>`).join('');
+        this.renderComments(comments);
       } catch (e) { commContainer.innerHTML = ''; }
     },
 
+    renderComments(comments) {
+      const container = document.getElementById('ritDtlCommList');
+      if (!container) return;
+
+      const headerHtml = `
+        <div class="rit-comm-head" style="margin-top:25px; border-top:1px solid #eee; padding-top:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+          <h4 style="font-size:11px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; color:#111; margin:0;">Comments <span style="color:#999; font-weight:normal;">(${comments.length})</span></h4>
+        </div>
+      `;
+
+      if (comments.length === 0) {
+        container.innerHTML = headerHtml + `
+        <div class="rit-no-comm" style="margin-top:10px; padding:20px; text-align:center;">
+          <p style="font-size:12px; color:#bbb; font-weight:400; margin:0; letter-spacing:-0.5px;">
+            운영자가 소식 확인 중입니다.<br>정성스러운 답변으로 곧 찾아뵐게요!
+          </p>
+        </div>`;
+        return;
+      }
+
+      container.innerHTML = headerHtml + comments.map(c => {
+        const fontColor = c.isOfficial ? '#000' : '#111';
+        const bgStyle = c.isOfficial ? 'background:#f0f4f8; border:1px solid #e2e8f0;' : 'background:#f9f9f9; border:1px solid transparent;';
+
+        return `
+        <div class="rit-comm-item" style="margin-bottom:10px; ${bgStyle} padding:14px; border-radius:10px; font-size:12px;">
+          <div style="font-weight:800; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:${fontColor};">${c.writer} ${c.isOfficial ? '<span style="color:#3b82f6; margin-left:2px;">✓</span>' : ''}</span>
+            <span style="font-weight:400; color:#bbb; font-size:11px;">${c.date}</span>
+          </div>
+          <div style="color:#444; font-weight:400; line-height:1.5;">${c.content}</div>
+        </div>
+      `;
+      }).join('');
+    },
+
     injectCSS() {
-      if (document.getElementById('rit-dtl-css')) return;
+      // 💡 메인 위젯의 CSS를 공통으로 호출하여 완전히 동일한 스타일 보장
+      if (!document.getElementById('rit-css-link')) {
+        const link = document.createElement('link');
+        link.id = 'rit-css-link';
+        link.rel = 'stylesheet';
+        link.href = 'https://review-it-tau.vercel.app/review-it.css';
+        document.head.appendChild(link);
+      }
+      
+      // 디테일 페이지 전용 서브 스타일 (요약, 상단 대시보드 등)
+      if (document.getElementById('rit-dtl-sub-css')) return;
       const style = document.createElement('style');
-      style.id = 'rit-dtl-css';
+      style.id = 'rit-dtl-sub-css';
       style.innerHTML = `
-        /* Utility */
         .cboth { clear: both !important; display: block !important; }
         
-        /* Summary & Thumb (Top) */
-        .rit-dtl-thumb-wrap, .rit-dtl-oy-summary-wrap, .rit-dtl-container { font-family: 'Pretendard', sans-serif !important; font-size: 13px !important; line-height: normal !important; box-sizing: border-box !important; }
-        .rit-dtl-oy-summary-wrap { margin: 15px 0 !important; padding: 12px 16px !important; background: #f8fafc !important; border-radius: 8px !important; cursor: pointer !important; border: 1px solid #f1f5f9 !important; width: 100% !important; }
-        .rit-dtl-oy-content { display: flex !important; justify-content: space-between !important; align-items: center !important; }
-        .rit-dtl-oy-left { display: flex !important; align-items: center !important; gap: 8px !important; }
-        .rit-dtl-oy-star { font-size: 14px !important; font-weight: 800 !important; color: #18181b !important; }
-        .rit-dtl-oy-count { font-size: 12px !important; color: #71717a !important; border-left: 1px solid #e4e4e7 !important; padding-left: 8px !important; }
+        .rit-thumb-wrap, .rit-oy-summary-wrap, .rit-detail-container { font-family: 'Pretendard', sans-serif !important; font-size: 13px !important; box-sizing: border-box !important; }
+        .rit-oy-summary-wrap { margin: 15px 0 !important; padding: 12px 16px !important; background: #f8fafc !important; border-radius: 8px !important; cursor: pointer !important; border: 1px solid #f1f5f9 !important; width: 100% !important; }
+        .rit-oy-content { display: flex !important; justify-content: space-between !important; align-items: center !important; }
+        .rit-oy-left { display: flex !important; align-items: center !important; gap: 8px !important; }
+        .rit-oy-star { font-size: 14px !important; font-weight: 800 !important; color: #18181b !important; }
+        .rit-oy-count { font-size: 12px !important; color: #71717a !important; border-left: 1px solid #e4e4e7 !important; padding-left: 8px !important; }
         
-        /* Masonry Grid (Main Widget Style Ported) */
-        .rit-dtl-container { width: 100% !important; max-width: 1600px !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
-        .rit-dtl-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 20px !important; }
-        .rit-dtl-title { font-size: 20px !important; font-weight: 800 !important; color: #111 !important; margin: 0 !important; }
-        .rit-dtl-masonry-grid { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 16px !important; width: 100% !important; margin-top: 20px !important; }
-        .rit-dtl-masonry-column { display: flex !important; flex-direction: column !important; flex: 1 !important; min-width: 0 !important; gap: 16px !important; }
-        .rit-dtl-card:hover { transform: translateY(-3px); }
-
-        /* Dashboard */
-        .rit-dtl-dashboard-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; margin-bottom: 20px !important;}
-        @media (min-width: 768px) { .rit-dtl-dashboard-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
-        .rit-dtl-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
-        .rit-dtl-dash-score-box { display: flex !important; align-items: center !important; gap: 15px !important; }
-        .rit-dtl-dash-big-score { font-size: 36px !important; font-weight: 800 !important; color: #111 !important; line-height: 1 !important; }
-        .rit-dtl-dash-count-text { font-size: 12px !important; color: #666 !important; font-weight: 500 !important; }
-        .rit-dtl-dash-gauge-box { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; }
-        @media (min-width: 768px) { .rit-dtl-dash-gauge-box { border-left: 1px solid #f3f3f3 !important; padding-left: 24px !important; } }
-        .rit-dtl-gauge-row { display: flex !important; align-items: center !important; gap: 10px !important; font-size: 11px !important; color: #888 !important; }
-        .rit-dtl-gauge-label { width: 24px !important; font-weight: 600 !important; color: #52525b !important; }
-        .rit-dtl-gauge-bg { flex: 1 !important; height: 8px !important; background: #f1f5f9 !important; border-radius: 4px !important; overflow: hidden !important; }
-        .rit-dtl-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
-        .rit-dtl-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
-
-        /* Modal UI/UX (Main Widget Style Ported & Isolated) */
-        .rit-dtl-modal-container { position:fixed; inset:0; z-index:999999; display:flex; align-items:center; justify-content:center; }
-        .rit-dtl-modal-bg { position:absolute; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(5px); }
-        .rit-dtl-modal-window { position:relative; width:90%; max-width:900px; height:85vh; background:#fff; border-radius:16px; display:flex; flex-direction:column; overflow:hidden; z-index:2; box-shadow:0 10px 40px rgba(0,0,0,0.3); }
-        .rit-dtl-modal-header { padding:15px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; background:#fff; z-index:10; }
-        .rit-dtl-logo { font-weight:900; font-size:16px; color:#111; letter-spacing:-0.5px; }
-        .rit-dtl-header-buttons { display:flex; align-items:center; gap:10px; }
-        .rit-dtl-btn-close { background:none; border:none; font-size:20px; cursor:pointer; color:#666; }
-        .rit-dtl-modal-body { flex:1; overflow:hidden; display:flex; }
-        .rit-dtl-flex-container { display:flex; width:100%; height:100%; flex-direction:column; }
-        
-        .rit-dtl-img-side { flex:1.2; background:#111; position:relative; overflow:hidden; }
-        .rit-dtl-txt-side { flex:1; background:#fff; padding:30px; overflow-y:auto; display:flex; flex-direction:column; }
-        .rit-dtl-subject { font-size:18px; font-weight:800; color:#111; margin-bottom:15px; line-height:1.4; word-break:keep-all; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-        .rit-dtl-body-text { font-size:14px; color:#444; line-height:1.6; word-break:keep-all; }
-        
-        .rit-dtl-nav-btn { position:fixed; top:50%; transform:translateY(-50%); background:transparent; border:none; font-size:60px; cursor:pointer; color:#fff; z-index:9999999; text-shadow:0 4px 10px rgba(0,0,0,0.4); }
-        .rit-dtl-prev { left:3%; } .rit-dtl-next { right:3%; }
-
-        /* Swiper Overrides for Modal */
-        .rit-dtl-fraction { position:absolute; bottom:15px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.6); color:#fff; padding:4px 12px; border-radius:12px; font-size:12px; z-index:10; letter-spacing:2px; font-weight:700; }
-        .rit-dtl-modal-swiper .swiper-button-next, .rit-dtl-modal-swiper .swiper-button-prev { color: #fff !important; transform: scale(0.6); }
-
-        @media (min-width: 768px) {
-          .rit-dtl-flex-container { flex-direction:row; }
-          .rit-dtl-modal-window { overflow:visible !important; }
-          .rit-dtl-modal-header { position:absolute !important; top:-50px !important; left:0; right:0; background:transparent !important; border:none !important; }
-          .rit-dtl-logo { color:#fff !important; font-size:14px !important; }
-          .rit-dtl-btn-close { color:#fff !important; }
-        }
-        @media (max-width: 767px) {
-          .rit-dtl-img-side { height:40vh; flex:none; }
-          .rit-dtl-nav-btn { font-size:40px; }
-          .rit-dtl-prev { left:1%; } .rit-dtl-next { right:1%; }
-        }
+        .rit-detail-container { width: 100% !important; max-width: 1600px !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
+        .rit-dashboard-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; margin-bottom: 30px !important;}
+        @media (min-width: 768px) { .rit-dashboard-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
+        .rit-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
+        .rit-dash-score-box { display: flex !important; align-items: center !important; gap: 15px !important; }
+        .rit-dash-big-score { font-size: 36px !important; font-weight: 800 !important; color: #111 !important; line-height: 1 !important; }
+        .rit-dash-count-text { font-size: 12px !important; color: #666 !important; font-weight: 500 !important; }
+        .rit-dash-gauge-box { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; }
+        @media (min-width: 768px) { .rit-dash-gauge-box { border-left: 1px solid #f3f3f3 !important; padding-left: 24px !important; } }
+        .rit-gauge-row { display: flex !important; align-items: center !important; gap: 10px !important; font-size: 11px !important; color: #888 !important; }
+        .rit-gauge-label { width: 24px !important; font-weight: 600 !important; color: #52525b !important; }
+        .rit-gauge-bg { flex: 1 !important; height: 8px !important; background: #f1f5f9 !important; border-radius: 4px !important; overflow: hidden !important; }
+        .rit-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
+        .rit-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
       `;
       document.head.appendChild(style);
     }
