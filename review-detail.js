@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v1.9.5 - Final Sync)
- * @Feature: Thumbnail CSS Restored, Pre-parsing Images for Grid/Thumb Sync
+ * @Project: Review-It Detail Engine (Production Master v1.9.6 - Fallback Sync & CSS Fixed)
+ * @Feature: Global Fallback Photo Sync in Thumbnail, Empty State CSS Restored
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
@@ -160,6 +160,7 @@
         let res = await fetch(`${baseUrl}&product_no=eq.${productNo}&order=created_at.desc`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
         let list = await res.json();
 
+        // 리뷰가 0개일 경우 Fallback(글로벌 리뷰) 로드
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
           const fbRes = await fetch(`${baseUrl}&order=created_at.desc&limit=15`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
@@ -170,7 +171,6 @@
         this.listOrder = [];
         this.photoReviews = [];
 
-        // 💡 [핵심 픽스] 리스트/메인 위젯처럼 렌더링 전 사전 파싱(Pre-parsing)을 수행하여 이미지 유실 원천 차단
         await Promise.all(list.slice(0, 15).map(async (r) => {
           const scraped = await this._fetchAndSeparateContent(r.article_no, r.board_no);
           if (scraped) {
@@ -184,12 +184,13 @@
             r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.defaultImg];
           }
           r.is_parsed = true;
-          
+
           this.data[r.id] = r;
           this.listOrder.push(r.id);
+          // 사진이 있는 리뷰 모음 (Fallback이더라도 전체 사진리뷰가 들어감)
           if (r.all_images[0] !== CONFIG.defaultImg) this.photoReviews.push(r);
         }));
-        
+
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
       } catch (e) {
         console.error("Review load failed", e);
@@ -246,34 +247,36 @@
       else infoArea.insertBefore(summaryContainer, infoArea.firstChild);
     },
 
+    // 💡 [수정] 썸네일도 기획에 맞게 Fallback 데이터(글로벌 리뷰)를 보여주고 모달 연동
     renderUnderThumbGallery() {
       let targetEl = document.querySelector('.detailArea') || document.querySelector('.xans-product-image') || document.querySelector('.imgArea');
       if (!targetEl || !targetEl.parentNode) return;
 
       const galleryContainer = document.createElement('div');
       galleryContainer.className = 'rit-thumb-wrap cboth';
+
       let photosHtml = '';
-      const realPhotos = this.isFallbackDemo ? 0 : this.photoReviews.length;
+      const displayPhotos = this.photoReviews.slice(0, 5);
+      const displayCount = this.isFallbackDemo ? displayPhotos.length : this.photoReviews.length;
 
-      const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
-
-      if (this.isFallbackDemo || realPhotos === 0) {
-        const dummyArr = [1, 2, 3, 4, 5];
-        photosHtml = dummyArr.map((num, index) => `
+      // 전체 몰에도 사진 리뷰가 단 1개도 없는 극단적인 경우에만 더미 노출
+      if (displayPhotos.length === 0) {
+        const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
+        photosHtml = [1, 2, 3, 4, 5].map((num, index) => `
           <div class="rit-thumb-item rit-dummy-item" onclick="window.location.href='${writeUrl}'">
             <img src="${CONFIG.defaultImg}" alt="sample">
             ${index === 2 ? `<div class="rit-dummy-text">첫 포토 리뷰를<br>기다려요!</div>` : ''}
           </div>
         `).join('');
       } else {
-        const photos = this.photoReviews.slice(0, 5);
-        const hasMore = realPhotos > 5;
-        photosHtml = photos.map((r, index) => {
+        // 리뷰가 0개(Fallback 모드)여도 글로벌 리뷰 이미지를 보여주고 클릭 시 모달 연동
+        const hasMore = this.photoReviews.length > 5;
+        photosHtml = displayPhotos.map((r, index) => {
           const isLast = index === 4;
           return `
             <div class="rit-thumb-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${r.id}')">
               <img src="${r.all_images[0]}" alt="review" onerror="this.src='${CONFIG.defaultImg}'">
-              ${isLast && hasMore ? `<div class="rit-thumb-more"><span>${realPhotos}<br>더보기</span></div>` : ''}
+              ${isLast && hasMore ? `<div class="rit-thumb-more"><span>${this.photoReviews.length}<br>더보기</span></div>` : ''}
             </div>
           `;
         }).join('');
@@ -281,7 +284,7 @@
 
       galleryContainer.innerHTML = `
         <div class="rit-thumb-header">
-          <span class="rit-thumb-title">포토리뷰 <span class="rit-count">(${realPhotos}건)</span></span>
+          <span class="rit-thumb-title">포토리뷰 <span class="rit-count">(${displayCount}건)</span></span>
           <span class="rit-thumb-view-all" onclick="document.getElementById('rit-detail-main-board')?.scrollIntoView({behavior: 'smooth'})">전체보기</span>
         </div>
         <div class="rit-thumb-list">${photosHtml}</div>
@@ -338,16 +341,17 @@
 
       let contentHtml = '';
       if (this.isFallbackDemo) {
+        // 💡 [수정] 누락되었던 클래스 및 구조를 완벽히 렌더링
         contentHtml += `
-          <div class="rit-empty-state" style="margin-bottom: 50px;">
+          <div class="rit-empty-state">
             <div class="rit-empty-icon">✨</div>
             <h3 class="rit-empty-title">이 상품의 첫 번째 리뷰어가 되어주세요!</h3>
             <p class="rit-empty-desc">아직 작성된 리뷰가 없습니다.<br>지금 첫 포토 리뷰를 남겨주시면 <strong>특별한 혜택</strong>을 드립니다!</p>
             <a href="${writeUrl}" class="rit-btn-write">첫 리뷰 작성하고 혜택 받기</a>
           </div>
-          <div class="rit-header-area" style="text-align:left; margin-bottom:20px;">
-            <h2 class="rit-main-title" style="margin:0; font-size:20px;">다른 고객들의 베스트 리뷰</h2>
-            <p class="rit-desc" style="font-size:13px; color:#71717a; margin-top:5px;">현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!</p>
+          <div class="rit-header-area">
+            <h2 class="rit-main-title">다른 고객들의 베스트 리뷰</h2>
+            <p class="rit-desc">현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!</p>
           </div>
         `;
       }
@@ -372,7 +376,7 @@
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.defaultImg;
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-      
+
       const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || rawName.includes(CONFIG.mallName))) || CONFIG.adminKeywords.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
       const avgScore = d.stars || 5;
@@ -438,12 +442,12 @@
     initMasonry() {
       const grid = document.getElementById('rit-main-grid');
       if (!grid) return;
-      
+
       const pcCols = 5;
       const moCols = 2;
       grid.style.setProperty('--pc-cols', pcCols);
       grid.style.setProperty('--mo-cols', moCols);
-      
+
       grid.innerHTML = this.listOrder.map(id => this.getCardHTML(id)).join('');
     },
 
@@ -455,7 +459,7 @@
     },
 
     initModal() {
-      let modalContainer = document.getElementById('ritDtlModal'); 
+      let modalContainer = document.getElementById('ritDtlModal');
       if (modalContainer) return;
 
       modalContainer = document.createElement('div');
@@ -573,7 +577,7 @@
             <div class="rit-stars-gold"><img src="${CONFIG.starPath}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
         </div>`;
-        
+
       subjectSide.innerText = d.subject || '';
       contentSide.innerHTML = this.cleanEditorText(d.clean_text_body || "본문 내용이 없습니다.");
 
@@ -655,18 +659,30 @@
         link.href = 'https://review-it-tau.vercel.app/review-it.css';
         document.head.appendChild(link);
       }
-      
+
       if (document.getElementById('rit-dtl-sub-css')) return;
       const style = document.createElement('style');
       style.id = 'rit-dtl-sub-css';
-      
-      // 💡 [핵심 픽스] 상단 썸네일 전용 CSS 완전 복구 삽입!
+
+      // 💡 [추가 복구] Empty State CSS + Thumbnail CSS 완벽 구현
       style.innerHTML = `
         .cboth { clear: both !important; display: block !important; }
-        
         .rit-thumb-wrap, .rit-oy-summary-wrap, .rit-detail-container { font-family: 'Pretendard', sans-serif !important; font-size: 13px !important; box-sizing: border-box !important; }
         
-        /* Thumbnail CSS Restore */
+        /* 💡 Empty State (리뷰 0건 혜택 배너) CSS */
+        .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%) !important; border: 1px dashed #cbd5e1 !important; border-radius: 12px !important; padding: 60px 20px !important; text-align: center !important; width: 100% !important; margin: 40px 0 !important; }
+        .rit-empty-icon { font-size: 40px !important; margin-bottom: 15px !important; animation: bounce 2s infinite !important; }
+        .rit-empty-title { font-size: 18px !important; font-weight: 800 !important; color: #1e293b !important; margin-bottom: 10px !important; }
+        .rit-empty-desc { font-size: 14px !important; color: #64748b !important; line-height: 1.6 !important; margin-bottom: 25px !important; }
+        .rit-btn-write { display: inline-block !important; background: #18181b !important; color: #fff !important; padding: 14px 28px !important; border-radius: 8px !important; font-weight: 700 !important; font-size: 14px !important; text-decoration: none !important; transition: background 0.2s; }
+        .rit-btn-write:hover { background: #3f3f46 !important; color: #fff !important; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        
+        .rit-header-area { margin-bottom: 20px !important; }
+        .rit-main-title { font-size: 20px !important; font-weight: 800 !important; margin: 0 !important; color: #111 !important; }
+        .rit-desc { font-size: 13px !important; color: #71717a !important; margin-top: 5px !important; }
+
+        /* Thumbnail CSS */
         .rit-thumb-wrap { margin: 25px 0 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
         .rit-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
         .rit-thumb-title { font-size: 14px !important; font-weight: 800 !important; color: #111 !important; }
