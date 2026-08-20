@@ -411,49 +411,56 @@
             저장하기</button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div class="rit-setting-box">
-            <span class="rit-label mb-2">하단 메인 리뷰 레이아웃</span>
-            <div class="rit-switch-group">
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="detail_display_type" value="masonry" class="hidden peer" checked>
-                <div
-                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
-                  메이슨리 (격자)</div>
-              </label>
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="detail_display_type" value="swiper" class="hidden peer">
-                <div
-                  class="peer-checked:bg-gray-900 peer-checked:text-white px-3 py-2 rounded-md text-[12px] text-gray-500 font-bold transition">
-                  가로 슬라이드</div>
-              </label>
-            </div>
-          </div>
-
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <!-- 1. 상단 평점 요약 토글 -->
           <div class="rit-setting-box flex flex-row items-center justify-between">
             <div>
-              <span class="rit-label block !mb-1">상단 평점 요약</span>
-              <p class="text-[10px] text-gray-400">올리브영 스타일 리뷰 요약본 노출</p>
+              <span class="rit-label block !mb-1">1. 상단 평점 요약</span>
+              <p class="text-[10px] text-gray-400">올리브영 스타일 요약 노출</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" id="toggle-detail-summary" class="sr-only peer" checked>
-              <div
-                class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
-              </div>
+              <div class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
 
+          <!-- 2. 포토 갤러리 토글 -->
           <div class="rit-setting-box flex flex-row items-center justify-between">
             <div>
-              <span class="rit-label block !mb-1">포토 갤러리</span>
-              <p class="text-[10px] text-gray-400">메인 썸네일 하단 5장 갤러리 노출</p>
+              <span class="rit-label block !mb-1">2. 썸네일 하단 갤러리</span>
+              <p class="text-[10px] text-gray-400">메인 썸네일 하단 5구 노출</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" id="toggle-detail-gallery" class="sr-only peer" checked>
-              <div
-                class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
-              </div>
+              <div class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
+          </div>
+
+          <!-- 3. 하단 메인 리뷰 토글 -->
+          <div class="rit-setting-box flex flex-row items-center justify-between">
+            <div>
+              <span class="rit-label block !mb-1">3. 하단 메인 리뷰</span>
+              <p class="text-[10px] text-gray-400">대시보드 및 리뷰 목록 노출</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="toggle-detail-main" class="sr-only peer" checked>
+              <div class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
+          <!-- 4. 메인 리뷰 레이아웃 선택 -->
+          <div class="rit-setting-box">
+            <span class="rit-label">하단 메인 레이아웃</span>
+            <div class="rit-switch-group">
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="detail_display_type" value="masonry" class="hidden peer" checked>
+                <div class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">메이슨리</div>
+              </label>
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="detail_display_type" value="swiper" class="hidden peer">
+                <div class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">슬라이드</div>
+              </label>
+            </div>
           </div>
         </div>
       </section>
@@ -610,9 +617,10 @@
           const detailTypeRadio = document.querySelector(`input[name="detail_display_type"][value="${s.detail_display_type || 'masonry'}"]`);
           if (detailTypeRadio) detailTypeRadio.checked = true;
 
+          // 💡 3대 영역 토글 로드
           if (document.getElementById('toggle-detail-summary')) document.getElementById('toggle-detail-summary').checked = s.is_detail_summary_enabled !== false;
           if (document.getElementById('toggle-detail-gallery')) document.getElementById('toggle-detail-gallery').checked = s.is_detail_gallery_enabled !== false;
-
+          if (document.getElementById('toggle-detail-main')) document.getElementById('toggle-detail-main').checked = s.is_detail_main_enabled !== false;
         }
         updateToggleText();
       } catch (err) { console.error("설정 로드 실패:", err); }
@@ -632,8 +640,10 @@
           grid_rows_desktop: parseInt(document.getElementById('select-grid-pc')?.value || 5),
           grid_rows_mobile: parseInt(document.getElementById('select-grid-mo')?.value || 2),
           detail_display_type: document.querySelector('input[name="detail_display_type"]:checked')?.value || 'masonry',
+          // 💡 3대 영역 토글 저장
           is_detail_summary_enabled: document.getElementById('toggle-detail-summary')?.checked ?? true,
-          is_detail_gallery_enabled: document.getElementById('toggle-detail-gallery')?.checked ?? true
+          is_detail_gallery_enabled: document.getElementById('toggle-detail-gallery')?.checked ?? true,
+          is_detail_main_enabled: document.getElementById('toggle-detail-main')?.checked ?? true
         };
 
         const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
@@ -653,7 +663,7 @@
         alert('❌ 저장 중 오류 발생: ' + err.message);
       }
     }
-
+    
     // 💡 [핵심 버그 수정] DOM 널 체크가 추가된 데이터 로드 함수
     async function loadAdminData() {
       try {

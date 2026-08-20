@@ -1,10 +1,11 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v1.5.0)
- * @Feature: 0-Review Universal Layout Secured, Dashboard + Empty State Merge
+ * @Project: Review-It Detail Engine (Production Master v1.6.0)
+ * @Feature: 3-Area Independent Control, Theme Style Reset Override, 0-Review Dummy Support
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
 
+  // 기존 위젯 클린업
   document.querySelectorAll('.rit-oy-summary-wrap, .rit-under-thumb-wrap, #rit-detail-main-board, #rit-detail-css').forEach(el => el.remove());
 
   const getProductNo = () => {
@@ -40,26 +41,45 @@
 
       await Promise.all([this.loadSettings(), this.loadReviews()]);
 
+      // 💡 [3대 영역 개별 토글 제어]
+      // 1. 상단 평점 요약 (OliveYoung Summary)
+      if (this.settings.is_detail_summary_enabled !== false) {
+        this.renderTopSummary();
+      }
+
+      // 2. 썸네일 하단 포토 갤러리 (Under Thumbnail Gallery)
       if (this.settings.is_detail_gallery_enabled !== false) {
         this.renderUnderThumbGallery();
       }
 
-      this.renderMainDetailBoard();
+      // 3. 하단 메인 리뷰 영역 (Main Review Board & Dashboard)
+      if (this.settings.is_detail_main_enabled !== false) {
+        this.renderMainDetailBoard();
+      }
     },
 
     async loadSettings() {
       try {
-        const res = await fetch(`${CONFIG.sbUrl}/widget_settings?mall_id=eq.${CONFIG.mallId}`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
+        const res = await fetch(`${CONFIG.sbUrl}/widget_settings?mall_id=eq.${CONFIG.mallId}`, { 
+          headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } 
+        });
         const data = await res.json();
         if (data && data.length > 0) this.settings = data[0];
       } catch (e) {
-        this.settings = { detail_display_type: 'masonry', is_detail_summary_enabled: true, is_detail_gallery_enabled: true };
+        this.settings = { 
+          detail_display_type: 'masonry', 
+          is_detail_summary_enabled: true, 
+          is_detail_gallery_enabled: true,
+          is_detail_main_enabled: true 
+        };
       }
     },
 
     async loadReviews() {
       try {
-        const res = await fetch(`${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&product_no=eq.${productNo}&is_visible=eq.true&order=created_at.desc`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
+        const res = await fetch(`${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&product_no=eq.${productNo}&is_visible=eq.true&order=created_at.desc`, { 
+          headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } 
+        });
         this.reviews = await res.json();
         this.photoReviews = this.reviews.filter(r => r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg);
       } catch (e) {
@@ -109,9 +129,9 @@
           </div>
           <div class="rit-oy-avatars">
             ${totalCount > 0 && avatarPhotos.length > 0
-          ? avatarPhotos.map(r => `<img src="${r.image_urls[0]}" class="rit-oy-avatar">`).join('') + `<div class="rit-oy-avatar-more">+</div>`
-          : `<span style="font-size:11px; color:#94a3b8; font-weight:500;">첫 리뷰 작성 시 혜택 지급 ✨</span>`
-        }
+              ? avatarPhotos.map(r => `<img src="${r.image_urls[0]}" class="rit-oy-avatar">`).join('') + `<div class="rit-oy-avatar-more">+</div>`
+              : `<span style="font-size:11px; color:#94a3b8; font-weight:500;">첫 리뷰 작성 시 혜택 지급 ✨</span>`
+            }
           </div>
         </div>
       `;
@@ -121,11 +141,10 @@
     },
 
     renderUnderThumbGallery() {
-      // 1. 카페24 스킨별 썸네일 영역 클래스명 다중 타겟팅
-      let targetEl = document.querySelector('.detailArea') ||
-        document.querySelector('.xans-product-image') ||
-        document.querySelector('.imgArea') ||
-        document.querySelector('.product-image-section');
+      let targetEl = document.querySelector('.detailArea') || 
+                     document.querySelector('.xans-product-image') || 
+                     document.querySelector('.imgArea');
+      if (!targetEl || !targetEl.parentNode) return;
 
       const galleryContainer = document.createElement('div');
       galleryContainer.className = 'rit-under-thumb-wrap cboth';
@@ -134,7 +153,6 @@
       let photosHtml = '';
 
       if (totalPhotos > 0) {
-        // 실제 포토 리뷰가 있을 때
         const photos = this.photoReviews.slice(0, 5);
         const hasMore = totalPhotos > 5;
         photosHtml = photos.map((r, index) => {
@@ -147,12 +165,11 @@
           `;
         }).join('');
       } else {
-        // 💡 리뷰가 0개일 때: 샘플(더미) 썸네일 5장 껍데기 무조건 렌더링
         const dummyArr = [1, 2, 3, 4, 5];
         photosHtml = dummyArr.map((num, index) => `
-          <div class="rit-thumb-item rit-dummy-item" id="rit-dummy-thumb-${num}">
+          <div class="rit-thumb-item rit-dummy-item">
             <img src="${CONFIG.defaultImg}" alt="sample">
-            ${index === 2 ? `<div class="rit-dummy-text">첫 포토 리뷰를<br>남겨주세요!</div>` : ''}
+            ${index === 2 ? `<div class="rit-dummy-text">첫 포토 리뷰를<br>기다려요!</div>` : ''}
           </div>
         `).join('');
       }
@@ -165,13 +182,7 @@
         <div class="rit-thumb-list">${photosHtml}</div>
       `;
 
-      // 2. DOM 삽입 (타겟을 찾았으면 그 밑에, 못 찾았으면 안전하게 body나 보드에라도 띄움)
-      if (targetEl && targetEl.parentNode) {
-        targetEl.parentNode.insertBefore(galleryContainer, targetEl.nextSibling);
-      } else {
-        console.warn('[REVIEW-IT] 썸네일 기준점을 찾지 못해 안전 영역에 대체 렌더링합니다.');
-        this.injectToBoard(galleryContainer);
-      }
+      targetEl.parentNode.insertBefore(galleryContainer, targetEl.nextSibling);
     },
 
     renderMainDetailBoard() {
@@ -206,15 +217,15 @@
           </div>
           <div class="rit-dash-gauge-box">
             ${[5, 4, 3, 2, 1].map(star => {
-        const pct = totalCount === 0 ? 0 : Math.round((starCounts[star] / totalCount) * 100);
-        return `
+              const pct = totalCount === 0 ? 0 : Math.round((starCounts[star] / totalCount) * 100);
+              return `
                 <div class="rit-gauge-row">
                   <span class="rit-gauge-label">${star}점</span>
                   <div class="rit-gauge-bg"><div class="rit-gauge-fill" style="width: ${pct}%;"></div></div>
                   <span class="rit-gauge-percent">${pct}%</span>
                 </div>
               `;
-      }).join('')}
+            }).join('')}
           </div>
         </div>
       `;
@@ -250,7 +261,8 @@
       }
     },
 
-    getCardHTML(r) { /* 생략 없이 기존 코드 유지 */ return `
+    getCardHTML(r) {
+      return `
         <div class="rit-masonry-item" style="height:100%;">
           <div style="position:relative; width:100%; overflow:hidden; background:#f4f4f5;"><img src="${r.image_urls?.[0] || CONFIG.defaultImg}" class="rit-masonry-img" onerror="this.src='${CONFIG.defaultImg}'"></div>
           <div class="rit-masonry-info">
@@ -285,63 +297,79 @@
       const style = document.createElement('style');
       style.id = 'rit-detail-css';
       style.innerHTML = `
-        .cboth { clear: both; display: block; }
-        .rit-list-container { width: 100%; max-width: 1600px; margin: 30px auto 60px; box-sizing: border-box; padding: 0 16px; }
-        .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%); border: 1px dashed #cbd5e1; border-radius: 12px; padding: 60px 20px; text-align: center; margin-top: 20px; width: 100%; }
-        .rit-empty-icon { font-size: 40px; margin-bottom: 15px; animation: bounce 2s infinite; }
-        .rit-empty-title { font-size: 18px; font-weight: 800; color: #1e293b; margin-bottom: 10px; }
-        .rit-empty-desc { font-size: 14px; color: #64748b; line-height: 1.6; margin-bottom: 25px; word-break: keep-all; }
-        .rit-empty-desc strong { color: #3b82f6; }
-        .rit-btn-write { display: inline-block; background: #18181b; color: #fff !important; padding: 14px 28px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .rit-oy-summary-wrap { margin: 15px 0; padding: 12px 16px; background: #f8fafc; border-radius: 8px; cursor: pointer; border: 1px solid #f1f5f9; box-sizing: border-box; width: 100%; }
-        .rit-oy-content { display: flex; justify-content: space-between; align-items: center; }
-        .rit-oy-left { display: flex; align-items: center; gap: 8px; }
-        .rit-oy-star { font-size: 14px; font-weight: 800; color: #18181b; }
-        .rit-oy-count { font-size: 12px; color: #71717a; border-left: 1px solid #e4e4e7; padding-left: 8px; }
-        .rit-oy-avatars { display: flex; align-items: center; }
-        .rit-oy-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1.5px solid #ff425c; margin-left: -8px; position: relative; z-index: 2; }
-        .rit-oy-avatar:first-child { margin-left: 0; z-index: 3; }
-        .rit-dashboard-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 20px; width: 100%; box-sizing: border-box; }
-        @media (min-width: 768px) { .rit-dashboard-card { flex-direction: row; align-items: center; justify-content: space-between; } }
-        .rit-dash-left { display: flex; gap: 15px; flex: 1; }
-        .rit-dash-score-box { display: flex; align-items: center; gap: 15px; }
-        .rit-dash-big-score { font-size: 36px; font-weight: 800; color: #111; line-height: 1; }
-        .rit-dash-count-text { font-size: 12px; color: #666; font-weight: 500; }
-        .rit-dash-gauge-box { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-        @media (min-width: 768px) { .rit-dash-gauge-box { border-left: 1px solid #f3f3f3; padding-left: 24px; } }
-        .rit-gauge-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #888; }
-        .rit-gauge-label { width: 24px; font-weight: 600; color: #52525b; }
-        .rit-gauge-bg { flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
-        .rit-gauge-fill { height: 100%; background: #f59e0b; border-radius: 4px; }
-        .rit-gauge-percent { width: 28px; text-align: right; font-weight: 600; }
-        .rit-universal-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
-        .rit-universal-title { font-size: 20px; font-weight: 800; color: #111; margin: 0; }
-        .rit-masonry-grid { display: flex; flex-direction: row; align-items: flex-start; gap: 16px; width: 100%; box-sizing: border-box; margin-top: 20px; }
-        .rit-masonry-column { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 16px; }
-        .rit-masonry-item { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-        .rit-masonry-img { width: 100%; height: auto; display: block; object-fit: cover; }
-        .rit-masonry-info { padding: 15px; display: flex; flex-direction: column; flex-grow: 1; }
-        .rit-masonry-subject { font-size: 13px; font-weight: 700; color: #111; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-        .rit-masonry-desc { font-size: 12px; color: #666; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .rit-masonry-meta { display: flex; justify-content: space-between; font-size: 11px; border-top: 1px solid #eee; padding-top: 10px; margin-top: auto; }
-        @media (max-width: 768px) { .rit-oy-summary-wrap { margin-left: 16px; margin-right: 16px; width: calc(100% - 32px); } }
-        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        /* 💡 0-Review 더미 썸네일 스타일 */
-        .rit-dummy-item { background: #f8fafc; border: 1px dashed #cbd5e1; }
-        .rit-dummy-item img { opacity: 0.1; filter: grayscale(100%); }
-        .rit-dummy-text { 
-          position: absolute; 
-          inset: 0; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          text-align: center; 
-          font-size: 11px; 
-          font-weight: 700; 
-          color: #64748b; 
-          line-height: 1.4; 
-          z-index: 2; 
+        /* 💡 테마 리셋 방어용 베이스 스타일 */
+        .cboth { clear: both !important; display: block !important; }
+        .rit-under-thumb-wrap, .rit-oy-summary-wrap, .rit-list-container { 
+          font-size: 13px !important; 
+          line-height: normal !important; 
+          box-sizing: border-box !important;
+          letter-spacing: normal !important;
         }
+
+        /* 💡 썸네일 하단 갤러리 영역 (강력 복구) */
+        .rit-under-thumb-wrap { margin: 25px auto 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
+        .rit-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
+        .rit-thumb-title { font-size: 14px !important; font-weight: 800 !important; color: #111 !important; }
+        .rit-count { color: #94a3b8 !important; font-weight: 500 !important; font-size: 12px !important; }
+        .rit-thumb-view-all { font-size: 12px !important; color: #64748b !important; cursor: pointer !important; text-decoration: underline !important; }
+        
+        .rit-thumb-list { display: flex !important; gap: 8px !important; width: 100% !important; overflow: hidden !important; }
+        .rit-thumb-item { position: relative !important; flex: 1 1 0 !important; aspect-ratio: 1/1 !important; border-radius: 6px !important; overflow: hidden !important; background: #f8fafc !important; cursor: pointer !important; border: 1px solid #e2e8f0 !important; }
+        .rit-thumb-item img { width: 100% !important; height: 100% !important; object-fit: cover !important; display: block !important; }
+        .rit-thumb-more { position: absolute !important; inset: 0 !important; background: rgba(0,0,0,0.6) !important; color: #fff !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 15px !important; font-weight: 800 !important; }
+
+        /* 더미 썸네일 */
+        .rit-dummy-item { background: #f8fafc !important; border: 1px dashed #cbd5e1 !important; }
+        .rit-dummy-item img { opacity: 0.1 !important; filter: grayscale(100%) !important; }
+        .rit-dummy-text { position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; font-size: 11px !important; font-weight: 700 !important; color: #64748b !important; line-height: 1.3 !important; }
+
+        /* 상단 평점 요약 (올리브영 뷰) */
+        .rit-oy-summary-wrap { margin: 15px 0 !important; padding: 12px 16px !important; background: #f8fafc !important; border-radius: 8px !important; cursor: pointer !important; border: 1px solid #f1f5f9 !important; width: 100% !important; }
+        .rit-oy-content { display: flex !important; justify-content: space-between !important; align-items: center !important; }
+        .rit-oy-left { display: flex !important; align-items: center !important; gap: 8px !important; }
+        .rit-oy-star { font-size: 14px !important; font-weight: 800 !important; color: #18181b !important; }
+        .rit-oy-count { font-size: 12px !important; color: #71717a !important; border-left: 1px solid #e4e4e7 !important; padding-left: 8px !important; }
+        .rit-oy-avatars { display: flex !important; align-items: center !important; }
+        .rit-oy-avatar { width: 24px !important; height: 24px !important; border-radius: 50% !important; object-fit: cover !important; border: 1.5px solid #ff425c !important; margin-left: -8px !important; position: relative !important; z-index: 2 !important; }
+        .rit-oy-avatar:first-child { margin-left: 0 !important; z-index: 3 !important; }
+        .rit-oy-avatar-more { width: 24px !important; height: 24px !important; border-radius: 50% !important; background: #e4e4e7 !important; color: #52525b !important; font-size: 10px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: -8px !important; border: 1.5px solid #fff !important; }
+
+        /* 메인 리스트 컨테이너 */
+        .rit-list-container { width: 100% !important; max-width: 1600px !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
+        .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%) !important; border: 1px dashed #cbd5e1 !important; border-radius: 12px !important; padding: 60px 20px !important; text-align: center !important; margin-top: 20px !important; width: 100% !important; }
+        .rit-empty-icon { font-size: 40px !important; margin-bottom: 15px !important; animation: bounce 2s infinite !important; }
+        .rit-empty-title { font-size: 18px !important; font-weight: 800 !important; color: #1e293b !important; margin-bottom: 10px !important; }
+        .rit-empty-desc { font-size: 14px !important; color: #64748b !important; line-height: 1.6 !important; margin-bottom: 25px !important; }
+        .rit-btn-write { display: inline-block !important; background: #18181b !important; color: #fff !important; padding: 14px 28px !important; border-radius: 8px !important; font-weight: 700 !important; font-size: 14px !important; text-decoration: none !important; }
+
+        /* 대시보드 카드 */
+        .rit-dashboard-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; }
+        @media (min-width: 768px) { .rit-dashboard-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
+        .rit-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
+        .rit-dash-score-box { display: flex !important; align-items: center !important; gap: 15px !important; }
+        .rit-dash-big-score { font-size: 36px !important; font-weight: 800 !important; color: #111 !important; line-height: 1 !important; }
+        .rit-dash-count-text { font-size: 12px !important; color: #666 !important; font-weight: 500 !important; }
+        .rit-dash-gauge-box { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; }
+        @media (min-width: 768px) { .rit-dash-gauge-box { border-left: 1px solid #f3f3f3 !important; padding-left: 24px !important; } }
+        .rit-gauge-row { display: flex !important; align-items: center !important; gap: 10px !important; font-size: 11px !important; color: #888 !important; }
+        .rit-gauge-label { width: 24px !important; font-weight: 600 !important; color: #52525b !important; }
+        .rit-gauge-bg { flex: 1 !important; height: 8px !important; background: #f1f5f9 !important; border-radius: 4px !important; overflow: hidden !important; }
+        .rit-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
+        .rit-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
+
+        .rit-universal-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 20px !important; }
+        .rit-universal-title { font-size: 20px !important; font-weight: 800 !important; color: #111 !important; margin: 0 !important; }
+        
+        .rit-masonry-grid { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 16px !important; width: 100% !important; margin-top: 20px !important; }
+        .rit-masonry-column { display: flex !important; flex-direction: column !important; flex: 1 !important; min-width: 0 !important; gap: 16px !important; }
+        .rit-masonry-item { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; }
+        .rit-masonry-img { width: 100% !important; height: auto !important; display: block !important; object-fit: cover !important; }
+        .rit-masonry-info { padding: 15px !important; display: flex !important; flex-direction: column !important; }
+        .rit-masonry-subject { font-size: 13px !important; font-weight: 700 !important; color: #111 !important; margin-bottom: 6px !important; }
+        .rit-masonry-desc { font-size: 12px !important; color: #666 !important; line-height: 1.5 !important; margin-bottom: 12px !important; }
+        .rit-masonry-meta { display: flex !important; justify-content: space-between !important; font-size: 11px !important; border-top: 1px solid #eee !important; padding-top: 10px !important; margin-top: auto !important; }
+        
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
       `;
       document.head.appendChild(style);
     }
