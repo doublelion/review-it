@@ -68,7 +68,10 @@
       if (this.settings.is_detail_main_enabled !== false) this.renderMainDetailBoard();
     },
 
-    scrollToReviews() {
+    // 💡 1. 스크롤 함수 교체: 이벤트(e)를 받아 브라우저 강제 점프를 막고 우리 위젯으로 조준합니다.
+    scrollToReviews(e) {
+      if (e) e.preventDefault(); // 브라우저의 기본 #앵커 이동(튕김 현상) 원천 차단
+
       let isTabClicked = false;
       const tabSelectors = [
         'a[href*="#prdReview"]', 'a[href*="prdReview"]', 'a[name="use_review_mobile"]',
@@ -83,20 +86,23 @@
             isTabClicked = true;
             const parentLi = tab.closest('li');
             if (parentLi && parentLi.parentElement) {
-              Array.from(parentLi.parentElement.children).forEach(sibling => sibling.classList.remove('selected'));
-              parentLi.classList.add('selected');
+              Array.from(parentLi.parentElement.children).forEach(sibling => sibling.classList.remove('selected', 'active'));
+              parentLi.classList.add('selected', 'active');
             }
           }
         }
       }
 
+      // PC 스킨의 탭 렌더링 딜레이를 고려해 타겟을 정확히 잡아냅니다.
       setTimeout(() => {
         const target = document.getElementById('rit-detail-main-board');
         if (target) {
-          const y = target.getBoundingClientRect().top + window.pageYOffset - 70;
+          // PC 헤더(GNB)가 모바일보다 큰 것을 감안해 PC는 여백을 120px, 모바일은 70px로 분기 처리
+          const offset = window.innerWidth >= 768 ? 120 : 70;
+          const y = target.getBoundingClientRect().top + window.pageYOffset - offset;
           window.scrollTo({ top: y, behavior: 'smooth' });
         }
-      }, isTabClicked ? 300 : 50);
+      }, isTabClicked ? 350 : 100);
     },
 
     async loadSettings() {
@@ -243,6 +249,7 @@
       else document.body.appendChild(container);
     },
 
+    // 💡 2. 상단 요약 위젯 교체: onclick에 'event' 파라미터를 넘겨줍니다.
     renderTopSummary() {
       let infoArea = document.querySelector('.xans-product-info, .infoArea, .prdInfo, .product-info-section');
       if (!infoArea) return;
@@ -267,8 +274,9 @@
 
       const summaryContainer = document.createElement('div');
       summaryContainer.className = 'rit-oy-summary-wrap cboth';
+      // 수정된 부분: scrollToReviews(event)
       summaryContainer.innerHTML = `
-        <div class="rit-oy-content" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.scrollToReviews()">
+        <div class="rit-oy-content" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.scrollToReviews(event)">
           <div class="rit-oy-left">
             <span class="rit-oy-star">★ ${avgScore}</span>
             <span class="rit-oy-count">리뷰 ${realCount}건</span>
@@ -281,6 +289,7 @@
       else infoArea.insertBefore(summaryContainer, infoArea.firstChild);
     },
 
+    // 💡 3. 포토 갤러리 위젯 교체: '전체보기' 버튼에도 event 파라미터를 추가해줍니다.
     renderUnderThumbGallery() {
       let targetEl = document.querySelector('.detailArea') || document.querySelector('.xans-product-image') || document.querySelector('.imgArea');
       if (!targetEl || !targetEl.parentNode) return;
@@ -316,7 +325,7 @@
       galleryContainer.innerHTML = `
         <div class="rit-thumb-header">
           <span class="rit-thumb-title">포토리뷰 <span class="rit-count">(${displayCount}건)</span></span>
-          <span class="rit-thumb-view-all" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.scrollToReviews()">전체보기</span>
+          <span class="rit-thumb-view-all" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.scrollToReviews(event)">전체보기</span>
         </div>
         <div class="rit-thumb-list">${photosHtml}</div>
       `;
