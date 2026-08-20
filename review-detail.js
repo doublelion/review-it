@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v3.5 - Mobile First & Tab Auto-Scroll)
- * @Feature: Cafe24 Mobile Tab Override, Box-sizing Fixed, Responsive UI Perfected
+ * @Project: Review-It Detail Engine (Production Master v3.6 - Mobile First & CSS Prefixed)
+ * @Feature: Cafe24 Mobile Tab Override, Inline-style Removed, Responsive Layout Fixed
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
@@ -68,10 +68,8 @@
       if (this.settings.is_detail_main_enabled !== false) this.renderMainDetailBoard();
     },
 
-    // 💡 [핵심 픽스 1] 카페24 모바일 탭 강제 열기 및 스크롤 추적 고도화
     scrollToReviews() {
       let isTabClicked = false;
-      // 카페24 모바일 및 PC 탭 셀렉터 전면 대응
       const tabSelectors = [
         'a[href*="#prdReview"]', 'a[href*="prdReview"]', 'a[name="use_review_mobile"]',
         'a[name="use_review"]', '.tabProduct a[href*="Review"]', 'li[id*="review"] a'
@@ -83,7 +81,6 @@
           if (typeof tab.click === 'function') {
             tab.click();
             isTabClicked = true;
-            // 탭 클릭 시 UI 동기화를 위해 부모 li에 selected 클래스 부여
             const parentLi = tab.closest('li');
             if (parentLi && parentLi.parentElement) {
               Array.from(parentLi.parentElement.children).forEach(sibling => sibling.classList.remove('selected'));
@@ -93,11 +90,9 @@
         }
       }
 
-      // DOM 렌더링 후(애니메이션 고려) 스크롤 부드럽게 이동
       setTimeout(() => {
         const target = document.getElementById('rit-detail-main-board');
         if (target) {
-          // 헤더 높이만큼 여유 오프셋(-70px) 부여
           const y = target.getBoundingClientRect().top + window.pageYOffset - 70;
           window.scrollTo({ top: y, behavior: 'smooth' });
         }
@@ -408,7 +403,7 @@
       `;
 
       contentHtml += viewToggleHtml;
-      contentHtml += `<div id="rit-main-grid"></div>`;
+      contentHtml += `<div id="rit-main-grid" class="rit-grid-layout-${this.viewType}"></div>`; // 클래스 제어로 변경
 
       container.innerHTML = `
         ${dashboardHtml}
@@ -427,6 +422,11 @@
       document.getElementById('rit-view-btn-thumbnail').classList.remove('active');
       document.getElementById('rit-view-btn-list').classList.remove('active');
       document.getElementById(`rit-view-btn-${type}`).classList.add('active');
+
+      const grid = document.getElementById('rit-main-grid');
+      if (grid) {
+        grid.className = `rit-grid-layout-${type}`;
+      }
       this.renderGrid();
     },
 
@@ -473,25 +473,26 @@
       let formattedDate = rawDate ? rawDate.replace(/-/g, '.') : '';
 
       const verifiedBadgeHtml = !isMallOwner ? `
-      <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
+      <span class="rit-verified-badge">구매 인증</span>
       ` : '';
 
+      // 💡 HTML 안의 모든 인라인 스타일 제거 (클래스로 이관)
       return `
       <div class="rit-dtl-card rit-masonry-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')">
-        <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
-          <img src="${thumb}" class="rit-card-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}';" style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
+        <div class="rit-card-img-container">
+          <img src="${thumb}" class="rit-card-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}';">
           ${verifiedBadgeHtml}
         </div>
-        <div class="rit-card-info" style="position: relative; z-index: 3; background: #fff; padding: 16px 14px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="display:flex; align-items:center; gap:5px; margin-bottom:8px; font-size:11px; font-weight:700; color:#52525b;">
-             <span style="color:#fbbf24;">★</span><span>${Number(avgScore).toFixed(1)}</span>
+        <div class="rit-card-info">
+          <div class="rit-card-score-box">
+             <span class="rit-star-icon">★</span><span class="rit-score-text">${Number(avgScore).toFixed(1)}</span>
           </div>
-          <div class="rit-card-subject line-clamp-2 break-keep" style="font-size: 13px; line-height: 1.4; height: 2.8em; color: #222; margin-bottom: 12px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${d.subject || d.clean_text_body || ''}</div>
-          <div class="rit-card-meta" style="border-top: 1px solid #f4f4f5; padding-top: 10px; margin-top: auto;">
-            <div style="display: flex; align-items: center; gap: 6px; width: 100%; overflow: hidden;">
-              <span style="font-size: 11px; color: #71717a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">${displayName}</span>
-              <span style="font-size: 10px; color: #e4e4e7; flex-shrink: 0;">|</span>
-              <span style="font-size: 11px; color: #a1a1aa; flex-shrink: 0; white-space: nowrap;">${formattedDate}</span>
+          <div class="rit-card-subject">${d.subject || d.clean_text_body || ''}</div>
+          <div class="rit-card-meta">
+            <div class="rit-meta-inner">
+              <span class="rit-meta-name">${displayName}</span>
+              <span class="rit-meta-divider">|</span>
+              <span class="rit-meta-date">${formattedDate}</span>
             </div>
           </div>
         </div>
@@ -504,26 +505,18 @@
 
       if (this.viewType === 'list') {
         grid.innerHTML = this.listOrder.map(id => this.getListItemHTML(id)).join('');
-        grid.style.display = 'flex';
-        grid.style.flexDirection = 'column';
-        grid.style.gap = '0';
       } else {
         let cols = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 768 ? 3 : 2);
         if (this.listOrder.length < cols) cols = this.listOrder.length;
         const columnDOMs = Array.from({ length: cols }, () => []);
         this.listOrder.forEach((id, i) => columnDOMs[i % cols].push(this.getCardHTML(id)));
 
+        // 💡 컬럼 래퍼의 인라인 스타일도 제거 후 클래스(rit-masonry-column)에 의존
         grid.innerHTML = columnDOMs.map(col => `
-          <div class="rit-masonry-column" style="display:flex; flex-direction:column; flex:1; gap:16px;">
+          <div class="rit-masonry-column">
             ${col.join('')}
           </div>
         `).join('');
-
-        grid.style.display = 'flex';
-        grid.style.flexDirection = 'row';
-        grid.style.alignItems = 'flex-start';
-        grid.style.gap = '16px';
-        grid.style.width = '100%';
       }
     },
 
@@ -765,7 +758,7 @@
         .cboth { clear: both !important; display: block !important; }
         .rit-thumb-wrap, .rit-oy-summary-wrap, .rit-detail-container { font-family: 'Pretendard', sans-serif !important; font-size: 13px !important; box-sizing: border-box !important; }
         
-        /* 💡 Empty State CSS Fixes */
+        /* 💡 Empty State CSS */
         .rit-empty-state { box-sizing: border-box !important; background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%) !important; border: 1px dashed #cbd5e1 !important; border-radius: 12px !important; padding: 40px 16px !important; text-align: center !important; width: 100% !important; margin: 20px 0 !important; }
         @media (min-width: 768px) { .rit-empty-state { padding: 60px 20px !important; margin: 40px 0 !important; } }
         .rit-empty-icon { font-size: 40px !important; margin-bottom: 15px !important; animation: bounce 2s infinite !important; }
@@ -779,7 +772,7 @@
         .rit-main-title { font-size: 20px !important; font-weight: 800 !important; margin: 0 !important; color: #111 !important; }
         .rit-desc { font-size: 13px !important; color: #71717a !important; margin-top: 5px !important; }
 
-        /* Thumbnail CSS */
+        /* Thumbnail Top */
         .rit-thumb-wrap { margin: 25px 0 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
         .rit-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
         .rit-thumb-title { font-size: 14px !important; font-weight: 800 !important; color: #111 !important; }
@@ -806,7 +799,7 @@
         .rit-oy-avatar:first-child { margin-left: 0 !important; z-index: 3 !important; }
         .rit-oy-avatar-more { width: 24px !important; height: 24px !important; border-radius: 50% !important; background: #e4e4e7 !important; color: #52525b !important; font-size: 10px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: -8px !important; border: 1.5px solid #fff !important; }
         
-        /* 💡 Dashboard Container CSS Fixes */
+        /* 💡 Dashboard Container */
         .rit-detail-container { box-sizing: border-box !important; width: 100% !important; max-width: 100% !important; margin: 20px auto 40px !important; padding: 0 16px !important; overflow: hidden !important; }
         @media (min-width: 768px) { .rit-detail-container { margin: 30px auto 60px !important; } }
         
@@ -833,22 +826,172 @@
         .rit-view-btn svg { fill: currentColor; width: 14px; height: 14px; }
         .rit-view-btn.active { background: #fff !important; color: #111 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important; }
 
-        /* Masonry Item */
-        .rit-dtl-card { position: relative !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; border-radius: 12px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important; background: #fff !important; width: 100% !important; cursor: pointer !important; border: 1px solid #f0f0f0 !important; transition: transform 0.2s ease !important; height: auto !important; }
+        /* =========================================================
+           🚀 [MAIN FIX] Mobile First: Grid / Masonry Layout CSS 
+           ========================================================= */
+        
+        /* 1) Thumbnail Grid 래퍼 */
+        .rit-grid-layout-thumbnail {
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: flex-start !important;
+          gap: 10px !important; /* 모바일 간격 축소 */
+          width: 100% !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important; 
+        }
+
+        /* 2) List Grid 래퍼 */
+        .rit-grid-layout-list {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 0 !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+
+        /* 3) Masonry Column (쏠림/터짐 방지 min-width: 0 핵심) */
+        .rit-masonry-column {
+          display: flex !important;
+          flex-direction: column !important;
+          flex: 1 !important;
+          gap: 10px !important;
+          min-width: 0 !important; 
+        }
+
+        /* 4) Masonry Card 기본 모바일 스펙 */
+        .rit-dtl-card { 
+          position: relative !important; 
+          overflow: hidden !important; 
+          display: flex !important; 
+          flex-direction: column !important; 
+          border-radius: 12px !important; 
+          box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important; 
+          background: #fff !important; 
+          width: 100% !important; 
+          cursor: pointer !important; 
+          border: 1px solid #f0f0f0 !important; 
+          transition: transform 0.2s ease !important; 
+          height: auto !important; 
+        }
         .rit-dtl-card:hover { transform: translateY(-3px) !important; }
 
-        .rit-list-item { display: flex !important; flex-direction: column !important; padding: 24px 0 !important; border-bottom: 1px solid #f0f0f0 !important; cursor: pointer !important; transition: background 0.2s !important; }
-        @media (min-width: 768px) { .rit-list-item { flex-direction: row !important; gap: 40px !important; } }
-        .rit-list-meta { width: 180px !important; flex-shrink: 0 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; margin-bottom: 16px !important; }
-        @media (max-width: 767px) { .rit-list-meta { flex-direction: row !important; align-items: center !important; gap: 12px !important; margin-bottom: 10px !important; } }
+        .rit-card-img-container {
+          position: relative !important; 
+          width: 100% !important; 
+          aspect-ratio: 1/1 !important; 
+          flex-shrink: 0 !important; 
+          display: flex !important; 
+          align-items: center !important; 
+          justify-content: center !important; 
+          z-index: 2 !important; 
+          overflow: hidden !important; 
+          background: rgba(0,0,0,0.02) !important;
+        }
+
+        .rit-card-img {
+          max-width: 100% !important; 
+          max-height: 100% !important; 
+          object-fit: cover !important; 
+          width: 100% !important; 
+          height: 100% !important; 
+          transition: transform 0.3s ease !important;
+        }
+
+        .rit-verified-badge {
+          position: absolute !important; 
+          right: 8px !important; 
+          bottom: 8px !important; 
+          background: rgba(255,255,255,0.85) !important; 
+          backdrop-filter: blur(4px) !important; 
+          -webkit-backdrop-filter: blur(4px) !important; 
+          color: #3f3f46 !important; 
+          padding: 4px 6px !important; 
+          border-radius: 4px !important; 
+          font-size: 9.5px !important; 
+          font-weight: 700 !important; 
+          letter-spacing: -0.5px !important; 
+          z-index: 10 !important; 
+          box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important;
+        }
+
+        .rit-card-info {
+          position: relative !important; 
+          z-index: 3 !important; 
+          background: #fff !important; 
+          padding: 12px 10px !important; /* 모바일 패딩 축소 */
+          flex-grow: 1 !important; 
+          display: flex !important; 
+          flex-direction: column !important; 
+          justify-content: space-between !important;
+        }
+
+        .rit-card-score-box {
+          display: flex !important; 
+          align-items: center !important; 
+          gap: 5px !important; 
+          margin-bottom: 8px !important; 
+          font-size: 11px !important; 
+          font-weight: 700 !important; 
+          color: #52525b !important;
+        }
+        .rit-star-icon { color: #fbbf24 !important; }
+        
+        .rit-card-subject {
+          font-size: 12px !important; /* 모바일 제목 사이즈 축소 */
+          line-height: 1.4 !important; 
+          height: 2.8em !important; 
+          color: #222 !important; 
+          margin-bottom: 10px !important; 
+          font-weight: 500 !important; 
+          display: -webkit-box !important; 
+          -webkit-line-clamp: 2 !important; 
+          -webkit-box-orient: vertical !important; 
+          overflow: hidden !important; 
+          word-break: keep-all !important;
+        }
+
+        .rit-card-meta {
+          border-top: 1px solid #f4f4f5 !important; 
+          padding-top: 10px !important; 
+          margin-top: auto !important;
+        }
+
+        .rit-meta-inner {
+          display: flex !important; 
+          align-items: center !important; 
+          gap: 6px !important; 
+          width: 100% !important; 
+          overflow: hidden !important;
+        }
+        
+        .rit-meta-name { font-size: 11px !important; color: #71717a !important; font-weight: 600 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 60% !important; }
+        .rit-meta-divider { font-size: 10px !important; color: #e4e4e7 !important; flex-shrink: 0 !important; }
+        .rit-meta-date { font-size: 11px !important; color: #a1a1aa !important; flex-shrink: 0 !important; white-space: nowrap !important; }
+
+        /* 5) 리스트 뷰 아이템 CSS (Mobile First) */
+        .rit-list-item { display: flex !important; flex-direction: column !important; padding: 20px 0 !important; border-bottom: 1px solid #f0f0f0 !important; cursor: pointer !important; transition: background 0.2s !important; }
+        .rit-list-meta { width: 100% !important; flex-shrink: 0 !important; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 12px !important; margin-bottom: 12px !important; box-sizing: border-box !important; }
         .rit-list-stars { color: #111 !important; font-size: 14px !important; letter-spacing: 1px !important; }
         .rit-list-author { font-size: 13px !important; color: #52525b !important; font-weight: 700 !important; }
         .rit-list-date { font-size: 12px !important; color: #a1a1aa !important; }
+        
         .rit-list-content { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 10px !important; }
         .rit-list-subject { font-size: 14px !important; font-weight: 700 !important; color: #111 !important; }
         .rit-list-text { font-size: 13px !important; color: #444 !important; line-height: 1.6 !important; display: -webkit-box !important; -webkit-line-clamp: 3 !important; -webkit-box-orient: vertical !important; overflow: hidden !important; word-break: keep-all !important; }
         .rit-list-images { display: flex !important; gap: 8px !important; margin-top: 8px !important; }
         .rit-list-img-thumb { width: 80px !important; height: 80px !important; border-radius: 6px !important; object-fit: cover !important; border: 1px solid #f0f0f0 !important; }
+
+        /* 🚀 [PC Media Query Override] */
+        @media (min-width: 768px) {
+          .rit-grid-layout-thumbnail { gap: 16px !important; }
+          .rit-masonry-column { gap: 16px !important; }
+          .rit-card-info { padding: 16px 14px !important; }
+          .rit-card-subject { font-size: 13px !important; margin-bottom: 12px !important; }
+          
+          .rit-list-item { flex-direction: row !important; gap: 40px !important; padding: 24px 0 !important; }
+          .rit-list-meta { width: 180px !important; flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; margin-bottom: 16px !important; }
+        }
 
         /* Modal Grid Overlay */
         #ritDtlGridView { position:absolute; inset:0; background:#fff; z-index:100; overflow-y:auto; box-sizing: border-box !important; padding:20px; }
