@@ -121,13 +121,14 @@
     },
 
     renderUnderThumbGallery() {
-      // 1. 타겟 엘리먼트 찾기 (와이키나스의 .detailArea 완벽 대응)
-      let targetEl = document.querySelector('.detailArea');
-      if (!targetEl) targetEl = document.querySelector('.xans-product-image, .product-image-section');
-      if (!targetEl || !targetEl.parentNode) return;
+      // 1. 카페24 스킨별 썸네일 영역 클래스명 다중 타겟팅
+      let targetEl = document.querySelector('.detailArea') ||
+        document.querySelector('.xans-product-image') ||
+        document.querySelector('.imgArea') ||
+        document.querySelector('.product-image-section');
 
       const galleryContainer = document.createElement('div');
-      galleryContainer.className = 'rit-under-thumb-wrap cboth'; // 플로팅 꼬임 방지
+      galleryContainer.className = 'rit-under-thumb-wrap cboth';
 
       const totalPhotos = this.photoReviews.length;
       let photosHtml = '';
@@ -146,16 +147,14 @@
           `;
         }).join('');
       } else {
-        // 💡 [수정됨] 리뷰가 0개일 때: 샘플(더미) 썸네일 5장 강제 렌더링
+        // 💡 리뷰가 0개일 때: 샘플(더미) 썸네일 5장 껍데기 무조건 렌더링
         const dummyArr = [1, 2, 3, 4, 5];
-        photosHtml = dummyArr.map((num, index) => {
-          return `
-            <div class="rit-thumb-item rit-dummy-item">
-              <img src="${CONFIG.defaultImg}" alt="sample">
-              ${index === 2 ? `<div class="rit-dummy-text">첫 포토 리뷰를<br>남겨주세요!</div>` : ''}
-            </div>
-          `;
-        }).join('');
+        photosHtml = dummyArr.map((num, index) => `
+          <div class="rit-thumb-item rit-dummy-item" id="rit-dummy-thumb-${num}">
+            <img src="${CONFIG.defaultImg}" alt="sample">
+            ${index === 2 ? `<div class="rit-dummy-text">첫 포토 리뷰를<br>남겨주세요!</div>` : ''}
+          </div>
+        `).join('');
       }
 
       galleryContainer.innerHTML = `
@@ -166,8 +165,13 @@
         <div class="rit-thumb-list">${photosHtml}</div>
       `;
 
-      // 타겟(detailArea) 바로 다음 형제 요소로 삽입
-      targetEl.parentNode.insertBefore(galleryContainer, targetEl.nextSibling);
+      // 2. DOM 삽입 (타겟을 찾았으면 그 밑에, 못 찾았으면 안전하게 body나 보드에라도 띄움)
+      if (targetEl && targetEl.parentNode) {
+        targetEl.parentNode.insertBefore(galleryContainer, targetEl.nextSibling);
+      } else {
+        console.warn('[REVIEW-IT] 썸네일 기준점을 찾지 못해 안전 영역에 대체 렌더링합니다.');
+        this.injectToBoard(galleryContainer);
+      }
     },
 
     renderMainDetailBoard() {
