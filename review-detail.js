@@ -72,7 +72,7 @@
     scrollToReviews(e) {
       if (e) {
         e.preventDefault(); 
-        e.stopPropagation(); // 카페24 스킨의 jQuery가 이벤트를 낚아채서 #prdDetail로 스크롤하는 현상 방지
+        e.stopPropagation(); // 카페24 스킨의 jQuery가 이벤트를 낚아채는 현상 방지
       }
 
       let isTabClicked = false;
@@ -82,24 +82,19 @@
         '.detail_tab a[href="#review"]'
       ];
 
+      // 여러 탭이 중복 클릭되어 스크롤 애니메이션이 충돌(튀는 현상)하는 것을 막기 위해
+      // 유효한 탭을 하나 찾으면 클릭 후 즉시 반복문을 종료합니다.
       for (let selector of tabSelectors) {
-        const tabs = document.querySelectorAll(selector);
-        for (let tab of tabs) {
-          if (typeof tab.click === 'function') {
-            tab.click();
-            isTabClicked = true;
-            
-            const parentLi = tab.closest('li');
-            if (parentLi && parentLi.parentElement) {
-              Array.from(parentLi.parentElement.children).forEach(sibling => sibling.classList.remove('selected', 'active', 'tab_open'));
-              parentLi.classList.add('selected', 'active', 'tab_open');
-            }
-          }
+        const tab = document.querySelector(selector);
+        if (tab && typeof tab.click === 'function') {
+          tab.click();
+          isTabClicked = true;
+          break; 
         }
       }
 
       // 렌더링 딜레이 후 정확한 타겟으로 스크롤 이동
-      // 카페24 자체 스크롤 애니메이션(보통 300ms)을 이기기 위해 딜레이를 400ms로 설정
+      // 카페24 자체 스크롤 애니메이션(보통 500ms)이 끝날 즈음 부드럽게 안착시킵니다.
       setTimeout(() => {
         // 1순위: 데스크탑 리뷰 최상단 부모 (#prdReview) 강제 타겟팅
         const target = document.getElementById('prdReview') || document.getElementById('review') || document.querySelector('.detail_tab') || document.getElementById('rit-detail-main-board');
@@ -110,7 +105,7 @@
           
           window.scrollTo({ top: y, behavior: 'smooth' });
         }
-      }, isTabClicked ? 400 : 100);
+      }, isTabClicked ? 550 : 100); // 딜레이를 550ms로 살짝 늘려 테마 스크립트와 완전히 분리
     },
 
     async loadSettings() {
