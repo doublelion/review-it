@@ -148,7 +148,9 @@
   <!-- 💡 좌측 사이드바 네비게이션 -->
   <aside id="sidebar"
     class="fixed inset-y-0 left-0 bg-white w-64 border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col h-full">
+    <!-- 💡 [수정됨] 좌측 사이드바 네비게이션 (로고 추가) -->
     <div class="h-16 flex items-center px-6 border-b border-gray-100">
+      <img src="https://review-it-tau.vercel.app/assets/logo_review.png" alt="Review-It Logo" class="w-8 h-8 mr-2 rounded-md object-cover shadow-sm">
       <h1 class="text-xl font-extrabold tracking-tighter text-gray-900">REVIEW-IT</h1>
       <span class="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">PRO</span>
     </div>
@@ -184,22 +186,34 @@
       </ul>
     </nav>
 
-    <div class="p-4 border-t border-gray-100 bg-gray-50">
-      <div class="flex items-center gap-2 mb-1">
-        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-        <span class="text-xs font-bold text-gray-700 uppercase" id="display-mall-name">SHOP</span>
+    <!-- 💡 [수정됨] 사이드바 하단 몰 정보 및 스토어 이동 버튼 -->
+    <div class="p-4 border-t border-gray-100 bg-gray-50 flex flex-col gap-3">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+          <span class="text-xs font-bold text-gray-700 uppercase truncate" id="display-mall-name">SHOP</span>
+        </div>
+        <p class="text-[10px] text-gray-500">API 연동 정상 작동 중</p>
       </div>
-      <p class="text-[10px] text-gray-500">API 연동 정상 작동 중</p>
+
+      <!-- 쇼핑몰 이동 버튼 -->
+      <a href="#" id="btn-mall-link" target="_blank"
+        class="flex items-center justify-center w-full py-2 bg-white border border-gray-300 rounded-md text-xs font-bold text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors shadow-sm">
+        내 쇼핑몰 확인 ↗
+      </a>
     </div>
   </aside>
 
   <!-- 💡 우측 메인 콘텐츠 영역 -->
   <div class="flex-1 flex flex-col h-full md:ml-64 relative overflow-hidden">
 
-    <!-- 모바일 전용 헤더 (햄버거 메뉴) -->
+    <!-- 💡 [수정됨] 모바일 전용 헤더 (로고 추가) -->
     <header
       class="md:hidden flex items-center justify-between h-14 bg-white border-b border-gray-200 px-4 z-30 flex-shrink-0">
-      <h1 class="text-lg font-extrabold tracking-tighter text-gray-900">REVIEW-IT</h1>
+      <div class="flex items-center">
+        <img src="https://review-it-tau.vercel.app/assets/logo_review.png" alt="Review-It Logo" class="w-7 h-7 mr-2 rounded-md object-cover">
+        <h1 class="text-lg font-extrabold tracking-tighter text-gray-900">REVIEW-IT</h1>
+      </div>
       <button onclick="toggleSidebar()" class="p-2 text-gray-600 focus:outline-none">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
@@ -760,9 +774,19 @@
       }
     }
 
+    // 몰 ID 기반 스토어 이동 링크 생성 함수
+    function setupMallLink() {
+      const mallLinkBtn = document.getElementById('btn-mall-link');
+      if (mallLinkBtn && MALL_ID) {
+        // 카페24 기본 도메인 형태 적용 (필요에 따라 대표 도메인 API 연동으로 고도화 가능)
+        mallLinkBtn.href = `https://${MALL_ID}.cafe24.com`;
+      }
+    }
+
     window.onload = async () => {
       const isAuthValid = await checkAuthentication();
       if (isAuthValid) {
+        setupMallLink();
         loadSettings();
         loadAdminData();
       }
