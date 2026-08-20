@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v1.9.0 - UI Identical to Main)
- * @Feature: Identical Class Names, Sync Main Modal UX, Lazy Loading Images
+ * @Project: Review-It Detail Engine (Production Master v1.9.5 - Final Sync)
+ * @Feature: Thumbnail CSS Restored, Pre-parsing Images for Grid/Thumb Sync
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
@@ -52,7 +52,6 @@
     isFallbackDemo: false,
 
     async init() {
-      // 메인 CSS를 동일하게 호출하여 스타일 깨짐 방지
       this.injectCSS();
       this.hideDefaultReviews();
       if (!productNo) return;
@@ -92,7 +91,6 @@
       return name.substring(0, 2) + '**';
     },
 
-    // 💡 [사진 연동 완벽 동기화] 메인 위젯의 스크래핑 엔진 완벽 이식
     async _fetchAndSeparateContent(articleNo, boardNo = '4') {
       try {
         const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
@@ -172,15 +170,26 @@
         this.listOrder = [];
         this.photoReviews = [];
 
+        // 💡 [핵심 픽스] 리스트/메인 위젯처럼 렌더링 전 사전 파싱(Pre-parsing)을 수행하여 이미지 유실 원천 차단
         await Promise.all(list.slice(0, 15).map(async (r) => {
-          // 상세 렌더링을 위해 기본 정보만 먼저 파싱 (깊은 파싱은 모달 클릭 시 진행)
-          r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
-          r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.defaultImg];
-          
+          const scraped = await this._fetchAndSeparateContent(r.article_no, r.board_no);
+          if (scraped) {
+            r.clean_text_body = scraped.text || r.content || "리뷰 본문이 없습니다.";
+            r.all_images = (scraped.images && scraped.images.length > 0) ? scraped.images : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg]);
+            if (scraped.date) r.original_date = scraped.date;
+            if (scraped.writer) r.author_name = scraped.writer;
+            if (scraped.subject) r.subject = scraped.subject;
+          } else {
+            r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
+            r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.defaultImg];
+          }
+          r.is_parsed = true;
+
           this.data[r.id] = r;
           this.listOrder.push(r.id);
           if (r.all_images[0] !== CONFIG.defaultImg) this.photoReviews.push(r);
         }));
+
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
       } catch (e) {
         console.error("Review load failed", e);
@@ -217,7 +226,7 @@
 
       const avatarPhotos = this.isFallbackDemo ? [] : this.photoReviews.slice(0, 2);
       const summaryContainer = document.createElement('div');
-      summaryContainer.className = 'rit-oy-summary-wrap cboth'; // 동일 네임스페이스
+      summaryContainer.className = 'rit-oy-summary-wrap cboth';
       summaryContainer.innerHTML = `
         <div class="rit-oy-content" onclick="document.getElementById('rit-detail-main-board')?.scrollIntoView({behavior: 'smooth'})">
           <div class="rit-oy-left">
@@ -246,7 +255,6 @@
       let photosHtml = '';
       const realPhotos = this.isFallbackDemo ? 0 : this.photoReviews.length;
 
-      // 💡 [링크 오류 수정] 더미 데이터일 때 동적 productNo를 정확히 바인딩
       const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
 
       if (this.isFallbackDemo || realPhotos === 0) {
@@ -360,13 +368,11 @@
       }
     },
 
-    // 💡 [클래스 네임 메인위젯과 100% 동일화] CSS가 완벽히 먹히도록 수정
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.defaultImg;
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-      
-      // 관리자 체크
+
       const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || rawName.includes(CONFIG.mallName))) || CONFIG.adminKeywords.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
       const avgScore = d.stars || 5;
@@ -387,7 +393,6 @@
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
 
-      // 상품 칩 (현재 상세페이지이므로 "상품 보기"라는 칩은 생략하거나 그대로 둬도 무방하나 UI 호환을 위해 추가)
       const actualProductName = '상품 보기';
       const actualProductImg = d.product_img || thumb;
       const productLink = productNo ? `/product/detail.html?product_no=${productNo}` : '';
@@ -433,12 +438,12 @@
     initMasonry() {
       const grid = document.getElementById('rit-main-grid');
       if (!grid) return;
-      
+
       const pcCols = 5;
       const moCols = 2;
       grid.style.setProperty('--pc-cols', pcCols);
       grid.style.setProperty('--mo-cols', moCols);
-      
+
       grid.innerHTML = this.listOrder.map(id => this.getCardHTML(id)).join('');
     },
 
@@ -449,14 +454,13 @@
       if (typeof Swiper !== 'undefined') new Swiper('.rit-main-swiper', { slidesPerView: 'auto', spaceBetween: 16, freeMode: true, grabCursor: true });
     },
 
-    // 💡 [모달 메인위젯과 100% 동일화] 클래스와 HTML 구조 완벽 이식
     initModal() {
-      let modalContainer = document.getElementById('ritDtlModal'); // 충돌 방지용 ID만 다르게
+      let modalContainer = document.getElementById('ritDtlModal');
       if (modalContainer) return;
 
       modalContainer = document.createElement('div');
       modalContainer.id = 'ritDtlModal';
-      modalContainer.className = 'rit-modal-container'; // 메인과 완벽히 동일 클래스
+      modalContainer.className = 'rit-modal-container';
       modalContainer.style.display = 'none';
       modalContainer.innerHTML = `
       <div class="rit-modal-bg" onclick="ReviewDetailApp.closeModal()"></div>
@@ -509,7 +513,6 @@
       this.renderDetail(this.listOrder[nextIndex]);
     },
 
-    // 💡 [사진 렌더링 로직 강화] 클릭 시 상세 정보 한 번 더 Fetch 하여 이미지 유실 방지
     async renderDetail(id) {
       this.currentReviewId = id;
       const d = this.data[id];
@@ -522,19 +525,6 @@
       const updatedDisplayName = isMallOwner ? rawDisplayName : this.maskName(rawDisplayName);
 
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
-
-      // 💡 메인위젯과 동일하게 클릭 시점(Lazy)에 상세 데이터 파싱 보강 (사진 누락 해결 핵심)
-      if (!d.is_parsed) {
-        const separateData = await this._fetchAndSeparateContent(d.article_no, d.board_no);
-        if (separateData) {
-          d.clean_text_body = separateData.text || d.content;
-          d.all_images = (separateData.images && separateData.images.length > 0) ? separateData.images : d.all_images;
-          if (separateData.date) d.original_date = separateData.date;
-          if (separateData.writer) d.author_name = separateData.writer;
-          if (separateData.subject) d.subject = separateData.subject;
-        }
-        d.is_parsed = true;
-      }
 
       const validImages = d.all_images.filter(img => img && !img.includes('rit_noimg.jpg'));
 
@@ -583,7 +573,7 @@
             <div class="rit-stars-gold"><img src="${CONFIG.starPath}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
         </div>`;
-        
+
       subjectSide.innerText = d.subject || '';
       contentSide.innerHTML = this.cleanEditorText(d.clean_text_body || "본문 내용이 없습니다.");
 
@@ -658,7 +648,6 @@
     },
 
     injectCSS() {
-      // 💡 메인 위젯의 CSS를 공통으로 호출하여 완전히 동일한 스타일 보장
       if (!document.getElementById('rit-css-link')) {
         const link = document.createElement('link');
         link.id = 'rit-css-link';
@@ -666,21 +655,40 @@
         link.href = 'https://review-it-tau.vercel.app/review-it.css';
         document.head.appendChild(link);
       }
-      
-      // 디테일 페이지 전용 서브 스타일 (요약, 상단 대시보드 등)
+
       if (document.getElementById('rit-dtl-sub-css')) return;
       const style = document.createElement('style');
       style.id = 'rit-dtl-sub-css';
+
+      // 💡 [핵심 픽스] 상단 썸네일 전용 CSS 완전 복구 삽입!
       style.innerHTML = `
         .cboth { clear: both !important; display: block !important; }
         
         .rit-thumb-wrap, .rit-oy-summary-wrap, .rit-detail-container { font-family: 'Pretendard', sans-serif !important; font-size: 13px !important; box-sizing: border-box !important; }
+        
+        /* Thumbnail CSS Restore */
+        .rit-thumb-wrap { margin: 25px 0 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
+        .rit-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
+        .rit-thumb-title { font-size: 14px !important; font-weight: 800 !important; color: #111 !important; }
+        .rit-count { color: #94a3b8 !important; font-weight: 500 !important; font-size: 12px !important; }
+        .rit-thumb-view-all { font-size: 12px !important; color: #64748b !important; cursor: pointer !important; text-decoration: underline !important; text-underline-offset: 3px !important; }
+        .rit-thumb-list { display: flex !important; gap: 8px !important; width: 100% !important; overflow: hidden !important; justify-content: flex-start !important; }
+        .rit-thumb-item { position: relative !important; width: calc(20% - 6.4px) !important; max-width: 72px !important; aspect-ratio: 1/1 !important; border-radius: 6px !important; overflow: hidden !important; background: #f8fafc !important; cursor: pointer !important; border: 1px solid #e2e8f0 !important; flex-shrink: 0 !important; }
+        .rit-thumb-item img { width: 100% !important; height: 100% !important; object-fit: cover !important; display: block !important; }
+        .rit-thumb-more { position: absolute !important; inset: 0 !important; background: rgba(0,0,0,0.55) !important; color: #fff !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; }
+        .rit-thumb-more span { font-size: 12px !important; font-weight: 700 !important; line-height: 1.2 !important; }
+        .rit-dummy-item { background: #f8fafc !important; border: 1px dashed #cbd5e1 !important; }
+        .rit-dummy-item img { opacity: 0.1 !important; filter: grayscale(100%) !important; }
+        .rit-dummy-text { position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; font-size: 10px !important; font-weight: 700 !important; color: #64748b !important; line-height: 1.3 !important; }
+
+        /* Top Summary */
         .rit-oy-summary-wrap { margin: 15px 0 !important; padding: 12px 16px !important; background: #f8fafc !important; border-radius: 8px !important; cursor: pointer !important; border: 1px solid #f1f5f9 !important; width: 100% !important; }
         .rit-oy-content { display: flex !important; justify-content: space-between !important; align-items: center !important; }
         .rit-oy-left { display: flex !important; align-items: center !important; gap: 8px !important; }
         .rit-oy-star { font-size: 14px !important; font-weight: 800 !important; color: #18181b !important; }
         .rit-oy-count { font-size: 12px !important; color: #71717a !important; border-left: 1px solid #e4e4e7 !important; padding-left: 8px !important; }
         
+        /* Dashboard Container */
         .rit-detail-container { width: 100% !important; max-width: 1600px !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
         .rit-dashboard-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; margin-bottom: 30px !important;}
         @media (min-width: 768px) { .rit-dashboard-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
