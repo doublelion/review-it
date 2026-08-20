@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v2.0.0 - Ultimate Fixes)
- * @Feature: True Masonry, Modal Grid View, Mobile UX Optimized, Avatar Fallback Sync
+ * @Project: Review-It Detail Engine (Production Master v2.1.0 - Ultimate Layout Fixes)
+ * @Feature: Masonry Conflict Resolved, Fallback Stats Sync, Grid View Optimized
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
@@ -160,6 +160,7 @@
         let res = await fetch(`${baseUrl}&product_no=eq.${productNo}&order=created_at.desc`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
         let list = await res.json();
 
+        // 💡 특정 상품의 리뷰가 0개라면, 전체 리뷰 15개를 땡겨오는 Fallback 로직 (확인 완)
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
           const fbRes = await fetch(`${baseUrl}&order=created_at.desc&limit=15`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
@@ -214,16 +215,18 @@
       let infoArea = document.querySelector('.xans-product-info, .infoArea, .prdInfo, .product-info-section');
       if (!infoArea) return;
 
-      const realCount = this.isFallbackDemo ? 0 : this.listOrder.length;
-      let avgScore = '0.0';
+      // 💡 [핵심 픽스] Fallback 여부와 상관없이 무조건 땡겨온 데이터의 갯수를 표시합니다.
+      const realCount = this.listOrder.length;
+      let avgScore = '5.0';
 
       if (realCount > 0) {
         let totalStars = 0;
         this.listOrder.forEach(id => totalStars += (this.data[id].stars || 5));
         avgScore = (totalStars / realCount).toFixed(1);
+      } else {
+        avgScore = '0.0';
       }
 
-      // 💡 [핵심 픽스] 실제 리뷰가 0개여도, 포토 리뷰(글로벌)가 있으면 아바타를 무조건 띄워줍니다 (올리브영 Style)
       const avatarPhotos = this.photoReviews.slice(0, 2);
       let avatarsHtml = '';
 
@@ -260,7 +263,9 @@
 
       let photosHtml = '';
       const displayPhotos = this.photoReviews.slice(0, 5);
-      const displayCount = this.isFallbackDemo ? 0 : this.photoReviews.length; // 타이틀 건수는 진짜 상품 리뷰 수만
+
+      // 💡 [핵심 픽스] 썸네일 카운트도 Fallback 무시하고 데이터 갯수대로 출력
+      const displayCount = this.photoReviews.length;
 
       if (displayPhotos.length === 0) {
         const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
@@ -298,7 +303,8 @@
       container.id = 'rit-detail-main-board';
       container.className = 'rit-detail-container cboth';
 
-      const realCount = this.isFallbackDemo ? 0 : this.listOrder.length;
+      // 💡 [핵심 픽스] 메인 대시보드도 Fallback 무시하고 데이터 갯수대로 출력
+      const realCount = this.listOrder.length;
       const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
       let avgScore = '0.0';
 
@@ -356,7 +362,6 @@
         `;
       }
 
-      // 💡 [수정] id="rit-main-grid" 대신 True Masonry 로직을 적용하기 위해 빈 컨테이너만 선언
       const isSwiper = this.settings.detail_display_type === 'swiper';
       contentHtml += `<div id="rit-main-grid" class="${isSwiper ? 'swiper rit-main-swiper' : ''}">${isSwiper ? '<div class="swiper-wrapper"></div>' : ''}</div>`;
 
@@ -369,7 +374,7 @@
 
       if (this.listOrder.length > 0) {
         if (isSwiper) this.initSwiper();
-        else this.renderGrid(); // 💡 True Masonry 실행
+        else this.renderGrid();
       }
     },
 
@@ -413,8 +418,10 @@
         </div>
       `;
 
+      // 💡 [핵심 픽스] 강제적인 `.rit-card`의 aspect-ratio 제약을 피하기 위해 `.rit-masonry-item` 전용 래퍼 사용! 
+      // 이로 인해 카드가 짤리거나 강제로 늘어나지 않습니다.
       return `
-      <div class="rit-card" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff; width: 100%; cursor:pointer; border: 1px solid #f0f0f0;">
+      <div class="rit-masonry-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')">
         <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
           <img src="${thumb}" class="rit-card-img" loading="lazy" 
               onerror="this.onerror=null; this.src='${CONFIG.defaultImg}';"
@@ -440,7 +447,6 @@
       </div>`;
     },
 
-    // 💡 [핵심 픽스] True Masonry 로직 완벽 적용 (세로 늘어남 방지)
     renderGrid() {
       const grid = document.getElementById('rit-main-grid');
       if (!grid) return;
@@ -461,7 +467,7 @@
       `).join('');
 
       grid.style.display = 'flex';
-      grid.style.alignItems = 'flex-start';
+      grid.style.alignItems = 'flex-start'; // 💡 강제 세로 늘어남 방지
       grid.style.gap = '16px';
       grid.style.width = '100%';
     },
@@ -491,7 +497,6 @@
         <div class="rit-modal-header">
             <span class="rit-logo-text">${CONFIG.mallName}</span>
             <div class="rit-header-buttons">
-              <!-- 💡 [핵심 픽스] GRID VIEW 버튼 추가 및 toggleGrid 함수 연결 -->
               <button onclick="ReviewDetailApp.toggleGrid()" class="btn-rit-grid">
               <svg viewBox="0 0 24 24">
                       <rect x="2" y="2" width="9" height="9" rx="1" />
@@ -512,7 +517,6 @@
                 <div id="ritDtlCommList"></div>
               </div>
             </div>
-            <!-- 💡 [핵심 픽스] GRID VIEW 전용 컨테이너 추가 -->
             <div id="ritDtlGridView" class="rit-grid-overlay rit-hidden">
               <div id="ritDtlGridInner" class="rit-grid-box-wrap"></div>
             </div>
@@ -522,7 +526,6 @@
       document.body.appendChild(modalContainer);
     },
 
-    // 💡 [핵심 픽스] 그리드 토글 함수 구현
     toggleGrid() {
       const gv = document.getElementById('ritDtlGridView');
       const gi = document.getElementById('ritDtlGridInner');
@@ -570,7 +573,6 @@
       const isMallOwner = CONFIG.mallName && (rawDisplayName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawDisplayName));
       const updatedDisplayName = isMallOwner ? rawDisplayName : this.maskName(rawDisplayName);
 
-      // 그리드 뷰 상태에서 상세 화면으로 넘어갈 때 닫아주기
       document.getElementById('ritDtlGridView').classList.add('rit-hidden');
       document.getElementById('ritDtlDetailView').style.display = 'flex';
       contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
@@ -713,7 +715,7 @@
         .cboth { clear: both !important; display: block !important; }
         .rit-thumb-wrap, .rit-oy-summary-wrap, .rit-detail-container { font-family: 'Pretendard', sans-serif !important; font-size: 13px !important; box-sizing: border-box !important; }
         
-        /* 💡 Empty State CSS */
+        /* Empty State */
         .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%) !important; border: 1px dashed #cbd5e1 !important; border-radius: 12px !important; padding: 60px 20px !important; text-align: center !important; width: 100% !important; margin: 40px 0 !important; }
         .rit-empty-icon { font-size: 40px !important; margin-bottom: 15px !important; animation: bounce 2s infinite !important; }
         .rit-empty-title { font-size: 18px !important; font-weight: 800 !important; color: #1e293b !important; margin-bottom: 10px !important; }
@@ -726,18 +728,15 @@
         .rit-main-title { font-size: 20px !important; font-weight: 800 !important; margin: 0 !important; color: #111 !important; }
         .rit-desc { font-size: 13px !important; color: #71717a !important; margin-top: 5px !important; }
 
-        /* 💡 Thumbnail CSS (가로 스크롤 허용) */
+        /* Thumbnail CSS */
         .rit-thumb-wrap { margin: 25px 0 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
         .rit-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
         .rit-thumb-title { font-size: 14px !important; font-weight: 800 !important; color: #111 !important; }
         .rit-count { color: #94a3b8 !important; font-weight: 500 !important; font-size: 12px !important; }
         .rit-thumb-view-all { font-size: 12px !important; color: #64748b !important; cursor: pointer !important; text-decoration: underline !important; text-underline-offset: 3px !important; }
-        
-        /* 모바일 썸네일 잘림 방지 (스와이프) */
         .rit-thumb-list { display: flex !important; gap: 8px !important; width: 100% !important; overflow-x: auto !important; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch !important; padding-bottom: 5px !important; scrollbar-width: none; }
         .rit-thumb-list::-webkit-scrollbar { display: none; }
         .rit-thumb-item { position: relative !important; width: 72px !important; aspect-ratio: 1/1 !important; border-radius: 6px !important; overflow: hidden !important; background: #f8fafc !important; cursor: pointer !important; border: 1px solid #e2e8f0 !important; flex-shrink: 0 !important; }
-        
         .rit-thumb-item img { width: 100% !important; height: 100% !important; object-fit: cover !important; display: block !important; }
         .rit-thumb-more { position: absolute !important; inset: 0 !important; background: rgba(0,0,0,0.55) !important; color: #fff !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; }
         .rit-thumb-more span { font-size: 12px !important; font-weight: 700 !important; line-height: 1.2 !important; }
@@ -756,18 +755,11 @@
         .rit-oy-avatar:first-child { margin-left: 0 !important; z-index: 3 !important; }
         .rit-oy-avatar-more { width: 24px !important; height: 24px !important; border-radius: 50% !important; background: #e4e4e7 !important; color: #52525b !important; font-size: 10px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: -8px !important; border: 1.5px solid #fff !important; }
         
-        /* 💡 Dashboard Container (Desktop 100% & Mobile No Padding) */
+        /* Dashboard Container */
         .rit-detail-container { width: 100% !important; max-width: 100% !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
         .rit-dashboard-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; margin-bottom: 30px !important;}
-        
         @media (min-width: 768px) { .rit-dashboard-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
-        
-        /* 모바일 최적화: 좌우 여백 제거 */
-        @media (max-width: 767px) {
-          .rit-detail-container { padding: 0 !important; }
-          .rit-dashboard-card { border-radius: 0 !important; border-left: none !important; border-right: none !important; }
-        }
-
+        @media (max-width: 767px) { .rit-detail-container { padding: 0 !important; } .rit-dashboard-card { border-radius: 0 !important; border-left: none !important; border-right: none !important; } }
         .rit-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
         .rit-dash-score-box { display: flex !important; align-items: center !important; gap: 15px !important; }
         .rit-dash-big-score { font-size: 36px !important; font-weight: 800 !important; color: #111 !important; line-height: 1 !important; }
@@ -780,10 +772,14 @@
         .rit-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
         .rit-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
 
-        /* 💡 GRID VIEW Overlay Style */
+        /* 💡 Masonry Item Override (이 코드가 카드가 잘리는 현상을 완벽히 방어합니다) */
+        .rit-masonry-item { position: relative !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; border-radius: 12px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important; background: #fff !important; width: 100% !important; cursor: pointer !important; border: 1px solid #f0f0f0 !important; transition: transform 0.2s ease !important; height: auto !important; }
+        .rit-masonry-item:hover { transform: translateY(-3px) !important; }
+
+        /* 💡 GRID VIEW Overlay Style (비율 정상화) */
         #ritDtlGridView { position:absolute; inset:0; background:#fff; z-index:100; overflow-y:auto; padding:20px; }
         #ritDtlGridView.rit-hidden { display:none !important; }
-        #ritDtlGridInner { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+        #ritDtlGridInner { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
         .rit-grid-thumb { aspect-ratio:1/1; cursor:pointer; border-radius:8px; overflow:hidden; }
         .rit-grid-thumb img { width:100%; height:100%; object-fit:cover; }
         .btn-rit-grid { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.2); border:none; color:#fff; padding:6px 12px; border-radius:20px; cursor:pointer; font-size:12px; font-weight:700; transition:background 0.2s; margin-right:15px; }
