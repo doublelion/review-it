@@ -184,12 +184,12 @@
             r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.defaultImg];
           }
           r.is_parsed = true;
-
+          
           this.data[r.id] = r;
           this.listOrder.push(r.id);
           if (r.all_images[0] !== CONFIG.defaultImg) this.photoReviews.push(r);
         }));
-
+        
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
       } catch (e) {
         console.error("Review load failed", e);
@@ -372,7 +372,7 @@
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.defaultImg;
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-
+      
       const isMallOwner = (CONFIG.mallName && (rawName === CONFIG.mallName.trim() || rawName.includes(CONFIG.mallName))) || CONFIG.adminKeywords.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
       const avgScore = d.stars || 5;
@@ -438,12 +438,12 @@
     initMasonry() {
       const grid = document.getElementById('rit-main-grid');
       if (!grid) return;
-
+      
       const pcCols = 5;
       const moCols = 2;
       grid.style.setProperty('--pc-cols', pcCols);
       grid.style.setProperty('--mo-cols', moCols);
-
+      
       grid.innerHTML = this.listOrder.map(id => this.getCardHTML(id)).join('');
     },
 
@@ -455,7 +455,7 @@
     },
 
     initModal() {
-      let modalContainer = document.getElementById('ritDtlModal');
+      let modalContainer = document.getElementById('ritDtlModal'); 
       if (modalContainer) return;
 
       modalContainer = document.createElement('div');
@@ -573,7 +573,7 @@
             <div class="rit-stars-gold"><img src="${CONFIG.starPath}${d.stars || 5}.svg" class="rit-star-img"></div>
           </div>
         </div>`;
-
+        
       subjectSide.innerText = d.subject || '';
       contentSide.innerHTML = this.cleanEditorText(d.clean_text_body || "본문 내용이 없습니다.");
 
@@ -655,11 +655,11 @@
         link.href = 'https://review-it-tau.vercel.app/review-it.css';
         document.head.appendChild(link);
       }
-
+      
       if (document.getElementById('rit-dtl-sub-css')) return;
       const style = document.createElement('style');
       style.id = 'rit-dtl-sub-css';
-
+      
       // 💡 [핵심 픽스] 상단 썸네일 전용 CSS 완전 복구 삽입!
       style.innerHTML = `
         .cboth { clear: both !important; display: block !important; }
