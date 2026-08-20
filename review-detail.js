@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v3.0 - Ultimate Zara/COS List UX)
- * @Feature: View Toggle (Thumbnail vs List), Modern Minimal List Layout
+ * @Project: Review-It Detail Engine (Production Master v3.1 - Dashboard Isolation & Modal UX Fix)
+ * @Feature: Isolated Dashboard Classes, Modernized Grid View Button, Thumbnail Radius Removed
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
@@ -49,7 +49,7 @@
     listOrder: [],
     photoReviews: [],
     isFallbackDemo: false,
-    viewType: 'thumbnail', // 💡 현재 활성화된 뷰 타입 (thumbnail or list)
+    viewType: 'thumbnail',
 
     async init() {
       this.injectCSS();
@@ -312,25 +312,26 @@
 
       const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
 
+      // 💡 [수정 1] 대시보드 클래스명 격리 (rit-dtl-dash-card 등)
       const dashboardHtml = `
-        <div class="rit-dashboard-card" style="margin-top:20px;">
-          <div class="rit-dash-left">
-            <div class="rit-dash-score-box">
-              <div class="rit-dash-big-score">${avgScore}</div> 
-              <div class="rit-dash-score-info">
-                <div class="rit-dash-stars" style="color:${realCount === 0 ? '#e4e4e7' : '#f59e0b'}; font-size:16px;">★★★★★</div>
-                <div class="rit-dash-count-text">총 <strong>${realCount}개</strong>의 리뷰</div>
+        <div class="rit-dtl-dash-card" style="margin-top:20px;">
+          <div class="rit-dtl-dash-left">
+            <div class="rit-dtl-dash-score-box">
+              <div class="rit-dtl-dash-big-score">${avgScore}</div> 
+              <div class="rit-dtl-dash-score-info">
+                <div class="rit-dtl-dash-stars" style="color:${realCount === 0 ? '#e4e4e7' : '#f59e0b'}; font-size:16px;">★★★★★</div>
+                <div class="rit-dtl-dash-count-text">총 <strong>${realCount}개</strong>의 리뷰</div>
               </div>
             </div>
           </div>
-          <div class="rit-dash-gauge-box">
+          <div class="rit-dtl-dash-gauge-box">
             ${[5, 4, 3, 2, 1].map(star => {
         const pct = realCount === 0 ? 0 : Math.round((starCounts[star] / realCount) * 100);
         return `
-                <div class="rit-gauge-row">
-                  <span class="rit-gauge-label">${star}점</span>
-                  <div class="rit-gauge-bg"><div class="rit-gauge-fill" style="width: ${pct}%;"></div></div>
-                  <span class="rit-gauge-percent">${pct}%</span>
+                <div class="rit-dtl-gauge-row">
+                  <span class="rit-dtl-gauge-label">${star}점</span>
+                  <div class="rit-dtl-gauge-bg"><div class="rit-dtl-gauge-fill" style="width: ${pct}%;"></div></div>
+                  <span class="rit-dtl-gauge-percent">${pct}%</span>
                 </div>
               `;
       }).join('')}
@@ -354,7 +355,6 @@
         `;
       }
 
-      // 💡 [핵심 UX] 뷰 전환 토글 (썸네일형 / 리스트형) 추가
       const viewToggleHtml = `
         <div class="rit-controls-area">
           <div class="rit-controls-count">총 <strong>${realCount}</strong>개의 리뷰</div>
@@ -386,7 +386,6 @@
       }
     },
 
-    // 💡 토글 스위치 동작 함수
     switchViewType(type) {
       this.viewType = type;
       document.getElementById('rit-view-btn-thumbnail').classList.remove('active');
@@ -395,7 +394,6 @@
       this.renderGrid();
     },
 
-    // 💡 모던 & 미니멀 '리스트형' UI 템플릿 (ZARA / COS 트렌드)
     getListItemHTML(id) {
       const d = this.data[id];
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
@@ -427,7 +425,6 @@
       </div>`;
     },
 
-    // 💡 기존 썸네일형(그리드/메이슨리) UI 템플릿
     getCardHTML(id) {
       const d = this.data[id];
       const thumb = d.all_images[0] || CONFIG.defaultImg;
@@ -443,8 +440,9 @@
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
 
+      // 💡 [수정 1] 리스트 엔진의 .rit-card 충돌 방지를 위해 .rit-dtl-card 래퍼로 교체
       return `
-      <div class="rit-masonry-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')">
+      <div class="rit-dtl-card rit-masonry-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')">
         <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
           <img src="${thumb}" class="rit-card-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}';" style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
           ${verifiedBadgeHtml}
@@ -469,12 +467,11 @@
       const grid = document.getElementById('rit-main-grid');
       if (!grid) return;
 
-      // 💡 선택된 View Type에 따라 렌더링을 분기합니다.
       if (this.viewType === 'list') {
         grid.innerHTML = this.listOrder.map(id => this.getListItemHTML(id)).join('');
         grid.style.display = 'flex';
         grid.style.flexDirection = 'column';
-        grid.style.gap = '0'; // 리스트는 CSS의 padding/border로 간격을 조절합니다.
+        grid.style.gap = '0';
       } else {
         let cols = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 768 ? 3 : 2);
         if (this.listOrder.length < cols) cols = this.listOrder.length;
@@ -503,6 +500,8 @@
       modalContainer.id = 'ritDtlModal';
       modalContainer.className = 'rit-modal-container';
       modalContainer.style.display = 'none';
+
+      // 💡 [수정 2] 모달 그리드 버튼 UI 개선 (닫기 버튼 옆으로, 디자인 심플화)
       modalContainer.innerHTML = `
       <div class="rit-modal-bg" onclick="ReviewDetailApp.closeModal()"></div>
       
@@ -512,14 +511,15 @@
       <div class="rit-modal-window">
         <div class="rit-modal-header">
             <span class="rit-logo-text">${CONFIG.mallName}</span>
-            <div class="rit-header-buttons">
-              <button onclick="ReviewDetailApp.toggleGrid()" class="btn-rit-grid">
-              <svg viewBox="0 0 24 24">
-                      <rect x="2" y="2" width="9" height="9" rx="1" />
-                      <rect x="13" y="2" width="9" height="9" rx="1" />
-                      <rect x="2" y="13" width="9" height="9" rx="1" />
-                      <rect x="13" y="13" width="9" height="9" rx="1" />
-                    </svg>GRID VIEW</button>
+            <div class="rit-header-buttons" style="display:flex; align-items:center; gap: 15px;">
+              <button onclick="ReviewDetailApp.toggleGrid()" class="btn-rit-grid" title="모아보기">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </button>
               <button onclick="ReviewDetailApp.closeModal()" class="btn-rit-close">✕</button>
             </div>
         </div>
@@ -768,23 +768,23 @@
         .rit-oy-avatar:first-child { margin-left: 0 !important; z-index: 3 !important; }
         .rit-oy-avatar-more { width: 24px !important; height: 24px !important; border-radius: 50% !important; background: #e4e4e7 !important; color: #52525b !important; font-size: 10px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: -8px !important; border: 1.5px solid #fff !important; }
         
+        /* 💡 Dashboard Container - 클래스 충돌 방지용 rit-dtl-dash-card 사용 */
         .rit-detail-container { width: 100% !important; max-width: 100% !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
-        .rit-dashboard-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; margin-bottom: 20px !important;}
-        @media (min-width: 768px) { .rit-dashboard-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
-        @media (max-width: 767px) { .rit-detail-container { padding: 0 !important; } .rit-dashboard-card { border-radius: 0 !important; border-left: none !important; border-right: none !important; } }
-        .rit-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
-        .rit-dash-score-box { display: flex !important; align-items: center !important; gap: 15px !important; }
-        .rit-dash-big-score { font-size: 36px !important; font-weight: 800 !important; color: #111 !important; line-height: 1 !important; }
-        .rit-dash-count-text { font-size: 12px !important; color: #666 !important; font-weight: 500 !important; }
-        .rit-dash-gauge-box { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; }
-        @media (min-width: 768px) { .rit-dash-gauge-box { border-left: 1px solid #f3f3f3 !important; padding-left: 24px !important; } }
-        .rit-gauge-row { display: flex !important; align-items: center !important; gap: 10px !important; font-size: 11px !important; color: #888 !important; }
-        .rit-gauge-label { width: 24px !important; font-weight: 600 !important; color: #52525b !important; }
-        .rit-gauge-bg { flex: 1 !important; height: 8px !important; background: #f1f5f9 !important; border-radius: 4px !important; overflow: hidden !important; }
-        .rit-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
-        .rit-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
+        .rit-dtl-dash-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; margin-bottom: 30px !important;}
+        @media (min-width: 768px) { .rit-dtl-dash-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
+        @media (max-width: 767px) { .rit-detail-container { padding: 0 !important; } .rit-dtl-dash-card { border-radius: 0 !important; border-left: none !important; border-right: none !important; } }
+        .rit-dtl-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
+        .rit-dtl-dash-score-box { display: flex !important; align-items: center !important; gap: 15px !important; }
+        .rit-dtl-dash-big-score { font-size: 36px !important; font-weight: 800 !important; color: #111 !important; line-height: 1 !important; }
+        .rit-dtl-dash-count-text { font-size: 12px !important; color: #666 !important; font-weight: 500 !important; }
+        .rit-dtl-dash-gauge-box { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; }
+        @media (min-width: 768px) { .rit-dtl-dash-gauge-box { border-left: 1px solid #f3f3f3 !important; padding-left: 24px !important; } }
+        .rit-dtl-gauge-row { display: flex !important; align-items: center !important; gap: 10px !important; font-size: 11px !important; color: #888 !important; }
+        .rit-dtl-gauge-label { width: 24px !important; font-weight: 600 !important; color: #52525b !important; }
+        .rit-dtl-gauge-bg { flex: 1 !important; height: 8px !important; background: #f1f5f9 !important; border-radius: 4px !important; overflow: hidden !important; }
+        .rit-dtl-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
+        .rit-dtl-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
 
-        /* 💡 뷰 전환 토글바 (모던 디자인) */
         .rit-controls-area { display: flex !important; justify-content: space-between !important; align-items: center !important; margin-bottom: 20px !important; padding-bottom: 15px !important; border-bottom: 1px solid #e4e4e7 !important; }
         .rit-controls-count { font-size: 14px !important; color: #111 !important; }
         .rit-controls-count strong { font-weight: 800 !important; }
@@ -793,11 +793,10 @@
         .rit-view-btn svg { fill: currentColor; width: 14px; height: 14px; }
         .rit-view-btn.active { background: #fff !important; color: #111 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important; }
 
-        /* 💡 Masonry Item Override */
-        .rit-masonry-item { position: relative !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; border-radius: 12px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important; background: #fff !important; width: 100% !important; cursor: pointer !important; border: 1px solid #f0f0f0 !important; transition: transform 0.2s ease !important; height: auto !important; }
-        .rit-masonry-item:hover { transform: translateY(-3px) !important; }
+        /* 💡 Masonry Item (충돌 해결된 버전) */
+        .rit-dtl-card { position: relative !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; border-radius: 12px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important; background: #fff !important; width: 100% !important; cursor: pointer !important; border: 1px solid #f0f0f0 !important; transition: transform 0.2s ease !important; height: auto !important; }
+        .rit-dtl-card:hover { transform: translateY(-3px) !important; }
 
-        /* 💡 ZARA/COS 스타일 모던 리스트 (List View) CSS */
         .rit-list-item { display: flex !important; flex-direction: column !important; padding: 24px 0 !important; border-bottom: 1px solid #f0f0f0 !important; cursor: pointer !important; transition: background 0.2s !important; }
         @media (min-width: 768px) { .rit-list-item { flex-direction: row !important; gap: 40px !important; } }
         .rit-list-meta { width: 180px !important; flex-shrink: 0 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; margin-bottom: 16px !important; }
@@ -811,15 +810,18 @@
         .rit-list-images { display: flex !important; gap: 8px !important; margin-top: 8px !important; }
         .rit-list-img-thumb { width: 80px !important; height: 80px !important; border-radius: 6px !important; object-fit: cover !important; border: 1px solid #f0f0f0 !important; }
 
-        /* 모달 오버레이 설정 보강 */
+        /* 💡 Modal Grid & Grid Button UX Fixes */
         #ritDtlGridView { position:absolute; inset:0; background:#fff; z-index:100; overflow-y:auto; padding:20px; }
         #ritDtlGridView.rit-hidden { display:none !important; }
+        
+        /* 💡 [수정 3] Grid 열 개수 조정 (비율이 너무 크지 않도록 auto-fill 적용) */
         #ritDtlGridInner { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
-        .rit-grid-thumb { aspect-ratio:1/1; cursor:pointer; border-radius:8px; overflow:hidden; }
+        .rit-grid-thumb { aspect-ratio:1/1; cursor:pointer; overflow:hidden; }
         .rit-grid-thumb img { width:100%; height:100%; object-fit:cover; }
-        .btn-rit-grid { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.2); border:none; color:#fff; padding:6px 12px; border-radius:20px; cursor:pointer; font-size:12px; font-weight:700; transition:background 0.2s; margin-right:15px; }
-        .btn-rit-grid svg { width:14px; height:14px; fill:#fff; }
-        .btn-rit-grid:hover { background:rgba(255,255,255,0.3); }
+        
+        /* 💡 [수정 2] 모달 그리드 버튼 투명/심플화 */
+        .btn-rit-grid { background: none !important; border: none !important; color: #fff !important; padding: 0 !important; cursor: pointer !important; opacity: 0.6 !important; transition: opacity 0.2s, transform 0.2s !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+        .btn-rit-grid:hover { opacity: 1 !important; transform: scale(1.1) !important; }
       `;
       document.head.appendChild(style);
     }
