@@ -850,6 +850,8 @@
         .rit-dtl-dash-count-text { font-size: 12px !important; color: #666 !important; font-weight: 500 !important; }
 
         
+        .rit-dtl-dash-gauge-box { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 6px !important; }
+
         .rit-dtl-gauge-row { display: flex !important; align-items: center !important; gap: 10px !important; font-size: 12px !important; color: #888 !important; }
         .rit-dtl-gauge-label { width: 48px !important; font-weight: 600 !important; color: #52525b !important; white-space: nowrap !important; text-align: left !important; letter-spacing: -0.5px !important; }
         .rit-dtl-gauge-bg { flex: 1 !important; height: 8px !important; background: #f1f5f9 !important; border-radius: 4px !important; overflow: hidden !important; }
