@@ -121,19 +121,19 @@
     },
 
     renderUnderThumbGallery() {
-      // 1. 타겟 엘리먼트 찾기 (와이키나스 테마의 .detailArea 완벽 대응)
-      let targetEl = document.querySelector('.detailArea, .xans-product-image, .product-image-section');
+      // 1. 타겟 엘리먼트 찾기 (와이키나스의 .detailArea 완벽 대응)
+      let targetEl = document.querySelector('.detailArea');
+      if (!targetEl) targetEl = document.querySelector('.xans-product-image, .product-image-section');
       if (!targetEl || !targetEl.parentNode) return;
 
       const galleryContainer = document.createElement('div');
-      // 플로팅 해제를 위해 cboth 추가
-      galleryContainer.className = 'rit-under-thumb-wrap cboth';
+      galleryContainer.className = 'rit-under-thumb-wrap cboth'; // 플로팅 꼬임 방지
 
       const totalPhotos = this.photoReviews.length;
       let photosHtml = '';
 
       if (totalPhotos > 0) {
-        // 리뷰가 있을 때 정상 렌더링
+        // 실제 포토 리뷰가 있을 때
         const photos = this.photoReviews.slice(0, 5);
         const hasMore = totalPhotos > 5;
         photosHtml = photos.map((r, index) => {
@@ -146,14 +146,16 @@
           `;
         }).join('');
       } else {
-        // 💡 리뷰가 0개일 때: 샘플 더미(가이드) 썸네일 5장 노출
+        // 💡 [수정됨] 리뷰가 0개일 때: 샘플(더미) 썸네일 5장 강제 렌더링
         const dummyArr = [1, 2, 3, 4, 5];
-        photosHtml = dummyArr.map((num, index) => `
-          <div class="rit-thumb-item rit-dummy-item">
-            <img src="${CONFIG.defaultImg}" alt="sample">
-            ${index === 2 ? `<div class="rit-dummy-text">첫 포토 리뷰를<br>기다려요!</div>` : ''}
-          </div>
-        `).join('');
+        photosHtml = dummyArr.map((num, index) => {
+          return `
+            <div class="rit-thumb-item rit-dummy-item">
+              <img src="${CONFIG.defaultImg}" alt="sample">
+              ${index === 2 ? `<div class="rit-dummy-text">첫 포토 리뷰를<br>남겨주세요!</div>` : ''}
+            </div>
+          `;
+        }).join('');
       }
 
       galleryContainer.innerHTML = `
@@ -164,7 +166,7 @@
         <div class="rit-thumb-list">${photosHtml}</div>
       `;
 
-      // detailArea 바로 밑으로 정확하게 삽입
+      // 타겟(detailArea) 바로 다음 형제 요소로 삽입
       targetEl.parentNode.insertBefore(galleryContainer, targetEl.nextSibling);
     },
 
@@ -320,10 +322,22 @@
         .rit-masonry-meta { display: flex; justify-content: space-between; font-size: 11px; border-top: 1px solid #eee; padding-top: 10px; margin-top: auto; }
         @media (max-width: 768px) { .rit-oy-summary-wrap { margin-left: 16px; margin-right: 16px; width: calc(100% - 32px); } }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        /* 더미 썸네일 디자인 추가 */
+        /* 💡 0-Review 더미 썸네일 스타일 */
         .rit-dummy-item { background: #f8fafc; border: 1px dashed #cbd5e1; }
-        .rit-dummy-item img { opacity: 0.15; filter: grayscale(100%); }
-        .rit-dummy-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; font-weight: 700; color: #64748b; line-height: 1.4; }
+        .rit-dummy-item img { opacity: 0.1; filter: grayscale(100%); }
+        .rit-dummy-text { 
+          position: absolute; 
+          inset: 0; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          text-align: center; 
+          font-size: 11px; 
+          font-weight: 700; 
+          color: #64748b; 
+          line-height: 1.4; 
+          z-index: 2; 
+        }
       `;
       document.head.appendChild(style);
     }
