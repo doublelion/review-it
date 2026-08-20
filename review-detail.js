@@ -323,7 +323,7 @@
       const style = document.createElement('style');
       style.id = 'rit-detail-css';
       style.innerHTML = `
-        .rit-list-container { width: 100%; max-width: 1200px; margin: 30px auto 60px; box-sizing: border-box; padding: 0 16px; clear: both; }
+        .rit-list-container { width: 100%; max-width: 1600px; margin: 30px auto 60px; box-sizing: border-box; padding: 0 16px; clear: both; }
         
         .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%); border: 1px dashed #cbd5e1; border-radius: 16px; padding: 60px 20px; text-align: center; margin: 20px 0; }
         .rit-empty-icon { font-size: 40px; margin-bottom: 15px; animation: bounce 2s infinite; }
