@@ -1,12 +1,12 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v1.6.0)
- * @Feature: 3-Area Independent Control, Theme Style Reset Override, 0-Review Dummy Support
+ * @Project: Review-It Detail Engine (Production Master v1.6.1)
+ * @Feature: Detail Independent Classes, PC Thumbnail Resize, "+N 더보기" Overlay
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
 
-  // 기존 위젯 클린업
-  document.querySelectorAll('.rit-oy-summary-wrap, .rit-under-thumb-wrap, #rit-detail-main-board, #rit-detail-css').forEach(el => el.remove());
+  // 기존 위젯 클린업 (클래스명 충돌 방지용 독립 클래스로 교체)
+  document.querySelectorAll('.rit-oy-summary-wrap, .rit-detail-thumb-wrap, #rit-detail-main-board, #rit-detail-css').forEach(el => el.remove());
 
   const getProductNo = () => {
     if (typeof window.iProductNo !== 'undefined' && window.iProductNo) return String(window.iProductNo);
@@ -41,18 +41,12 @@
 
       await Promise.all([this.loadSettings(), this.loadReviews()]);
 
-      // 💡 [3대 영역 개별 토글 제어]
-      // 1. 상단 평점 요약 (OliveYoung Summary)
       if (this.settings.is_detail_summary_enabled !== false) {
         this.renderTopSummary();
       }
-
-      // 2. 썸네일 하단 포토 갤러리 (Under Thumbnail Gallery)
       if (this.settings.is_detail_gallery_enabled !== false) {
         this.renderUnderThumbGallery();
       }
-
-      // 3. 하단 메인 리뷰 영역 (Main Review Board & Dashboard)
       if (this.settings.is_detail_main_enabled !== false) {
         this.renderMainDetailBoard();
       }
@@ -60,25 +54,20 @@
 
     async loadSettings() {
       try {
-        const res = await fetch(`${CONFIG.sbUrl}/widget_settings?mall_id=eq.${CONFIG.mallId}`, { 
-          headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } 
+        const res = await fetch(`${CONFIG.sbUrl}/widget_settings?mall_id=eq.${CONFIG.mallId}`, {
+          headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` }
         });
         const data = await res.json();
         if (data && data.length > 0) this.settings = data[0];
       } catch (e) {
-        this.settings = { 
-          detail_display_type: 'masonry', 
-          is_detail_summary_enabled: true, 
-          is_detail_gallery_enabled: true,
-          is_detail_main_enabled: true 
-        };
+        this.settings = { detail_display_type: 'masonry', is_detail_summary_enabled: true, is_detail_gallery_enabled: true, is_detail_main_enabled: true };
       }
     },
 
     async loadReviews() {
       try {
-        const res = await fetch(`${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&product_no=eq.${productNo}&is_visible=eq.true&order=created_at.desc`, { 
-          headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } 
+        const res = await fetch(`${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&product_no=eq.${productNo}&is_visible=eq.true&order=created_at.desc`, {
+          headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` }
         });
         this.reviews = await res.json();
         this.photoReviews = this.reviews.filter(r => r.image_urls && r.image_urls.length > 0 && r.image_urls[0] !== CONFIG.defaultImg);
@@ -129,9 +118,9 @@
           </div>
           <div class="rit-oy-avatars">
             ${totalCount > 0 && avatarPhotos.length > 0
-              ? avatarPhotos.map(r => `<img src="${r.image_urls[0]}" class="rit-oy-avatar">`).join('') + `<div class="rit-oy-avatar-more">+</div>`
-              : `<span style="font-size:11px; color:#94a3b8; font-weight:500;">첫 리뷰 작성 시 혜택 지급 ✨</span>`
-            }
+          ? avatarPhotos.map(r => `<img src="${r.image_urls[0]}" class="rit-oy-avatar">`).join('') + `<div class="rit-oy-avatar-more">+</div>`
+          : `<span style="font-size:11px; color:#94a3b8; font-weight:500;">첫 리뷰 작성 시 혜택 지급 ✨</span>`
+        }
           </div>
         </div>
       `;
@@ -140,14 +129,16 @@
       else infoArea.insertBefore(summaryContainer, infoArea.firstChild);
     },
 
+    // 💡 썸네일 하단 포토 갤러리 렌더링 (디자인/더보기 기능 강화)
     renderUnderThumbGallery() {
-      let targetEl = document.querySelector('.detailArea') || 
-                     document.querySelector('.xans-product-image') || 
-                     document.querySelector('.imgArea');
+      let targetEl = document.querySelector('.detailArea') ||
+        document.querySelector('.xans-product-image') ||
+        document.querySelector('.imgArea');
       if (!targetEl || !targetEl.parentNode) return;
 
       const galleryContainer = document.createElement('div');
-      galleryContainer.className = 'rit-under-thumb-wrap cboth';
+      // 독립 클래스명 적용
+      galleryContainer.className = 'rit-detail-thumb-wrap cboth';
 
       const totalPhotos = this.photoReviews.length;
       let photosHtml = '';
@@ -158,28 +149,28 @@
         photosHtml = photos.map((r, index) => {
           const isLast = index === 4;
           return `
-            <div class="rit-thumb-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
+            <div class="rit-detail-thumb-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
               <img src="${r.image_urls[0]}" alt="review" onerror="this.src='${CONFIG.defaultImg}'">
-              ${isLast && hasMore ? `<div class="rit-thumb-more">+${totalPhotos - 5}</div>` : ''}
+              ${isLast && hasMore ? `<div class="rit-detail-thumb-more"><span>${totalPhotos}<br>더보기</span></div>` : ''}
             </div>
           `;
         }).join('');
       } else {
         const dummyArr = [1, 2, 3, 4, 5];
         photosHtml = dummyArr.map((num, index) => `
-          <div class="rit-thumb-item rit-dummy-item">
+          <div class="rit-detail-thumb-item rit-detail-dummy-item">
             <img src="${CONFIG.defaultImg}" alt="sample">
-            ${index === 2 ? `<div class="rit-dummy-text">첫 포토 리뷰를<br>기다려요!</div>` : ''}
+            ${index === 2 ? `<div class="rit-detail-dummy-text">첫 포토 리뷰를<br>기다려요!</div>` : ''}
           </div>
         `).join('');
       }
 
       galleryContainer.innerHTML = `
-        <div class="rit-thumb-header">
-          <span class="rit-thumb-title">포토리뷰 <span class="rit-count">(${totalPhotos}건)</span></span>
-          <span class="rit-thumb-view-all" onclick="document.getElementById('rit-detail-main-board')?.scrollIntoView({behavior: 'smooth'})">전체보기</span>
+        <div class="rit-detail-thumb-header">
+          <span class="rit-detail-thumb-title">포토리뷰 <span class="rit-detail-count">(${totalPhotos}건)</span></span>
+          <span class="rit-detail-thumb-view-all" onclick="document.getElementById('rit-detail-main-board')?.scrollIntoView({behavior: 'smooth'})">전체보기</span>
         </div>
-        <div class="rit-thumb-list">${photosHtml}</div>
+        <div class="rit-detail-thumb-list">${photosHtml}</div>
       `;
 
       targetEl.parentNode.insertBefore(galleryContainer, targetEl.nextSibling);
@@ -188,7 +179,8 @@
     renderMainDetailBoard() {
       const container = document.createElement('div');
       container.id = 'rit-detail-main-board';
-      container.className = 'rit-list-container cboth';
+      // 독립 클래스명 적용
+      container.className = 'rit-detail-container cboth';
 
       const totalCount = this.reviews.length;
       const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
@@ -217,15 +209,15 @@
           </div>
           <div class="rit-dash-gauge-box">
             ${[5, 4, 3, 2, 1].map(star => {
-              const pct = totalCount === 0 ? 0 : Math.round((starCounts[star] / totalCount) * 100);
-              return `
+        const pct = totalCount === 0 ? 0 : Math.round((starCounts[star] / totalCount) * 100);
+        return `
                 <div class="rit-gauge-row">
                   <span class="rit-gauge-label">${star}점</span>
                   <div class="rit-gauge-bg"><div class="rit-gauge-fill" style="width: ${pct}%;"></div></div>
                   <span class="rit-gauge-percent">${pct}%</span>
                 </div>
               `;
-            }).join('')}
+      }).join('')}
           </div>
         </div>
       `;
@@ -246,8 +238,8 @@
       }
 
       container.innerHTML = `
-        <div class="rit-universal-header" style="margin-top: 60px;">
-          <h2 class="rit-universal-title">${this.settings.title || 'Product Reviews'}</h2>
+        <div class="rit-detail-header" style="margin-top: 60px;">
+          <h2 class="rit-detail-title">${this.settings.title || 'Product Reviews'}</h2>
         </div>
         ${dashboardHtml}
         ${contentHtml}
@@ -299,29 +291,34 @@
       style.innerHTML = `
         /* 💡 테마 리셋 방어용 베이스 스타일 */
         .cboth { clear: both !important; display: block !important; }
-        .rit-under-thumb-wrap, .rit-oy-summary-wrap, .rit-list-container { 
+        .rit-detail-thumb-wrap, .rit-oy-summary-wrap, .rit-detail-container { 
           font-size: 13px !important; 
           line-height: normal !important; 
           box-sizing: border-box !important;
           letter-spacing: normal !important;
         }
 
-        /* 💡 썸네일 하단 갤러리 영역 (강력 복구) */
-        .rit-under-thumb-wrap { margin: 25px auto 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
-        .rit-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
-        .rit-thumb-title { font-size: 14px !important; font-weight: 800 !important; color: #111 !important; }
-        .rit-count { color: #94a3b8 !important; font-weight: 500 !important; font-size: 12px !important; }
-        .rit-thumb-view-all { font-size: 12px !important; color: #64748b !important; cursor: pointer !important; text-decoration: underline !important; }
+        /* 💡 썸네일 하단 갤러리 영역 (리스트와 클래스 분리, PC 사이즈 최적화) */
+        .rit-detail-thumb-wrap { margin: 25px 0 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
+        .rit-detail-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
+        .rit-detail-thumb-title { font-size: 14px !important; font-weight: 800 !important; color: #111 !important; }
+        .rit-detail-count { color: #94a3b8 !important; font-weight: 500 !important; font-size: 12px !important; }
+        .rit-detail-thumb-view-all { font-size: 12px !important; color: #64748b !important; cursor: pointer !important; text-decoration: underline !important; text-underline-offset: 3px !important; }
         
-        .rit-thumb-list { display: flex !important; gap: 8px !important; width: 100% !important; overflow: hidden !important; }
-        .rit-thumb-item { position: relative !important; flex: 1 1 0 !important; aspect-ratio: 1/1 !important; border-radius: 6px !important; overflow: hidden !important; background: #f8fafc !important; cursor: pointer !important; border: 1px solid #e2e8f0 !important; }
-        .rit-thumb-item img { width: 100% !important; height: 100% !important; object-fit: cover !important; display: block !important; }
-        .rit-thumb-more { position: absolute !important; inset: 0 !important; background: rgba(0,0,0,0.6) !important; color: #fff !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 15px !important; font-weight: 800 !important; }
+        .rit-detail-thumb-list { display: flex !important; gap: 8px !important; width: 100% !important; overflow: hidden !important; justify-content: flex-start !important; }
+        
+        /* 썸네일 아이템: 모바일은 꽉 차되, PC에서는 72px 이상 안 커지게 방어 */
+        .rit-detail-thumb-item { position: relative !important; width: calc(20% - 6.4px) !important; max-width: 72px !important; aspect-ratio: 1/1 !important; border-radius: 6px !important; overflow: hidden !important; background: #f8fafc !important; cursor: pointer !important; border: 1px solid #e2e8f0 !important; flex-shrink: 0 !important; }
+        .rit-detail-thumb-item img { width: 100% !important; height: 100% !important; object-fit: cover !important; display: block !important; }
+        
+        /* +N 더보기 오버레이 */
+        .rit-detail-thumb-more { position: absolute !important; inset: 0 !important; background: rgba(0,0,0,0.55) !important; color: #fff !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; }
+        .rit-detail-thumb-more span { font-size: 12px !important; font-weight: 700 !important; line-height: 1.2 !important; letter-spacing: -0.5px !important; }
 
         /* 더미 썸네일 */
-        .rit-dummy-item { background: #f8fafc !important; border: 1px dashed #cbd5e1 !important; }
-        .rit-dummy-item img { opacity: 0.1 !important; filter: grayscale(100%) !important; }
-        .rit-dummy-text { position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; font-size: 11px !important; font-weight: 700 !important; color: #64748b !important; line-height: 1.3 !important; }
+        .rit-detail-dummy-item { background: #f8fafc !important; border: 1px dashed #cbd5e1 !important; }
+        .rit-detail-dummy-item img { opacity: 0.1 !important; filter: grayscale(100%) !important; }
+        .rit-detail-dummy-text { position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; font-size: 10px !important; font-weight: 700 !important; color: #64748b !important; line-height: 1.3 !important; padding: 2px !important; letter-spacing: -0.5px !important; }
 
         /* 상단 평점 요약 (올리브영 뷰) */
         .rit-oy-summary-wrap { margin: 15px 0 !important; padding: 12px 16px !important; background: #f8fafc !important; border-radius: 8px !important; cursor: pointer !important; border: 1px solid #f1f5f9 !important; width: 100% !important; }
@@ -334,8 +331,8 @@
         .rit-oy-avatar:first-child { margin-left: 0 !important; z-index: 3 !important; }
         .rit-oy-avatar-more { width: 24px !important; height: 24px !important; border-radius: 50% !important; background: #e4e4e7 !important; color: #52525b !important; font-size: 10px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: -8px !important; border: 1.5px solid #fff !important; }
 
-        /* 메인 리스트 컨테이너 */
-        .rit-list-container { width: 100% !important; max-width: 1600px !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
+        /* 메인 리스트 컨테이너 (클래스 분리) */
+        .rit-detail-container { width: 100% !important; max-width: 1600px !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
         .rit-empty-state { background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%) !important; border: 1px dashed #cbd5e1 !important; border-radius: 12px !important; padding: 60px 20px !important; text-align: center !important; margin-top: 20px !important; width: 100% !important; }
         .rit-empty-icon { font-size: 40px !important; margin-bottom: 15px !important; animation: bounce 2s infinite !important; }
         .rit-empty-title { font-size: 18px !important; font-weight: 800 !important; color: #1e293b !important; margin-bottom: 10px !important; }
@@ -357,8 +354,8 @@
         .rit-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
         .rit-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
 
-        .rit-universal-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 20px !important; }
-        .rit-universal-title { font-size: 20px !important; font-weight: 800 !important; color: #111 !important; margin: 0 !important; }
+        .rit-detail-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 20px !important; }
+        .rit-detail-title { font-size: 20px !important; font-weight: 800 !important; color: #111 !important; margin: 0 !important; }
         
         .rit-masonry-grid { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 16px !important; width: 100% !important; margin-top: 20px !important; }
         .rit-masonry-column { display: flex !important; flex-direction: column !important; flex: 1 !important; min-width: 0 !important; gap: 16px !important; }
