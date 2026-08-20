@@ -68,14 +68,15 @@
       if (this.settings.is_detail_main_enabled !== false) this.renderMainDetailBoard();
     },
 
-    // 💡 1. 스크롤 함수 교체: 이벤트(e)를 받아 브라우저 강제 점프를 막고 우리 위젯으로 조준합니다.
+    // 탭 이동 및 스크롤 안착 로직 (PC 탭 영역 정확도 개선)
     scrollToReviews(e) {
-      if (e) e.preventDefault(); // 브라우저의 기본 #앵커 이동(튕김 현상) 원천 차단
+      if (e) e.preventDefault(); 
 
       let isTabClicked = false;
       const tabSelectors = [
         'a[href*="#prdReview"]', 'a[href*="prdReview"]', 'a[name="use_review_mobile"]',
-        'a[name="use_review"]', '.tabProduct a[href*="Review"]', 'li[id*="review"] a'
+        'a[name="use_review"]', '.tabProduct a[href*="Review"]', 'li[id*="review"] a',
+        '.detail_tab a[href="#review"]' // 데스크탑 탭 셀렉터 명시적 추가
       ];
 
       for (let selector of tabSelectors) {
@@ -84,22 +85,27 @@
           if (typeof tab.click === 'function') {
             tab.click();
             isTabClicked = true;
+            // 탭 클릭 시 시각적 활성화 (스킨마다 사용하는 클래스 모두 대응)
             const parentLi = tab.closest('li');
             if (parentLi && parentLi.parentElement) {
-              Array.from(parentLi.parentElement.children).forEach(sibling => sibling.classList.remove('selected', 'active'));
-              parentLi.classList.add('selected', 'active');
+              Array.from(parentLi.parentElement.children).forEach(sibling => sibling.classList.remove('selected', 'active', 'tab_open'));
+              parentLi.classList.add('selected', 'active', 'tab_open');
             }
           }
         }
       }
 
-      // PC 스킨의 탭 렌더링 딜레이를 고려해 타겟을 정확히 잡아냅니다.
+      // 렌더링 딜레이 후 정확한 타겟으로 스크롤 이동
       setTimeout(() => {
-        const target = document.getElementById('rit-detail-main-board');
+        // 1순위: 카페24 본연의 리뷰 탭 컨테이너 (#prdReview 또는 #review)
+        // 2순위: 우리 위젯 자체
+        const target = document.querySelector('#prdReview, #review, .detail_tab') || document.getElementById('rit-detail-main-board');
+        
         if (target) {
-          // PC 헤더(GNB)가 모바일보다 큰 것을 감안해 PC는 여백을 120px, 모바일은 70px로 분기 처리
-          const offset = window.innerWidth >= 768 ? 120 : 70;
+          // PC 상단 GNB(헤더) 높이를 고려하여 탭이 화면 최상단에 예쁘게 걸리도록 오프셋(offset) 여백 설정
+          const offset = window.innerWidth >= 768 ? 90 : 70; 
           const y = target.getBoundingClientRect().top + window.pageYOffset - offset;
+          
           window.scrollTo({ top: y, behavior: 'smooth' });
         }
       }, isTabClicked ? 350 : 100);
