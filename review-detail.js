@@ -794,7 +794,7 @@
 
         /* GAUGE */
         .rit-dtl-gauge-row { display: flex !important; align-items: center !important; gap: 10px !important; font-size: 12px !important; color: #888 !important; }
-        .rit-dtl-gauge-label { width: 48px !important; font-weight: 600 !important; color: #52525b !important; white-space: nowrap !important; text-align: left !important; letter-spacing: -0.5px !important; }
+        .rit-dtl-gauge-label { width: 60px !important; font-weight: 600 !important; color: #52525b !important; white-space: nowrap !important; text-align: left !important; letter-spacing: -0.5px !important; flex-shrink: 0 !important; }
         .rit-dtl-gauge-bg { flex: 1 !important; height: 8px !important; background: #f1f5f9 !important; border-radius: 4px !important; overflow: hidden !important; }
         .rit-dtl-gauge-fill { height: 100% !important; background: #f59e0b !important; border-radius: 4px !important; }
         .rit-dtl-gauge-percent { width: 28px !important; text-align: right !important; font-weight: 600 !important; }
