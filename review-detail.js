@@ -68,11 +68,11 @@
       if (this.settings.is_detail_main_enabled !== false) this.renderMainDetailBoard();
     },
 
-    // 💡 탭 이동 및 스크롤 안착 로직 (카페24 자체 스크롤 충돌 완벽 방어)
+    // 탭 이동 및 스크롤 안착 로직 
     scrollToReviews(e) {
       if (e) {
         e.preventDefault(); 
-        e.stopPropagation(); // 카페24 스킨의 jQuery가 이벤트를 낚아채는 현상 방지
+        e.stopPropagation();
       }
 
       let isTabClicked = false;
@@ -82,8 +82,6 @@
         '.detail_tab a[href="#review"]'
       ];
 
-      // 여러 탭이 중복 클릭되어 스크롤 애니메이션이 충돌(튀는 현상)하는 것을 막기 위해
-      // 유효한 탭을 하나 찾으면 클릭 후 즉시 반복문을 종료합니다.
       for (let selector of tabSelectors) {
         const tab = document.querySelector(selector);
         if (tab && typeof tab.click === 'function') {
@@ -93,10 +91,7 @@
         }
       }
 
-      // 렌더링 딜레이 후 정확한 타겟으로 스크롤 이동
-      // 카페24 자체 스크롤 애니메이션(보통 500ms)이 끝날 즈음 부드럽게 안착시킵니다.
       setTimeout(() => {
-        // 1순위: 데스크탑 리뷰 최상단 부모 (#prdReview) 강제 타겟팅
         const target = document.getElementById('prdReview') || document.getElementById('review') || document.querySelector('.detail_tab') || document.getElementById('rit-detail-main-board');
         
         if (target) {
@@ -293,7 +288,7 @@
       else infoArea.insertBefore(summaryContainer, infoArea.firstChild);
     },
 
-    // 💡 3. 포토 갤러리 위젯 교체: '전체보기' 버튼에도 event 파라미터를 추가해줍니다.
+    // 포토 갤러리 위젯
     renderUnderThumbGallery() {
       let targetEl = document.querySelector('.detailArea') || document.querySelector('.xans-product-image') || document.querySelector('.imgArea');
       if (!targetEl || !targetEl.parentNode) return;
@@ -303,7 +298,9 @@
 
       let photosHtml = '';
       const displayPhotos = this.photoReviews.slice(0, 5);
-      const displayCount = this.photoReviews.length;
+      
+      // 💡 수정된 부분: 포토 리뷰 수(this.photoReviews.length) -> 전체 리뷰 수(this.listOrder.length)로 통일
+      const displayCount = this.listOrder.length;
 
       if (displayPhotos.length === 0) {
         const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
@@ -320,7 +317,7 @@
           return `
             <div class="rit-thumb-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${r.id}')">
               <img src="${r.all_images[0]}" alt="review" onerror="this.src='${CONFIG.defaultImg}'">
-              ${isLast && hasMore ? `<div class="rit-thumb-more"><span>${this.photoReviews.length}<br>더보기</span></div>` : ''}
+              ${isLast && hasMore ? `<div class="rit-thumb-more"><span>전체<br>더보기</span></div>` : ''}
             </div>
           `;
         }).join('');
