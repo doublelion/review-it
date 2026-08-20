@@ -40,9 +40,9 @@
 
       await Promise.all([this.loadSettings(), this.loadReviews()]);
 
-      // 💡 리뷰가 0개여도 무조건 레이아웃 렌더링 진행 (Return 종료 제거)
-      if (this.settings.is_detail_summary_enabled !== false) this.renderTopSummary();
-      if (this.reviews.length > 0 && this.settings.is_detail_gallery_enabled !== false) this.renderUnderThumbGallery();
+      if (this.settings.is_detail_gallery_enabled !== false) {
+        this.renderUnderThumbGallery();
+      }
 
       this.renderMainDetailBoard();
     },
