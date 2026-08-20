@@ -1,6 +1,6 @@
 /**
- * @Project: Review-It Detail Engine (Production Master v3.1 - Dashboard Isolation & Modal UX Fix)
- * @Feature: Isolated Dashboard Classes, Modernized Grid View Button, Thumbnail Radius Removed
+ * @Project: Review-It Detail Engine (Production Master v3.2 - Mobile UX & Scroll Patch)
+ * @Feature: Cafe24 Tab Scroll Fix, Mobile Grid Padding, Dashboard Layout Optimized
  */
 (function () {
   console.log('%c[REVIEW-IT]%c Detail Production Engine Master Loaded!', 'color:#3b82f6; font-weight:bold;', 'color:#10b981;');
@@ -49,7 +49,7 @@
     listOrder: [],
     photoReviews: [],
     isFallbackDemo: false,
-    viewType: 'thumbnail',
+    viewType: 'thumbnail', 
 
     async init() {
       this.injectCSS();
@@ -65,6 +65,30 @@
       if (this.settings.is_detail_summary_enabled !== false) this.renderTopSummary();
       if (this.settings.is_detail_gallery_enabled !== false) this.renderUnderThumbGallery();
       if (this.settings.is_detail_main_enabled !== false) this.renderMainDetailBoard();
+    },
+
+    // 💡 [핵심 픽스] 카페24 모바일 탭 UI 대응 스크롤 전용 함수
+    scrollToReviews() {
+      // 1. 카페24 탭 강제 활성화 시도 (후기/리뷰 관련 탭 찾기)
+      const tabs = document.querySelectorAll('a[href*="Review"], a[href*="review"], li[id*="review"], .tab_review, a[name="use_review"], a[href="#prdReview"]');
+      for (let tab of tabs) {
+        if (tab.innerText.includes('후기') || tab.innerText.includes('리뷰') || tab.id.includes('review')) {
+          if (typeof tab.click === 'function') {
+            tab.click();
+            break;
+          }
+        }
+      }
+      
+      // 2. 탭이 열리면서 높이값이 계산될 시간을 확보한 뒤 스크롤 이동
+      setTimeout(() => {
+        const target = document.getElementById('rit-detail-main-board');
+        if (target) {
+          const yOffset = -60; // 상단 고정 헤더 등을 고려한 오프셋
+          const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({top: y, behavior: 'smooth'});
+        }
+      }, 300);
     },
 
     async loadSettings() {
@@ -235,8 +259,9 @@
 
       const summaryContainer = document.createElement('div');
       summaryContainer.className = 'rit-oy-summary-wrap cboth';
+      // 💡 [수정] 클릭 시 커스텀 스크롤 함수 적용
       summaryContainer.innerHTML = `
-        <div class="rit-oy-content" onclick="document.getElementById('rit-detail-main-board')?.scrollIntoView({behavior: 'smooth'})">
+        <div class="rit-oy-content" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.scrollToReviews()">
           <div class="rit-oy-left">
             <span class="rit-oy-star">★ ${avgScore}</span>
             <span class="rit-oy-count">리뷰 ${realCount}건</span>
@@ -255,7 +280,7 @@
 
       const galleryContainer = document.createElement('div');
       galleryContainer.className = 'rit-thumb-wrap cboth';
-
+      
       let photosHtml = '';
       const displayPhotos = this.photoReviews.slice(0, 5);
       const displayCount = this.photoReviews.length;
@@ -281,10 +306,11 @@
         }).join('');
       }
 
+      // 💡 [수정] 전체보기 클릭 시 커스텀 스크롤 함수 적용
       galleryContainer.innerHTML = `
         <div class="rit-thumb-header">
           <span class="rit-thumb-title">포토리뷰 <span class="rit-count">(${displayCount}건)</span></span>
-          <span class="rit-thumb-view-all" onclick="document.getElementById('rit-detail-main-board')?.scrollIntoView({behavior: 'smooth'})">전체보기</span>
+          <span class="rit-thumb-view-all" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.scrollToReviews()">전체보기</span>
         </div>
         <div class="rit-thumb-list">${photosHtml}</div>
       `;
@@ -312,7 +338,6 @@
 
       const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
 
-      // 💡 [수정 1] 대시보드 클래스명 격리 (rit-dtl-dash-card 등)
       const dashboardHtml = `
         <div class="rit-dtl-dash-card" style="margin-top:20px;">
           <div class="rit-dtl-dash-left">
@@ -440,7 +465,6 @@
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
 
-      // 💡 [수정 1] 리스트 엔진의 .rit-card 충돌 방지를 위해 .rit-dtl-card 래퍼로 교체
       return `
       <div class="rit-dtl-card rit-masonry-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')">
         <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
@@ -471,7 +495,7 @@
         grid.innerHTML = this.listOrder.map(id => this.getListItemHTML(id)).join('');
         grid.style.display = 'flex';
         grid.style.flexDirection = 'column';
-        grid.style.gap = '0';
+        grid.style.gap = '0'; 
       } else {
         let cols = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 768 ? 3 : 2);
         if (this.listOrder.length < cols) cols = this.listOrder.length;
@@ -500,8 +524,7 @@
       modalContainer.id = 'ritDtlModal';
       modalContainer.className = 'rit-modal-container';
       modalContainer.style.display = 'none';
-
-      // 💡 [수정 2] 모달 그리드 버튼 UI 개선 (닫기 버튼 옆으로, 디자인 심플화)
+      
       modalContainer.innerHTML = `
       <div class="rit-modal-bg" onclick="ReviewDetailApp.closeModal()"></div>
       
@@ -741,7 +764,7 @@
         
         .rit-header-area { margin-bottom: 20px !important; }
         .rit-main-title { font-size: 20px !important; font-weight: 800 !important; margin: 0 !important; color: #111 !important; }
-        .rit-desc { font-size: 13px !important; color: #71717a !important; margin-top: 5px !important; }
+        .rit-desc { max-width:100%!important; font-size: 13px !important; color: #71717a !important; margin-top: 5px !important; }
 
         .rit-thumb-wrap { margin: 25px 0 20px !important; padding-top: 15px !important; border-top: 1px solid #f1f5f9 !important; width: 100% !important; }
         .rit-thumb-header { display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin-bottom: 10px !important; }
@@ -768,9 +791,10 @@
         .rit-oy-avatar:first-child { margin-left: 0 !important; z-index: 3 !important; }
         .rit-oy-avatar-more { width: 24px !important; height: 24px !important; border-radius: 50% !important; background: #e4e4e7 !important; color: #52525b !important; font-size: 10px !important; font-weight: 700 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin-left: -8px !important; border: 1.5px solid #fff !important; }
         
-        /* 💡 Dashboard Container - 클래스 충돌 방지용 rit-dtl-dash-card 사용 */
         .rit-detail-container { width: 100% !important; max-width: 100% !important; margin: 30px auto 60px !important; padding: 0 16px !important; }
-        .rit-dtl-dash-card { background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; width: 100% !important; margin-bottom: 30px !important;}
+        
+        /* 💡 Dashboard Container - box-sizing 추가로 width 100% 여도 영역 안벗어나게 수정 */
+        .rit-dtl-dash-card { box-sizing: border-box !important; background: #fff !important; border: 1px solid #f0f0f0 !important; border-radius: 12px !important; padding: 24px !important; display: flex !important; flex-direction: column !important; gap: 20px !important; margin-bottom: 30px !important;}
         @media (min-width: 768px) { .rit-dtl-dash-card { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; } }
         @media (max-width: 767px) { .rit-detail-container { padding: 0 !important; } .rit-dtl-dash-card { border-radius: 0 !important; border-left: none !important; border-right: none !important; } }
         .rit-dtl-dash-left { display: flex !important; gap: 15px !important; flex: 1 !important; }
@@ -793,7 +817,7 @@
         .rit-view-btn svg { fill: currentColor; width: 14px; height: 14px; }
         .rit-view-btn.active { background: #fff !important; color: #111 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important; }
 
-        /* 💡 Masonry Item (충돌 해결된 버전) */
+        /* Masonry Item */
         .rit-dtl-card { position: relative !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; border-radius: 12px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important; background: #fff !important; width: 100% !important; cursor: pointer !important; border: 1px solid #f0f0f0 !important; transition: transform 0.2s ease !important; height: auto !important; }
         .rit-dtl-card:hover { transform: translateY(-3px) !important; }
 
@@ -810,16 +834,17 @@
         .rit-list-images { display: flex !important; gap: 8px !important; margin-top: 8px !important; }
         .rit-list-img-thumb { width: 80px !important; height: 80px !important; border-radius: 6px !important; object-fit: cover !important; border: 1px solid #f0f0f0 !important; }
 
-        /* 💡 Modal Grid & Grid Button UX Fixes */
-        #ritDtlGridView { position:absolute; inset:0; background:#fff; z-index:100; overflow-y:auto; padding:20px; }
+        /* 💡 Modal Grid Overlay Fixes (Mobile padding reduced) */
+        #ritDtlGridView { position:absolute; inset:0; background:#fff; z-index:100; overflow-y:auto; box-sizing: border-box !important; padding:20px; }
+        @media (max-width: 767px) { #ritDtlGridView { padding: 10px 2px !important; } }
         #ritDtlGridView.rit-hidden { display:none !important; }
         
-        /* 💡 [수정 3] Grid 열 개수 조정 (비율이 너무 크지 않도록 auto-fill 적용) */
         #ritDtlGridInner { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
-        .rit-grid-thumb { aspect-ratio:1/1; cursor:pointer; overflow:hidden; }
+        
+        /* 💡 [수정 3] 그리드 썸네일 라운드 완벽 제거 */
+        .rit-grid-thumb { aspect-ratio:1/1; cursor:pointer; overflow:hidden; border-radius: 0 !important; }
         .rit-grid-thumb img { width:100%; height:100%; object-fit:cover; }
         
-        /* 💡 [수정 2] 모달 그리드 버튼 투명/심플화 */
         .btn-rit-grid { background: none !important; border: none !important; color: #fff !important; padding: 0 !important; cursor: pointer !important; opacity: 0.6 !important; transition: opacity 0.2s, transform 0.2s !important; display: flex !important; align-items: center !important; justify-content: center !important; }
         .btn-rit-grid:hover { opacity: 1 !important; transform: scale(1.1) !important; }
       `;
