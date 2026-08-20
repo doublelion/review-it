@@ -418,11 +418,10 @@
         </div>
       `;
 
-      // 💡 [핵심 픽스] 강제적인 `.rit-card`의 aspect-ratio 제약을 피하기 위해 `.rit-masonry-item` 전용 래퍼 사용! 
-      // 이로 인해 카드가 짤리거나 강제로 늘어나지 않습니다.
+      // rit-masonry-item 전용 래퍼 
       return `
       <div class="rit-masonry-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')">
-        <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
+        <div class="rit-card-img-container" style="position: relative; width: 100%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
           <img src="${thumb}" class="rit-card-img" loading="lazy" 
               onerror="this.onerror=null; this.src='${CONFIG.defaultImg}';"
               style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
