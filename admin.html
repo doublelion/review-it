@@ -227,7 +227,7 @@
         <div class="flex items-center gap-3 px-4">
           <span
             class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Update</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 상세페이지 전용 모듈 및 어드민 UI 전면 개편 완료
+          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 모던 미니멀 리스트 레이아웃 추가! 뷰 전환 토글 도입
             🎉</span><span class="w-8 inline-block"></span>
           <span
             class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Notice</span>
@@ -238,7 +238,7 @@
         <div class="flex items-center gap-3 px-4">
           <span
             class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Update</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 상세페이지 전용 모듈 및 어드민 UI 전면 개편 완료
+          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 모던 미니멀 리스트 레이아웃 추가! 뷰 전환 토글 도입
             🎉</span><span class="w-8 inline-block"></span>
           <span
             class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Notice</span>
@@ -448,17 +448,17 @@
             </label>
           </div>
 
-          <!-- 4. 메인 리뷰 레이아웃 선택 -->
+          <!-- 💡 [핵심 픽스] 메인 리뷰 레이아웃 선택 (슬라이드 제거 -> 썸네일형 / 리스트형 배치) -->
           <div class="rit-setting-box">
-            <span class="rit-label">하단 메인 레이아웃</span>
+            <span class="rit-label">기본 뷰 (Default View)</span>
             <div class="rit-switch-group">
               <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="detail_display_type" value="masonry" class="hidden peer" checked>
-                <div class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">메이슨리</div>
+                <input type="radio" name="detail_display_type" value="thumbnail" class="hidden peer" checked>
+                <div class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">썸네일형</div>
               </label>
               <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="detail_display_type" value="swiper" class="hidden peer">
-                <div class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">슬라이드</div>
+                <input type="radio" name="detail_display_type" value="list" class="hidden peer">
+                <div class="peer-checked:bg-gray-900 peer-checked:text-white px-2 py-2 rounded-md text-[11px] text-gray-500 font-bold transition">리스트형</div>
               </label>
             </div>
           </div>
@@ -614,10 +614,10 @@
           const mExpRadio = document.querySelector(`input[name="main_exposure"][value="${s.is_main_exposed !== false}"]`);
           if (mExpRadio) mExpRadio.checked = true;
 
-          const detailTypeRadio = document.querySelector(`input[name="detail_display_type"][value="${s.detail_display_type || 'masonry'}"]`);
+          // 💡 [핵심 픽스] 불러올 때 masonry/swiper가 아닌 thumbnail/list로 바인딩
+          const detailTypeRadio = document.querySelector(`input[name="detail_display_type"][value="${s.detail_display_type || 'thumbnail'}"]`);
           if (detailTypeRadio) detailTypeRadio.checked = true;
 
-          // 💡 3대 영역 토글 로드
           if (document.getElementById('toggle-detail-summary')) document.getElementById('toggle-detail-summary').checked = s.is_detail_summary_enabled !== false;
           if (document.getElementById('toggle-detail-gallery')) document.getElementById('toggle-detail-gallery').checked = s.is_detail_gallery_enabled !== false;
           if (document.getElementById('toggle-detail-main')) document.getElementById('toggle-detail-main').checked = s.is_detail_main_enabled !== false;
@@ -639,8 +639,8 @@
           tagline: document.getElementById('input-tagline')?.value || '',
           grid_rows_desktop: parseInt(document.getElementById('select-grid-pc')?.value || 5),
           grid_rows_mobile: parseInt(document.getElementById('select-grid-mo')?.value || 2),
-          detail_display_type: document.querySelector('input[name="detail_display_type"]:checked')?.value || 'masonry',
-          // 💡 3대 영역 토글 저장
+          // 💡 [핵심 픽스] 저장 시 thumbnail/list 값을 DB로 넘김
+          detail_display_type: document.querySelector('input[name="detail_display_type"]:checked')?.value || 'thumbnail',
           is_detail_summary_enabled: document.getElementById('toggle-detail-summary')?.checked ?? true,
           is_detail_gallery_enabled: document.getElementById('toggle-detail-gallery')?.checked ?? true,
           is_detail_main_enabled: document.getElementById('toggle-detail-main')?.checked ?? true
@@ -664,7 +664,6 @@
       }
     }
     
-    // 💡 [핵심 버그 수정] DOM 널 체크가 추가된 데이터 로드 함수
     async function loadAdminData() {
       try {
         const from = currentPage * itemsPerPage;
@@ -681,7 +680,6 @@
 
         const total = res.headers.get('content-range')?.split('/')[1] || 0;
 
-        // 💡 안전한 널(Null) 방어 로직 적용 완료
         const countTop = document.getElementById('total-count');
         const countDash = document.getElementById('total-count-dash');
         const countList = document.getElementById('total-count-list');
@@ -784,11 +782,9 @@
       }
     }
 
-    // 몰 ID 기반 스토어 이동 링크 생성 함수
     function setupMallLink() {
       const mallLinkBtn = document.getElementById('btn-mall-link');
       if (mallLinkBtn && MALL_ID) {
-        // 카페24 기본 도메인 형태 적용 (필요에 따라 대표 도메인 API 연동으로 고도화 가능)
         mallLinkBtn.href = `https://${MALL_ID}.cafe24.com`;
       }
     }
