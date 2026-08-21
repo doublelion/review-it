@@ -549,18 +549,18 @@
 
       <div class="rit-modal-window">
         <div class="rit-modal-header">
-            <span class="rit-logo-text">${CONFIG.mallName}</span>
-            <div class="rit-header-buttons" style="display:flex; align-items:center; gap: 15px;">
-              <button onclick="ReviewDetailApp.toggleGrid()" class="btn-rit-grid" title="모아보기">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                  <rect x="3" y="3" width="7" height="7" rx="1" />
-                  <rect x="14" y="3" width="7" height="7" rx="1" />
-                  <rect x="3" y="14" width="7" height="7" rx="1" />
-                  <rect x="14" y="14" width="7" height="7" rx="1" />
-                </svg>
-              </button>
-              <button onclick="ReviewDetailApp.closeModal()" class="btn-rit-close">✕</button>
-            </div>
+          <span class="rit-logo-text">${CONFIG.mallName}</span>
+          <div class="rit-header-buttons">
+            <button type="button" onclick="ReviewDetailApp.toggleGrid()" class="btn-rit-grid" title="모아보기">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </button>
+            <button type="button" onclick="ReviewDetailApp.closeModal()" class="btn-rit-close">✕</button>
+          </div>
         </div>
         <div class="rit-modal-body">
             <div id="ritDtlDetailView" class="rit-flex-container">
@@ -817,7 +817,7 @@
         .rit-thumb-view-all { font-size: 12px !important; color: #64748b !important; cursor: pointer !important; text-decoration: underline !important; text-underline-offset: 3px !important; }
         
         .rit-thumb-list { 
-          display: flex !important; gap: 8px !important; 
+          display: flex !important; gap: 4px !important; 
           width: auto !important; max-width: 100% !important; /* 스크롤 허용하나 100% 제한 */
           overflow-x: auto !important; flex-wrap: nowrap !important; 
           -webkit-overflow-scrolling: touch !important; padding-bottom: 5px !important; scrollbar-width: none; 
@@ -919,8 +919,7 @@
         .rit-grid-thumb { aspect-ratio:1/1; cursor:pointer; overflow:hidden; border-radius: 0 !important; }
         .rit-grid-thumb img { width:100%; height:100%; object-fit:cover; }
         
-        .btn-rit-grid { background: none !important; border: none !important; color: #fff !important; padding: 0 !important; cursor: pointer !important; opacity: 0.6 !important; transition: opacity 0.2s, transform 0.2s !important; display: flex !important; align-items: center !important; justify-content: center !important; }
-        .btn-rit-grid:hover { opacity: 1 !important; transform: scale(1.1) !important; }
+        
 
         /* =========================================================
            🚀 PC Media Query Override (768px 이상)
