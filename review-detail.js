@@ -460,11 +460,15 @@
         </div>
       ` : '';
 
+      // 💡 리스트형 구매 인증 뱃지 추가 (운영자가 아닐 경우에만 노출)
+      const listVerifiedBadgeHtml = !isMallOwner ? `<span class="rit-dtl-list-badge">구매 인증</span>` : '';
+
       return `
       <div class="rit-list-item" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.openModal('${id}')">
         <div class="rit-list-meta">
           <div class="rit-list-stars">${'★'.repeat(d.stars || 5)}</div>
-          <div class="rit-list-author">${displayName}</div>
+          <!-- 💡 작성자 이름 옆에 뱃지 삽입 -->
+          <div class="rit-list-author">${displayName}${listVerifiedBadgeHtml}</div>
           <div class="rit-list-date">${formattedDate}</div>
         </div>
         <div class="rit-list-content">
@@ -486,8 +490,9 @@
       const rawDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
       let formattedDate = rawDate ? rawDate.replace(/-/g, '.') : '';
 
+      // 💡 썸네일형 구매 인증 뱃지 (안전한 접두사 클래스명 적용)
       const verifiedBadgeHtml = !isMallOwner ? `
-      <span class="rit-verified-badge">구매 인증</span>
+      <span class="rit-dtl-card-badge">구매 인증</span>
       ` : '';
 
       return `
@@ -791,7 +796,48 @@
           overflow-wrap: break-word !important; 
         }
 
+        /* =========================================================
+           인증 뱃지 스타일 (클래스 충돌 방지용 rit-dtl- 접두사 적용)
+           ========================================================= */
+        /* 썸네일 카드형 뱃지 (우측 하단) */
+        .rit-dtl-card-badge { 
+          position: absolute !important; 
+          right: 8px !important; 
+          bottom: 8px !important; 
+          background: rgba(255,255,255,0.85) !important; 
+          backdrop-filter: blur(4px) !important; 
+          -webkit-backdrop-filter: blur(4px) !important; 
+          color: #3f3f46 !important; 
+          padding: 4px 6px !important; 
+          border-radius: 4px !important; 
+          font-size: 9.5px !important; 
+          font-weight: 700 !important; 
+          letter-spacing: -0.5px !important; 
+          z-index: 10 !important; 
+          box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important; 
+        }
+
+        /* 리스트형 뱃지 (작성자 우측) */
+        .rit-dtl-list-badge {
+          display: inline-flex !important;
+          align-items: center !important;
+          background: #f1f5f9 !important;
+          color: #475569 !important;
+          padding: 2px 6px !important;
+          border-radius: 4px !important;
+          font-size: 9.5px !important;
+          font-weight: 600 !important;
+          margin-left: 6px !important;
+          vertical-align: middle !important;
+          letter-spacing: -0.3px !important;
+          border: 1px solid #e2e8f0 !important;
+        }
         
+        /* 💡 기존 리스트 작성자 영역이 flex를 타도록 약간의 보정 (선택 사항이나 권장) */
+        .rit-list-author {
+          display: flex !important;
+          align-items: center !important;
+        }
 
         /* =========================================================
            UI Components (Mobile First)
