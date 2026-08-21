@@ -912,12 +912,11 @@
         .rit-list-img-thumb { width: 80px !important; height: 80px !important; border-radius: 6px !important; object-fit: cover !important; border: 1px solid #f0f0f0 !important; }
 
         /* Modal Grid Overlay */
-        #ritDtlGridView { position:absolute; inset:0; background:#fff; z-index:100; overflow-y:auto; box-sizing: border-box !important; padding:10px 2px !important; }
+        #ritDtlGridView { position:absolute; inset:0; background:#fff; z-index:100; overflow-y:auto; box-sizing: border-box !important; }
         #ritDtlGridView.rit-hidden { display:none !important; }
-        #ritDtlGridInner { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
+        #ritDtlGridInner { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); }
         .rit-grid-thumb { aspect-ratio:1/1; cursor:pointer; overflow:hidden; border-radius: 0 !important; }
         .rit-grid-thumb img { width:100%; height:100%; object-fit:cover; }
-        
         
 
         /* =========================================================
@@ -938,6 +937,7 @@
           .rit-list-meta { width: 180px !important; flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; margin-bottom: 16px !important; }
           
           #ritDtlGridView { padding: 20px !important; }
+          .rit-grid-box-wrap { gap: 5px; }
         }
       `;
       document.head.appendChild(style);
