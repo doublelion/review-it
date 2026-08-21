@@ -525,7 +525,6 @@
         grid.innerHTML = this.listOrder.map(id => this.getListItemHTML(id)).join('');
       } else {
         let cols = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 768 ? 3 : 2);
-        if (this.listOrder.length < cols) cols = this.listOrder.length;
         const columnDOMs = Array.from({ length: cols }, () => []);
         this.listOrder.forEach((id, i) => columnDOMs[i % cols].push(this.getCardHTML(id)));
 
@@ -975,7 +974,7 @@
           .rit-dtl-dash-gauge-box { border-left: 1px solid #f3f3f3 !important; padding-left: 24px !important; }
           
           .rit-grid-layout-thumbnail { gap: 16px !important; }
-          .rit-masonry-column { gap: 16px !important; }
+          .rit-masonry-column { gap: 16px !important; max-width: 25% !important; /* 4단 기준, 최대 25% 너비를 넘지 않도록 강제 제한 */}
           .rit-card-info { padding: 16px 14px !important; }
           .rit-card-subject { font-size: 13px !important; margin-bottom: 12px !important; }
           
