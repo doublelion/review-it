@@ -357,15 +357,20 @@
 /* 그리드 버튼 디테일 (아이콘만 남기고 투명도/스케일 애니메이션 적용) */
 .btn-rit-grid {
   background: none !important;
-  border: none !important;
+  /* border: none !important; */
   color: #fff !important;
-  padding: 0 !important;
+  /* padding: 0 !important; */
   cursor: pointer !important;
   opacity: 0.6 !important;
   transition: opacity 0.2s ease, transform 0.2s ease !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 15px;
+  border-radius: 4px;
+  margin-right: 10px;
 }
 
 .btn-rit-grid:hover {
