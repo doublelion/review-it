@@ -61,6 +61,7 @@
 
     const payload = [];
     let items;
+    let doc;
 
     try {
       const boardUrl = `/board/product/list.html?board_no=${CONFIG.targetBoardNo}`;
@@ -68,8 +69,8 @@
       const htmlText = await response.text();
 
       const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlText, 'text/html');
-
+      doc = parser.parseFromString(htmlText, 'text/html'); // 값 할당
+      
       items = doc.querySelectorAll(`
           .xans-board-listpackage .xans-record-, 
           .xans-product-review .xans-record-,
@@ -124,10 +125,10 @@
       // 💡 2. 상품명(product_name) 추출 및 자가 치유(방어) 로직
       let extractedProductName = null;
       const pNameEl = el.querySelector('.typeProduct a, td.product a, .product-name, .prd-name, .product_name');
-      
+
       if (pNameEl) {
         let tempName = pNameEl.innerText.replace(/\n/g, '').trim();
-        
+
         // 🔥 [방어막 작동] 상품명이라고 긁어온 게 리뷰 제목이랑 다를 때만 진짜 상품명으로 인정!
         if (tempName !== cleanSubject && !tempName.includes(cleanSubject.replace('...', ''))) {
           extractedProductName = tempName;
@@ -222,7 +223,7 @@
     try {
       // 💡 [PGRST102 에러 방어] 1. 배열 내 모든 객체의 Key를 하나로 끌어모읍니다.
       const allKeys = [...new Set(limitedPayload.flatMap(Object.keys))];
-      
+
       // 💡 [PGRST102 에러 방어] 2. 비어있는 Key 자리에 null을 채워 모든 객체의 모양을 똑같이 맞춥니다.
       const normalizedPayload = limitedPayload.map(review => {
         const normalized = {};
@@ -243,7 +244,7 @@
         },
         body: JSON.stringify(normalizedPayload) // <--- 정규화된 페이로드로 교체!
       });
-      
+
       if (res.ok) {
         console.log(`✅ [REVIEW-IT Collector] 동기화 완료 (${limitedPayload.length}건) - 오류 방어막 가동 중`);
         localStorage.setItem('rit_last_sync', new Date().getTime().toString());
