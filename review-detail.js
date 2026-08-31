@@ -69,7 +69,6 @@
     },
 
     // 탭 이동 및 스크롤 안착 로직 
-    // 탭 이동 및 스크롤 안착 로직 
     scrollToReviews(e) {
       if (e) {
         e.preventDefault();
@@ -86,13 +85,15 @@
       for (let selector of tabSelectors) {
         const tab = document.querySelector(selector);
         if (tab && typeof tab.click === 'function') {
-          // 💡 [에러 픽스] 카페24 jQuery가 replace 에러를 뱉지 않도록 href 가짜 속성 부여
-          if (tab.tagName.toLowerCase() === 'a' && !tab.getAttribute('href')) {
+          // 💡 [초강력 에러 픽스] 카페24 내부 스크립트 충돌 방지
+          // href가 없거나 비어있는 경우 #none을 넣어주어 replace 에러 원천 차단
+          if (tab.tagName.toLowerCase() === 'a' && (!tab.getAttribute('href') || tab.getAttribute('href') === '')) {
             tab.setAttribute('href', '#none');
           }
 
           try {
-            tab.click();
+            // 단순 click() 대신 안전한 마우스 이벤트 트리거 (제이쿼리 에러 우회)
+            tab.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
             isTabClicked = true;
             break;
           } catch (err) {
@@ -102,7 +103,8 @@
       }
 
       setTimeout(() => {
-        const target = document.getElementById('prdReview') || document.getElementById('review') || document.querySelector('.detail_tab') || document.getElementById('rit-detail-main-board');
+        // 우리가 만든 메인 보드로 직접 스크롤 이동
+        const target = document.getElementById('rit-detail-main-board') || document.getElementById('prdReview');
 
         if (target) {
           const offset = window.innerWidth >= 768 ? 90 : 70;
@@ -244,11 +246,12 @@
     },
 
     hideDefaultReviews() {
-      // 1. CSS로 원천 차단 (비동기로 나중에 생겨도 화면에 절대 노출 안 됨)
+      // 1. CSS로 원천 차단 (DOM을 제거하지 않고 화면에서만 완벽히 숨김)
       if (!document.getElementById('rit-hide-default-css')) {
         const style = document.createElement('style');
         style.id = 'rit-hide-default-css';
         style.innerHTML = `
+          /* 카페24 기본 리뷰 영역, 신형 위젯, 스켈레톤 UI 완벽 숨김 */
           .xans-product-review, 
           a[name="use_review"], 
           #prdReview > table, 
@@ -257,11 +260,17 @@
           .board-review-widget-iframe, 
           .board-review-panel-iframe,
           iframe[src*="review.poxo.com"], 
-          iframe[src*="pro-review.cafe24.com"] { 
+          iframe[src*="pro-review.cafe24.com"],
+          .poxo-review-wrap,
+          [id^="crema-"]
+          { 
             display: none !important; 
             opacity: 0 !important; 
+            visibility: hidden !important; 
             height: 0 !important; 
             width: 0 !important; 
+            margin: 0 !important;
+            padding: 0 !important;
             position: absolute !important; 
             z-index: -9999 !important; 
             pointer-events: none !important;
@@ -269,34 +278,7 @@
         `;
         document.head.appendChild(style);
       }
-
-      // 2. MutationObserver로 나중에(setTimeout) 추가되는 요소 실시간 파괴
-      const badSelectors = '#breview-panel-iframe, .board-review-widget-iframe, iframe[src*="review.poxo.com"]';
-
-      // 이미 렌더링된 요소 안전하게 파괴 (에러 방지를 위해 try-catch)
-      document.querySelectorAll(badSelectors).forEach(el => {
-        try { el.remove(); } catch (e) { }
-      });
-
-      // 돔 변화를 감시하는 옵저버 가동
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          mutation.addedNodes.forEach((node) => {
-            if (node.nodeType === 1) { // ELEMENT_NODE
-              if (node.matches && node.matches(badSelectors)) {
-                node.remove();
-              } else if (node.querySelectorAll) {
-                node.querySelectorAll(badSelectors).forEach(el => {
-                  try { el.remove(); } catch (e) { }
-                });
-              }
-            }
-          });
-        });
-      });
-
-      // body 전체의 변화를 감지
-      observer.observe(document.body, { childList: true, subtree: true });
+      // 💡 이전 코드에 있던 el.remove() 및 MutationObserver 부분은 완전히 삭제합니다!
     },
 
     injectToBoard(container) {
