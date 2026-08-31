@@ -71,7 +71,7 @@
     // 탭 이동 및 스크롤 안착 로직 
     scrollToReviews(e) {
       if (e) {
-        e.preventDefault(); 
+        e.preventDefault();
         e.stopPropagation();
       }
 
@@ -87,17 +87,17 @@
         if (tab && typeof tab.click === 'function') {
           tab.click();
           isTabClicked = true;
-          break; 
+          break;
         }
       }
 
       setTimeout(() => {
         const target = document.getElementById('prdReview') || document.getElementById('review') || document.querySelector('.detail_tab') || document.getElementById('rit-detail-main-board');
-        
+
         if (target) {
-          const offset = window.innerWidth >= 768 ? 90 : 70; 
+          const offset = window.innerWidth >= 768 ? 90 : 70;
           const y = target.getBoundingClientRect().top + window.pageYOffset - offset;
-          
+
           window.scrollTo({ top: y, behavior: 'smooth' });
         }
       }, isTabClicked ? 550 : 100); // 딜레이를 550ms로 살짝 늘려 테마 스크립트와 완전히 분리
@@ -234,18 +234,55 @@
     },
 
     hideDefaultReviews() {
-      const selectors = ['.xans-product-review', 'a[name="use_review"]', '#prdReview > table', '#prdReview > .board'];
-      document.querySelectorAll(selectors.join(', ')).forEach(el => { if (el) el.style.setProperty('display', 'none', 'important'); });
+      // 💡 기존 카페24 구형 게시판 + 신형 iframe 리뷰 위젯 선택자 총망라 (하단 다른 리뷰 제거 가능 추가 클래스)
+      const selectors = [
+        '.xans-product-review',
+        'a[name="use_review"]',
+        '#prdReview > table',
+        '#prdReview > .board',
+        '#breview-panel-iframe',         // 전달해주신 poxo 기본 iframe ID
+        '.board-review-widget-iframe',   // 전달해주신 poxo 기본 iframe Class
+        '.board-review-panel-iframe',    // 전달해주신 poxo 기본 iframe Class
+        'iframe[src*="review.poxo.com"]',// URL 기반 강제 차단
+        'iframe[src*="pro-review.cafe24.com"]' // URL 기반 강제 차단
+      ];
+
+      // 선택자에 해당하는 모든 요소를 찾아 숨김(또는 DOM 제거) 처리
+      document.querySelectorAll(selectors.join(', ')).forEach(el => {
+        if (el) {
+          // 1단계: 강제로 보이지 않게 처리 (화면 깜빡임 방지)
+          el.style.setProperty('display', 'none', 'important');
+
+          // 2단계: DOM에서 완전히 제거하여 충돌 방지 및 메모리 확보 (권장)
+          try {
+            el.remove();
+          } catch (e) {
+            console.warn('[REVIEW-IT] 기본 위젯 제거 중 오류:', e);
+          }
+        }
+      });
     },
 
     injectToBoard(container) {
+      // 위에서 지워버린 기본 리뷰 영역의 부모를 우선적으로 찾습니다.
       const prdReview = document.querySelector('#prdReview');
       const additional = document.querySelector('.xans-product-additional');
       const prdDetail = document.querySelector('#prdDetail, .xans-product-detail');
-      if (prdReview) prdReview.appendChild(container);
-      else if (additional) additional.appendChild(container);
-      else if (prdDetail) prdDetail.appendChild(container);
-      else document.body.appendChild(container);
+      const infoArea = document.querySelector('.xans-product-info, .infoArea');
+
+      if (prdReview) {
+        prdReview.appendChild(container);
+      } else if (additional) {
+        additional.appendChild(container);
+      } else if (prdDetail) {
+        prdDetail.appendChild(container);
+      } else if (infoArea) {
+        // 상세페이지 하단 영역을 찾을 수 없다면 상품 정보 영역 아래에 배치
+        infoArea.parentNode.insertBefore(container, infoArea.nextSibling);
+      } else {
+        // 최악의 경우 body 맨 아래에 추가
+        document.body.appendChild(container);
+      }
     },
 
     // 💡 2. 상단 요약 위젯 교체: onclick에 'event' 파라미터를 넘겨줍니다.
@@ -298,7 +335,7 @@
 
       let photosHtml = '';
       const displayPhotos = this.photoReviews.slice(0, 5);
-      
+
       // 💡 수정된 부분: 포토 리뷰 수(this.photoReviews.length) -> 전체 리뷰 수(this.listOrder.length)로 통일
       const displayCount = this.listOrder.length;
 
@@ -355,7 +392,7 @@
       const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
 
       // 💡 1. 자바스크립트 수정 (renderMainDetailBoard 함수 내부 HTML 부분)
-    const dashboardHtml = `
+      const dashboardHtml = `
         <div class="rit-dtl-dash-card">
           <div class="rit-dtl-dash-left">
             <div class="rit-dtl-dash-score-box">
@@ -371,7 +408,7 @@
         const pct = realCount === 0 ? 0 : Math.round((starCounts[star] / realCount) * 100);
         // 트렌디하고 가벼운 모던 톤앤매너 텍스트 맵핑
         const starLabels = { 5: '최고예요', 4: '좋아요', 3: '괜찮아요', 2: '아쉬워요', 1: '별로예요' };
-        
+
         return `
                 <div class="rit-dtl-gauge-row">
                   <span class="rit-dtl-gauge-label">${starLabels[star]}</span>
