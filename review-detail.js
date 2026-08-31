@@ -69,6 +69,7 @@
     },
 
     // 탭 이동 및 스크롤 안착 로직 
+    // 탭 이동 및 스크롤 안착 로직 
     scrollToReviews(e) {
       if (e) {
         e.preventDefault();
@@ -85,9 +86,18 @@
       for (let selector of tabSelectors) {
         const tab = document.querySelector(selector);
         if (tab && typeof tab.click === 'function') {
-          tab.click();
-          isTabClicked = true;
-          break;
+          // 💡 [에러 픽스] 카페24 jQuery가 replace 에러를 뱉지 않도록 href 가짜 속성 부여
+          if (tab.tagName.toLowerCase() === 'a' && !tab.getAttribute('href')) {
+            tab.setAttribute('href', '#none');
+          }
+
+          try {
+            tab.click();
+            isTabClicked = true;
+            break;
+          } catch (err) {
+            console.warn('[REVIEW-IT] 탭 클릭 무시됨');
+          }
         }
       }
 
@@ -100,7 +110,7 @@
 
           window.scrollTo({ top: y, behavior: 'smooth' });
         }
-      }, isTabClicked ? 550 : 100); // 딜레이를 550ms로 살짝 늘려 테마 스크립트와 완전히 분리
+      }, isTabClicked ? 550 : 100);
     },
 
     async loadSettings() {
@@ -234,33 +244,59 @@
     },
 
     hideDefaultReviews() {
-      // 💡 기존 카페24 구형 게시판 + 신형 iframe 리뷰 위젯 선택자 총망라 (하단 다른 리뷰 제거 가능 추가 클래스)
-      const selectors = [
-        '.xans-product-review',
-        'a[name="use_review"]',
-        '#prdReview > table',
-        '#prdReview > .board',
-        '#breview-panel-iframe',         // 전달해주신 poxo 기본 iframe ID
-        '.board-review-widget-iframe',   // 전달해주신 poxo 기본 iframe Class
-        '.board-review-panel-iframe',    // 전달해주신 poxo 기본 iframe Class
-        'iframe[src*="review.poxo.com"]',// URL 기반 강제 차단
-        'iframe[src*="pro-review.cafe24.com"]' // URL 기반 강제 차단
-      ];
-
-      // 선택자에 해당하는 모든 요소를 찾아 숨김(또는 DOM 제거) 처리
-      document.querySelectorAll(selectors.join(', ')).forEach(el => {
-        if (el) {
-          // 1단계: 강제로 보이지 않게 처리 (화면 깜빡임 방지)
-          el.style.setProperty('display', 'none', 'important');
-
-          // 2단계: DOM에서 완전히 제거하여 충돌 방지 및 메모리 확보 (권장)
-          try {
-            el.remove();
-          } catch (e) {
-            console.warn('[REVIEW-IT] 기본 위젯 제거 중 오류:', e);
+      // 1. CSS로 원천 차단 (비동기로 나중에 생겨도 화면에 절대 노출 안 됨)
+      if (!document.getElementById('rit-hide-default-css')) {
+        const style = document.createElement('style');
+        style.id = 'rit-hide-default-css';
+        style.innerHTML = `
+          .xans-product-review, 
+          a[name="use_review"], 
+          #prdReview > table, 
+          #prdReview > .board,
+          #breview-panel-iframe, 
+          .board-review-widget-iframe, 
+          .board-review-panel-iframe,
+          iframe[src*="review.poxo.com"], 
+          iframe[src*="pro-review.cafe24.com"] { 
+            display: none !important; 
+            opacity: 0 !important; 
+            height: 0 !important; 
+            width: 0 !important; 
+            position: absolute !important; 
+            z-index: -9999 !important; 
+            pointer-events: none !important;
           }
-        }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // 2. MutationObserver로 나중에(setTimeout) 추가되는 요소 실시간 파괴
+      const badSelectors = '#breview-panel-iframe, .board-review-widget-iframe, iframe[src*="review.poxo.com"]';
+
+      // 이미 렌더링된 요소 안전하게 파괴 (에러 방지를 위해 try-catch)
+      document.querySelectorAll(badSelectors).forEach(el => {
+        try { el.remove(); } catch (e) { }
       });
+
+      // 돔 변화를 감시하는 옵저버 가동
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === 1) { // ELEMENT_NODE
+              if (node.matches && node.matches(badSelectors)) {
+                node.remove();
+              } else if (node.querySelectorAll) {
+                node.querySelectorAll(badSelectors).forEach(el => {
+                  try { el.remove(); } catch (e) { }
+                });
+              }
+            }
+          });
+        });
+      });
+
+      // body 전체의 변화를 감지
+      observer.observe(document.body, { childList: true, subtree: true });
     },
 
     injectToBoard(container) {
