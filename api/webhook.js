@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // 카페24 API 버전 규격 적용
-const CAFE24_API_VERSION = '2026-13-01';
+const CAFE24_API_VERSION = '2026-03-01';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
