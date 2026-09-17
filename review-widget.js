@@ -639,43 +639,6 @@
 
       const thumb = reviewImg || productImg;
 
-      try {
-        let imgs = d.all_images || d.image_urls || [];
-
-        if (typeof imgs === 'string') {
-          imgs = imgs.startsWith('[') ? JSON.parse(imgs) : [imgs];
-        }
-
-        if (Array.isArray(imgs)) {
-          const realImg = imgs.find(img =>
-            img &&
-            typeof img === 'string' &&
-            !img.includes('rit_noimg.jpg') &&
-            !img.includes('[') &&
-            !img.includes('undefined') &&
-            !img.includes('null')
-          );
-
-          if (realImg) {
-            thumb = realImg;
-          }
-        }
-      } catch (e) {
-        thumb = null;
-      }
-
-      if (!thumb) {
-        thumb = productImg;
-      }
-
-      if (!thumb) {
-        thumb = CONFIG.DEFAULT_IMG;
-      }
-
-
-
-
-
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
 
 
