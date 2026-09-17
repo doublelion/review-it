@@ -624,11 +624,13 @@
     getCardHTML(id) {
       const d = this.data[id];
 
-      // 1. 작은 칩셋에서 검증 완료된 완벽한 상품 이미지 변수
-      const productImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
+      const productImg =
+        d.scraped_product_img ||
+        d.product_image ||
+        d.product_img ||
+        CONFIG.DEFAULT_IMG;
 
-      // 2. 메인 썸네일 기준 변경: 무조건 상품 이미지를 먼저 깐다. (기본 폴백)
-      let thumb = productImg;
+      const thumb = productImg;
 
       // 3. 진짜 고객 사진 추출: 텍스트로 뭉개진 배열('["url"]')까지 완벽히 해독
       try {
