@@ -624,14 +624,29 @@
     getCardHTML(id) {
       const d = this.data[id];
       
-      // 1. 단일 변수 통일: 스크래핑된 이미지나 DB의 상품 이미지를 긁어옵니다.
+      // 1. 작은 칩셋에서 검증된 완벽한 상품 이미지 변수
       const productImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
       
-      // 2. 썸네일 폴백: 리뷰 사진이 없거나 데모 이미지면 위에서 구한 productImg로 교체!
-      let thumb = d.all_images[0];
-      if (!thumb || thumb.includes('rit_noimg.jpg')) {
-        thumb = productImg;
+      // 2. 텍스트로 뭉개져 들어온 배열 데이터를 완벽하게 해독 및 정제
+      let validReviewImages = [];
+      let rawImages = d.all_images || d.image_urls;
+      
+      if (typeof rawImages === 'string') {
+        try { 
+          // '["url"]' 형태의 문자열을 실제 배열로 변환
+          rawImages = JSON.parse(rawImages); 
+        } catch(e) { 
+          rawImages = [rawImages]; 
+        }
       }
+      
+      if (Array.isArray(rawImages)) {
+        // 기본 데모 이미지가 아닌 '진짜 리뷰 사진'만 걸러냄
+        validReviewImages = rawImages.filter(img => img && typeof img === 'string' && !img.includes('rit_noimg.jpg') && !img.includes('['));
+      }
+
+      // 3. 진짜 리뷰 사진이 있으면 그걸 쓰고, 없으면 무조건 상품 이미지로 대체 (완벽한 폴백)
+      const thumb = validReviewImages.length > 0 ? validReviewImages[0] : productImg;
 
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
       
@@ -662,7 +677,6 @@
       const actualProductNo = d.scraped_product_no || d.product_no || '';
       const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
 
-      // 💡 칩셋 이미지 소스를 productImg 하나로 깔끔하게 통일
       const productChipHtml = `
         <div class="rit-product-chip" 
              ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} 
@@ -678,7 +692,6 @@
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
 
-      // 💡 메인 썸네일은 thumb (사진이 있으면 사진, 없으면 productImg로 치환된 값) 호출
       return `
       <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff; height: 100%; aspect-ratio: auto !important;">
         <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
