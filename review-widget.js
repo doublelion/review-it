@@ -288,34 +288,34 @@
           }
         }
 
+        // 💡 [수정] 라이브 스크래퍼 성능 강화: 상품 정보 영역 탐색 범위 극대화
         let extractedProductNo = null;
         let extractedProductName = null;
         let extractedProductImg = null;
 
-        const prdInfoArea = doc.querySelector('.ec-board-prdinfo, .prdInfo, .boardItem, .product-info');
+        const prdInfoArea = doc.querySelector('.ec-board-prdinfo, .prdInfo, .boardItem, .product-info, .typeProduct, .xans-board-product');
+
         if (prdInfoArea) {
+          // 상품 번호 추출
           const aTag = prdInfoArea.querySelector('a[href*="product_no="]');
           if (aTag) {
             const match = aTag.getAttribute('href').match(/product_no=(\d+)/);
             if (match && match[1]) extractedProductNo = match[1];
           }
 
-          const productLinks = prdInfoArea.querySelectorAll('a[href*="product_no="]');
-          for (let link of productLinks) {
-            let text = link.innerText.replace(/\n/g, '').trim();
-            if (text.length > 0 && !link.querySelector('img')) {
-              extractedProductName = text;
-              break;
-            }
-          }
+          // 상품명 추출
+          const safeNameEl = prdInfoArea.querySelector('.prdName, .product-name, .info_name, .prd-name, .ec-board-prdinfo h3, .prdInfo h3, td.product a');
+          if (safeNameEl) extractedProductName = safeNameEl.innerText.trim();
+        }
 
-          if (!extractedProductName) {
-            const safeNameEl = prdInfoArea.querySelector('.prdName, .product-name, .info_name, .prd-name, .ec-board-prdinfo h3, .prdInfo h3');
-            if (safeNameEl) extractedProductName = safeNameEl.innerText.trim();
-          }
+        // 💡 [핵심] 상품 이미지 추출을 페이지 전체로 넓혀서 무조건 잡아냄
+        const imgEl = doc.querySelector('.ec-board-prdinfo img, .prdInfo img, .typeProduct img, .xans-board-product img, .xans-board-product-4 img, td.thumb img, img[src*="/product/"]:not([src*="icon"])');
 
-          const imgEl = prdInfoArea.querySelector('img');
-          if (imgEl) extractedProductImg = imgEl.getAttribute('src');
+        if (imgEl) {
+          let src = imgEl.getAttribute('src');
+          if (src && !src.match(/star|icon|btn|logo|dummy|ec2-common|echosting/i)) {
+            extractedProductImg = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
+          }
         }
 
         if (!extractedProductNo) {
