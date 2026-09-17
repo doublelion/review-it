@@ -2,7 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-const CAFE24_API_VERSION = '2026-03-01';
+
+// 카페24 API 버전 규격 적용
+const CAFE24_API_VERSION = '2026-13-01';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
@@ -21,7 +23,7 @@ export default async function handler(req, res) {
       return res.status(200).send('Not a review board');
     }
 
-    console.log(`🔔 [Webhook] 신규 리뷰 감지: ${mall_id} (글번호: ${articleNo})`);
+    console.log(`🔔 [Webhook] 리뷰 웹훅 수신: ${mall_id} (글번호: ${articleNo})`);
 
     const { data: mallData, error: mallError } = await supabase
       .from('active_malls')
@@ -61,6 +63,17 @@ export default async function handler(req, res) {
       }
     }
 
+    // 💡 [핵심 픽스]: 기존 리뷰의 노출 상태(is_visible) 값 보존 로직 추가
+    const { data: existingReview } = await supabase
+      .from('reviews')
+      .select('is_visible')
+      .eq('mall_id', mall_id)
+      .eq('article_no', String(article.article_no))
+      .single();
+
+    // DB에 기존 리뷰가 존재하면 그 상태를 유지하고, 완전한 신규 리뷰라면 true로 설정
+    const finalIsVisible = existingReview ? existingReview.is_visible : true;
+
     const reviewPayload = {
       mall_id: mall_id,
       article_no: String(article.article_no),
@@ -73,7 +86,7 @@ export default async function handler(req, res) {
       subject: article.subject || '포토 리뷰입니다.',
       content: article.content || '',
       created_at: article.created_date,
-      is_visible: true
+      is_visible: finalIsVisible // 고정값이 아닌 판별된 상태값 주입
     };
 
     const { error: upsertError } = await supabase
@@ -82,7 +95,7 @@ export default async function handler(req, res) {
 
     if (upsertError) throw upsertError;
 
-    console.log(`✅ [Webhook] 리뷰 DB 자동 저장 완료: ${productName || '상품명 없음'}`);
+    console.log(`✅ [Webhook] 리뷰 DB 자동 저장 완료: ${productName || '상품명 없음'} (노출 상태: ${finalIsVisible})`);
     return res.status(200).json({ success: true });
 
   } catch (error) {
