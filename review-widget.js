@@ -639,6 +639,18 @@
 
       const thumb = reviewImg || productImg;
 
+      if (!thumb) {
+        thumb = productImg;
+      }
+
+      if (!thumb) {
+        thumb = CONFIG.DEFAULT_IMG;
+      }
+
+
+
+
+
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
 
 
