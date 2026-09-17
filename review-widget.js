@@ -623,12 +623,22 @@
 
     getCardHTML(id) {
       const d = this.data[id];
-      const thumb = d.all_images[0] || CONFIG.DEFAULT_IMG;
+      
+      // 1. 상품 이미지를 먼저 추출합니다.
+      const productImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
+      
+      // 2. 리뷰 썸네일이 없거나 데모 이미지라면 상품 이미지로 대체(Fallback)합니다.
+      let thumb = d.all_images[0];
+      if (!thumb || thumb.includes('rit_noimg.jpg')) {
+        thumb = productImg;
+      }
+
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
+      
       const isMallOwner = (CONFIG.MALL_NAME && (
         rawName === CONFIG.MALL_NAME.trim() ||
         rawName.includes(CONFIG.MALL_NAME) ||
-        (rawName.length >= 2 && CONFIG.MALL_NAME.includes(rawName)) // 양방향 체크 추가
+        (rawName.length >= 2 && CONFIG.MALL_NAME.includes(rawName))
       )) || CONFIG.ADMIN_KEYWORDS.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
 
       const displayName = isMallOwner ? rawName : this.maskName(rawName);
@@ -648,12 +658,11 @@
         }
       }
 
+      // 💡 하단에서 actualProductImg 중복 선언을 삭제하고, 위에서 정의한 productImg를 바로 사용합니다.
       const actualProductName = '상품 보기';
-      const actualProductImg = d.scraped_product_img || d.product_image || d.product_img || thumb;
       const actualProductNo = d.scraped_product_no || d.product_no || '';
-
       const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
-
+      
       const productChipHtml = `
         <div class="rit-product-chip" 
              ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} 

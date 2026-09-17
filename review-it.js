@@ -172,9 +172,12 @@
         thumbUrl = productImg.getAttribute('src');
       }
 
-      if (thumbUrl.match(/star|icon|btn|logo|dummy|ec2-common|echosting|thumb\/75x75|rating|댓글/i)) {
-        thumbUrl = CONFIG.defaultImg;
+      // 리뷰 내 이미지가 스팸/아이콘이거나 아예 없을 때, 
+      // 1순위: 상품 이미지 적용 -> 2순위: 데모 이미지 적용
+      if (!thumbUrl || thumbUrl.match(/star|icon|btn|logo|dummy|ec2-common|echosting|thumb\/75x75|rating|댓글/i)) {
+        thumbUrl = extractedProductImg ? extractedProductImg : CONFIG.defaultImg;
       }
+
 
       if (thumbUrl.startsWith('//')) {
         thumbUrl = 'https:' + thumbUrl;
