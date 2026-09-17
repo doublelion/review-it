@@ -439,9 +439,11 @@
 
           if (separateData) {
             r.clean_text_body = this.cleanEditorText(separateData.text || r.content);
-            r.all_images = (separateData.images && separateData.images.length > 0)
+
+            r.all_images = Array.isArray(separateData.images)
               ? separateData.images
               : [];
+
 
             r.all_images = r.review_images;
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
@@ -626,26 +628,24 @@
     getCardHTML(id) {
       const d = this.data[id];
 
-      const productImg =
-        d.scraped_product_img ||
-        d.product_image ||
-        d.product_img ||
-        CONFIG.DEFAULT_IMG;
-
+      // 1순위: 해당 리뷰의 게시판 첨부이미지
       const reviewImg =
         Array.isArray(d.all_images) && d.all_images.length > 0
           ? d.all_images[0]
           : null;
 
-      const thumb = reviewImg || productImg;
+      // 2순위: 해당 리뷰에 연결된 상품 이미지
+      const productImg =
+        d.scraped_product_img ||
+        d.product_image ||
+        d.product_img ||
+        null;
 
-      if (!thumb) {
-        thumb = productImg;
-      }
-
-      if (!thumb) {
-        thumb = CONFIG.DEFAULT_IMG;
-      }
+      // 첨부이미지 → 상품이미지 → 기본이미지
+      const thumb =
+        reviewImg ||
+        productImg ||
+        CONFIG.DEFAULT_IMG;
 
 
 
