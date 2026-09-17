@@ -626,27 +626,32 @@
     },
 
     getCardHTML(id) {
-      const d = this.data[id];
-
-      // 1순위: 해당 리뷰의 게시판 첨부이미지
-      const reviewImg =
-        Array.isArray(d.all_images) && d.all_images.length > 0
-          ? d.all_images[0]
-          : null;
-
-      // 2순위: 해당 리뷰에 연결된 상품 이미지
       const productImg =
         d.scraped_product_img ||
         d.product_image ||
         d.product_img ||
-        null;
-
-      // 첨부이미지 → 상품이미지 → 기본이미지
-      const thumb =
-        reviewImg ||
-        productImg ||
         CONFIG.DEFAULT_IMG;
 
+      let thumb = productImg;
+
+      try {
+        let imgs = d.all_images || d.image_urls || [];
+
+        if (typeof imgs === 'string') {
+          imgs = imgs.startsWith('[') ? JSON.parse(imgs) : [imgs];
+        }
+
+        if (Array.isArray(imgs)) {
+          const realImg = imgs.find(img =>
+            img &&
+            typeof img === 'string' &&
+            !img.includes('rit_noimg.jpg') &&
+            !img.includes('[')
+          );
+
+          if (realImg) thumb = realImg;
+        }
+      } catch (e) { }
 
 
 
@@ -756,7 +761,25 @@
         d.is_parsed = true;
       }
 
-      const validImages = d.all_images.filter(img => img && !img.includes('rit_noimg.jpg'));
+      const productImg =
+        d.scraped_product_img ||
+        d.product_image ||
+        d.product_img ||
+        null;
+
+      const reviewImages = Array.isArray(d.all_images)
+        ? d.all_images.filter(img =>
+          img &&
+          typeof img === 'string' &&
+          !img.includes('rit_noimg.jpg')
+        )
+        : [];
+
+      const validImages =
+        reviewImages.length > 0
+          ? reviewImages
+          : (productImg ? [productImg] : []);
+
 
       if (validImages.length > 0) {
         const swiperControls = validImages.length > 1 ? `
@@ -847,15 +870,38 @@
     toggleGrid() {
       const gv = document.getElementById('ritGridView');
       const gi = document.getElementById('ritGridInner');
+
       if (gv.classList.contains('rit-hidden')) {
         gv.classList.remove('rit-hidden');
+
         gi.innerHTML = this.listOrder.map(id => {
-          const imgUrl = this.data[id].all_images[0] || CONFIG.DEFAULT_IMG;
-          return `<div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')">
-          <img src="${imgUrl}" onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';">
-        </div>`;
+          const d = this.data[id];
+
+          const productImg =
+            d.scraped_product_img ||
+            d.product_image ||
+            d.product_img ||
+            CONFIG.DEFAULT_IMG;
+
+          const reviewImg =
+            Array.isArray(d.all_images) && d.all_images.length > 0
+              ? d.all_images[0]
+              : null;
+
+          const imgUrl = reviewImg || productImg;
+
+          return `
+        <div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')">
+          <img
+            src="${imgUrl}"
+            onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';"
+          >
+        </div>
+      `;
         }).join('');
-      } else { gv.classList.add('rit-hidden'); }
+      } else {
+        gv.classList.add('rit-hidden');
+      }
     },
 
     async loadComments(articleNo, boardNo, currentReviewData) {
