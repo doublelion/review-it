@@ -439,9 +439,13 @@
 
           if (separateData) {
             r.clean_text_body = this.cleanEditorText(separateData.text || r.content);
-            r.all_images = (separateData.images && separateData.images.length > 0)
+            // 실제 게시판 첨부이미지만 별도로 저장
+            r.review_images = Array.isArray(separateData.images)
               ? separateData.images
-              : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.DEFAULT_IMG]);
+              : [];
+
+            // 기존 상세보기용 이미지 데이터
+            r.all_images = r.review_images;
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
             if (separateData.subject && separateData.subject.trim().length > 0) {
               r.subject = separateData.subject;
@@ -637,13 +641,11 @@
       try {
         let imgs = d.all_images || d.image_urls || [];
 
-        // DB에서 문자열 형태로 들어오는 경우 처리
         if (typeof imgs === 'string') {
           imgs = imgs.startsWith('[') ? JSON.parse(imgs) : [imgs];
         }
 
         if (Array.isArray(imgs)) {
-          // 기본 폴백 이미지, 빈 값, 잘못된 문자열 제외
           const realImg = imgs.find(img =>
             img &&
             typeof img === 'string' &&
@@ -661,15 +663,17 @@
         thumb = null;
       }
 
-      // 3. 첨부이미지가 없으면 상품 이미지
       if (!thumb) {
         thumb = productImg;
       }
 
-      // 4. 상품 이미지도 없으면 최종 기본 이미지
       if (!thumb) {
         thumb = CONFIG.DEFAULT_IMG;
       }
+
+
+
+
 
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
 
