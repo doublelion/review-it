@@ -309,14 +309,29 @@
         }
 
         // 💡 [핵심] 상품 이미지 추출을 페이지 전체로 넓혀서 무조건 잡아냄
-        const imgEl = doc.querySelector('.ec-board-prdinfo img, .prdInfo img, .typeProduct img, .xans-board-product img, .xans-board-product-4 img, td.thumb img, img[src*="/product/"]:not([src*="icon"])');
+        if (!extractedProductImg) {
+          const bgEl = doc.querySelector(
+            '.ec-board-prdinfo [style*="background-image"], .prdInfo [style*="background-image"], .typeProduct [style*="background-image"]'
+          );
 
-        if (imgEl) {
-          let src = imgEl.getAttribute('src');
-          if (src && !src.match(/star|icon|btn|logo|dummy|ec2-common|echosting/i)) {
-            extractedProductImg = src.startsWith('//') ? 'https:' + src : (src.startsWith('/') ? window.location.origin + src : src);
+          if (bgEl) {
+            const match = bgEl.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+
+            if (match && match[1]) {
+              const src = match[1];
+
+              if (!src.match(/star|icon|btn|logo|dummy|ec2-common|echosting/i)) {
+                extractedProductImg =
+                  src.startsWith('//')
+                    ? 'https:' + src
+                    : (src.startsWith('/')
+                      ? window.location.origin + src
+                      : src);
+              }
+            }
           }
         }
+
 
         if (!extractedProductNo) {
           const fallbackLink = doc.querySelector('a[href*="/product/detail.html?product_no="], a[href*="product_no="]');
@@ -632,9 +647,14 @@
         d.scraped_product_img ||
         d.product_image ||
         d.product_img ||
-        CONFIG.DEFAULT_IMG;
+        null;
 
-      let thumb = productImg;
+      const reviewImg =
+        Array.isArray(d.all_images) && d.all_images.length > 0
+          ? d.all_images[0]
+          : null;
+
+      const thumb = reviewImg || productImg || CONFIG.DEFAULT_IMG;
 
       try {
         let imgs = d.all_images || d.image_urls || [];
