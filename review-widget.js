@@ -445,7 +445,6 @@
               : [];
 
 
-            r.all_images = r.review_images;
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
             if (separateData.subject && separateData.subject.trim().length > 0) {
               r.subject = separateData.subject;
@@ -626,6 +625,9 @@
     },
 
     getCardHTML(id) {
+
+      const d = this.data[id];
+
       const productImg =
         d.scraped_product_img ||
         d.product_image ||
