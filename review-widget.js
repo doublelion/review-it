@@ -92,7 +92,7 @@
       DEFAULT_IMG: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
       STAR_PATH: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
       SPAM_KEYWORDS: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
-      ADMIN_KEYWORDS: ['관리자', 'official', '운영자', 'admin', '대표', '주인장', 'md', '스토어', '스태프', 'staff','엘보라'],
+      ADMIN_KEYWORDS: ['관리자', 'official', '운영자', 'admin', '대표', '주인장', 'md', '스토어', '스태프', 'staff', '엘보라'],
       MALL_NAME: getMallName()
     };
   };
@@ -623,18 +623,18 @@
 
     getCardHTML(id) {
       const d = this.data[id];
-      
-      // 1. 상품 이미지를 먼저 추출합니다.
-      const productImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
-      
-      // 2. 리뷰 썸네일이 없거나 데모 이미지라면 상품 이미지로 대체(Fallback)합니다.
+
+      // 1. 상품 이미지를 추출하여 변수명을 템플릿과 맞춥니다.
+      const actualProductImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
+
+      // 2. 리뷰 썸네일이 없거나 기본 데모 이미지라면 상품 이미지로 대체합니다.
       let thumb = d.all_images[0];
       if (!thumb || thumb.includes('rit_noimg.jpg')) {
-        thumb = productImg;
+        thumb = actualProductImg;
       }
 
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-      
+
       const isMallOwner = (CONFIG.MALL_NAME && (
         rawName === CONFIG.MALL_NAME.trim() ||
         rawName.includes(CONFIG.MALL_NAME) ||
@@ -658,11 +658,10 @@
         }
       }
 
-      // 💡 하단에서 actualProductImg 중복 선언을 삭제하고, 위에서 정의한 productImg를 바로 사용합니다.
       const actualProductName = '상품 보기';
       const actualProductNo = d.scraped_product_no || d.product_no || '';
       const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
-      
+
       const productChipHtml = `
         <div class="rit-product-chip" 
              ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} 
@@ -674,7 +673,6 @@
         </div>
       `;
 
-      // isMallOwner가 true(관리자)이면 뱃지를 출력하지 않습니다
       const verifiedBadgeHtml = !isMallOwner ? `
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
