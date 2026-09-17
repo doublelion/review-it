@@ -623,18 +623,18 @@
 
     getCardHTML(id) {
       const d = this.data[id];
-
-      // 1. 상품 이미지를 추출하여 변수명을 템플릿과 맞춥니다.
-      const actualProductImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
-
-      // 2. 리뷰 썸네일이 없거나 기본 데모 이미지라면 상품 이미지로 대체합니다.
+      
+      // 1. 단일 변수 통일: 스크래핑된 이미지나 DB의 상품 이미지를 긁어옵니다.
+      const productImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
+      
+      // 2. 썸네일 폴백: 리뷰 사진이 없거나 데모 이미지면 위에서 구한 productImg로 교체!
       let thumb = d.all_images[0];
       if (!thumb || thumb.includes('rit_noimg.jpg')) {
-        thumb = actualProductImg;
+        thumb = productImg;
       }
 
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-
+      
       const isMallOwner = (CONFIG.MALL_NAME && (
         rawName === CONFIG.MALL_NAME.trim() ||
         rawName.includes(CONFIG.MALL_NAME) ||
@@ -662,13 +662,14 @@
       const actualProductNo = d.scraped_product_no || d.product_no || '';
       const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
 
+      // 💡 칩셋 이미지 소스를 productImg 하나로 깔끔하게 통일
       const productChipHtml = `
         <div class="rit-product-chip" 
              ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} 
              onmouseover="this.style.background='#f1f5f9'" 
              onmouseout="this.style.background='#f8fafc'"
              style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; cursor: pointer;">
-          <img src="${actualProductImg}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" alt="product" onerror="this.src='${CONFIG.DEFAULT_IMG}'">
+          <img src="${productImg}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" alt="product" onerror="this.src='${CONFIG.DEFAULT_IMG}'">
           <span style="font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${actualProductName}</span>
         </div>
       `;
@@ -677,6 +678,7 @@
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
 
+      // 💡 메인 썸네일은 thumb (사진이 있으면 사진, 없으면 productImg로 치환된 값) 호출
       return `
       <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff; height: 100%; aspect-ratio: auto !important;">
         <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
