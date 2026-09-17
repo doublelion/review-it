@@ -623,33 +623,27 @@
 
     getCardHTML(id) {
       const d = this.data[id];
-      
-      // 1. 작은 칩셋에서 검증된 완벽한 상품 이미지 변수
-      const productImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
-      
-      // 2. 텍스트로 뭉개져 들어온 배열 데이터를 완벽하게 해독 및 정제
-      let validReviewImages = [];
-      let rawImages = d.all_images || d.image_urls;
-      
-      if (typeof rawImages === 'string') {
-        try { 
-          // '["url"]' 형태의 문자열을 실제 배열로 변환
-          rawImages = JSON.parse(rawImages); 
-        } catch(e) { 
-          rawImages = [rawImages]; 
-        }
-      }
-      
-      if (Array.isArray(rawImages)) {
-        // 기본 데모 이미지가 아닌 '진짜 리뷰 사진'만 걸러냄
-        validReviewImages = rawImages.filter(img => img && typeof img === 'string' && !img.includes('rit_noimg.jpg') && !img.includes('['));
-      }
 
-      // 3. 진짜 리뷰 사진이 있으면 그걸 쓰고, 없으면 무조건 상품 이미지로 대체 (완벽한 폴백)
-      const thumb = validReviewImages.length > 0 ? validReviewImages[0] : productImg;
+      // 1. 작은 칩셋에서 검증 완료된 완벽한 상품 이미지 변수
+      const productImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
+
+      // 2. 메인 썸네일 기준 변경: 무조건 상품 이미지를 먼저 깐다.
+      let thumb = productImg;
+
+      // 3. 진짜 고객이 올린 정상적인 사진이 있을 때만 thumb을 교체한다.
+      try {
+        let imgs = d.all_images || d.image_urls || [];
+        if (typeof imgs === 'string') {
+          imgs = imgs.startsWith('[') ? JSON.parse(imgs) : [imgs];
+        }
+        if (Array.isArray(imgs)) {
+          const realImg = imgs.find(img => img && typeof img === 'string' && !img.includes('rit_noimg.jpg'));
+          if (realImg) thumb = realImg;
+        }
+      } catch (e) { }
 
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-      
+
       const isMallOwner = (CONFIG.MALL_NAME && (
         rawName === CONFIG.MALL_NAME.trim() ||
         rawName.includes(CONFIG.MALL_NAME) ||
