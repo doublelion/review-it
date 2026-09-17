@@ -627,22 +627,25 @@
       // 1. 작은 칩셋에서 검증 완료된 완벽한 상품 이미지 변수
       const productImg = d.scraped_product_img || d.product_image || d.product_img || CONFIG.DEFAULT_IMG;
 
-      // 2. 메인 썸네일 기준 변경: 무조건 상품 이미지를 먼저 깐다.
+      // 2. 메인 썸네일 기준 변경: 무조건 상품 이미지를 먼저 깐다. (기본 폴백)
       let thumb = productImg;
 
-      // 3. 진짜 고객이 올린 정상적인 사진이 있을 때만 thumb을 교체한다.
+      // 3. 진짜 고객 사진 추출: 텍스트로 뭉개진 배열('["url"]')까지 완벽히 해독
       try {
         let imgs = d.all_images || d.image_urls || [];
         if (typeof imgs === 'string') {
           imgs = imgs.startsWith('[') ? JSON.parse(imgs) : [imgs];
         }
         if (Array.isArray(imgs)) {
-          const realImg = imgs.find(img => img && typeof img === 'string' && !img.includes('rit_noimg.jpg'));
+          // 데모 이미지가 아니고, 깨진 문자열('[')이 아닌 진짜 사진만 걸러냄
+          const realImg = imgs.find(img => img && typeof img === 'string' && !img.includes('rit_noimg.jpg') && !img.includes('['));
           if (realImg) thumb = realImg;
         }
-      } catch (e) { }
+      } catch (e) {
+      }
 
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
+
 
       const isMallOwner = (CONFIG.MALL_NAME && (
         rawName === CONFIG.MALL_NAME.trim() ||
