@@ -439,12 +439,10 @@
 
           if (separateData) {
             r.clean_text_body = this.cleanEditorText(separateData.text || r.content);
-            // 실제 게시판 첨부이미지만 별도로 저장
-            r.review_images = Array.isArray(separateData.images)
+            r.all_images = (separateData.images && separateData.images.length > 0)
               ? separateData.images
               : [];
 
-            // 기존 상세보기용 이미지 데이터
             r.all_images = r.review_images;
             if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
             if (separateData.subject && separateData.subject.trim().length > 0) {
@@ -628,15 +626,18 @@
     getCardHTML(id) {
       const d = this.data[id];
 
-      // 1. 상품 이미지
       const productImg =
         d.scraped_product_img ||
         d.product_image ||
         d.product_img ||
         CONFIG.DEFAULT_IMG;
 
-      // 2. 게시판 첨부이미지를 1순위로 사용
-      let thumb = null;
+      const reviewImg =
+        Array.isArray(d.all_images) && d.all_images.length > 0
+          ? d.all_images[0]
+          : null;
+
+      const thumb = reviewImg || productImg;
 
       try {
         let imgs = d.all_images || d.image_urls || [];
