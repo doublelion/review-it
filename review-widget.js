@@ -624,26 +624,51 @@
     getCardHTML(id) {
       const d = this.data[id];
 
+      // 1. 상품 이미지
       const productImg =
         d.scraped_product_img ||
         d.product_image ||
         d.product_img ||
         CONFIG.DEFAULT_IMG;
 
-      const thumb = productImg;
+      // 2. 게시판 첨부이미지를 1순위로 사용
+      let thumb = null;
 
-      // 3. 진짜 고객 사진 추출: 텍스트로 뭉개진 배열('["url"]')까지 완벽히 해독
       try {
         let imgs = d.all_images || d.image_urls || [];
+
+        // DB에서 문자열 형태로 들어오는 경우 처리
         if (typeof imgs === 'string') {
           imgs = imgs.startsWith('[') ? JSON.parse(imgs) : [imgs];
         }
+
         if (Array.isArray(imgs)) {
-          // 데모 이미지가 아니고, 깨진 문자열('[')이 아닌 진짜 사진만 걸러냄
-          const realImg = imgs.find(img => img && typeof img === 'string' && !img.includes('rit_noimg.jpg') && !img.includes('['));
-          if (realImg) thumb = realImg;
+          // 기본 폴백 이미지, 빈 값, 잘못된 문자열 제외
+          const realImg = imgs.find(img =>
+            img &&
+            typeof img === 'string' &&
+            !img.includes('rit_noimg.jpg') &&
+            !img.includes('[') &&
+            !img.includes('undefined') &&
+            !img.includes('null')
+          );
+
+          if (realImg) {
+            thumb = realImg;
+          }
         }
       } catch (e) {
+        thumb = null;
+      }
+
+      // 3. 첨부이미지가 없으면 상품 이미지
+      if (!thumb) {
+        thumb = productImg;
+      }
+
+      // 4. 상품 이미지도 없으면 최종 기본 이미지
+      if (!thumb) {
+        thumb = CONFIG.DEFAULT_IMG;
       }
 
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
