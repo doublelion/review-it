@@ -641,6 +641,8 @@
 
     getCardHTML(id) {
 
+      const d = this.data[id];
+
       const productImg =
         d.scraped_product_img ||
         d.product_image ||
@@ -654,24 +656,7 @@
 
       const thumb = reviewImg || productImg || CONFIG.DEFAULT_IMG;
 
-      try {
-        let imgs = d.all_images || d.image_urls || [];
 
-        if (typeof imgs === 'string') {
-          imgs = imgs.startsWith('[') ? JSON.parse(imgs) : [imgs];
-        }
-
-        if (Array.isArray(imgs)) {
-          const realImg = imgs.find(img =>
-            img &&
-            typeof img === 'string' &&
-            !img.includes('rit_noimg.jpg') &&
-            !img.includes('[')
-          );
-
-          if (realImg) thumb = realImg;
-        }
-      } catch (e) { }
 
 
 
@@ -724,7 +709,7 @@
       return `
       <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff; height: 100%; aspect-ratio: auto !important;">
         <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
-          <img src="${productImg}" class="rit-card-img" loading="lazy" 
+          <img src="${thumb}" class="rit-card-img" loading="lazy" 
               onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';"
               style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
           ${verifiedBadgeHtml}
