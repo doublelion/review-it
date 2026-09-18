@@ -1314,7 +1314,7 @@
         </div>
       `;
       }).join('');
-    },
+    }
   };
 
   window.ReviewApp = ReviewApp;
