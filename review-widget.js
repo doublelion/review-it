@@ -446,92 +446,325 @@
     },
 
     async loadReviews() {
+
       try {
+
         const baseUrl = `${CONFIG.URL}/rest/v1/reviews?mall_id=eq.${CONFIG.MALL_ID}&is_visible=eq.true`;
+
         let apiUrl = baseUrl;
 
-        if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
+        if (CONFIG.PRODUCT_NO) {
+          apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
+        }
+
         apiUrl += `&order=created_at.desc`;
 
         let res = await fetch(apiUrl, {
-          headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
+          headers: {
+            'apikey': CONFIG.KEY,
+            'Authorization': `Bearer ${CONFIG.KEY}`
+          }
         });
 
-        if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+        if (!res.ok) {
+          throw new Error(`API 오류: ${res.status}`);
+        }
+
         let list = await res.json();
 
+
+        // --------------------------------------------------
+        // 해당 상품 리뷰가 없으면 전체 리뷰로 fallback
+        // --------------------------------------------------
+
         if ((!list || list.length === 0) && CONFIG.PRODUCT_NO) {
-          console.log('[REVIEW-IT] 해당 상품 리뷰 없음. 전체 최신 리뷰를 불러옵니다.');
-          const fallbackUrl = `${baseUrl}&order=created_at.desc&limit=${this.settings.display_limit}`;
+
+          console.log(
+            '[REVIEW-IT] 해당 상품 리뷰 없음. 전체 최신 리뷰를 불러옵니다.'
+          );
+
+          const fallbackUrl =
+            `${baseUrl}&order=created_at.desc&limit=${this.settings.display_limit}`;
 
           res = await fetch(fallbackUrl, {
-            headers: { 'apikey': CONFIG.KEY, 'Authorization': `Bearer ${CONFIG.KEY}` }
+            headers: {
+              'apikey': CONFIG.KEY,
+              'Authorization': `Bearer ${CONFIG.KEY}`
+            }
           });
+
           list = await res.json();
 
-          this.settings.title = "다른 고객들의 베스트 리뷰";
-          this.settings.description = "현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!";
+          this.settings.title = '다른 고객들의 베스트 리뷰';
+
+          this.settings.description =
+            '현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!';
         }
 
+
+        // --------------------------------------------------
+        // 리뷰가 없는 경우
+        // --------------------------------------------------
+
         if (!list || list.length === 0) {
-          const container = document.getElementById('review-it-widget');
-          if (container) container.style.display = 'none';
+
+          const container =
+            document.getElementById('review-it-widget');
+
+          if (container) {
+            container.style.display = 'none';
+          }
+
           return false;
         }
+
 
         this.data = {};
         this.listOrder = [];
 
-        await Promise.all(list.slice(0, this.settings.display_limit).map(async (r) => {
-          const id = String(r.id);
-          const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
 
-          if (separateData) {
-            r.clean_text_body = this.cleanEditorText(separateData.text || r.content);
+        // --------------------------------------------------
+        // 리뷰 데이터 가공
+        // --------------------------------------------------
 
-            r.all_images = Array.isArray(separateData.images)
-              ? separateData.images
-              : [];
+        await Promise.all(
+
+          list
+            .slice(0, this.settings.display_limit)
+            .map(async (r) => {
+
+              const id = String(r.id);
+
+              const separateData =
+                await this._fetchAndSeparateContent(
+                  r.article_no,
+                  r.board_no
+                );
 
 
-            if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
-            if (separateData.subject && separateData.subject.trim().length > 0) {
-              r.subject = separateData.subject;
-            }
-            if (separateData.date) {
-              r.original_date = separateData.date;
-            }
-            if (separateData.writer) {
-              r.author_name = separateData.writer;
-            }
+              // ==================================================
+              // 이미지 후보 초기화
+              // ==================================================
 
-            if (separateData.productNo) r.scraped_product_no = separateData.productNo;
-            if (separateData.productName) r.scraped_product_name = separateData.productName;
-            if (separateData.productImg) r.scraped_product_img = separateData.productImg;
+              let reviewImages = [];
 
-          } else {
-            r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
-            r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.DEFAULT_IMG];
-          }
+              let productImage = null;
 
-          if (r.subject === "포토 리뷰입니다." || !r.subject) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = r.clean_text_body;
-            let plainText = tempDiv.innerText.replace(/\s+/g, ' ').trim();
-            if (plainText.length > 0) {
-              r.subject = plainText;
-            }
-          }
 
-          this.data[id] = r;
-          this.listOrder.push(id);
-        }));
+              // ==================================================
+              // 1. 게시판 본문 분리 데이터
+              // ==================================================
 
-        this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
+              if (separateData) {
+
+                r.clean_text_body =
+                  this.cleanEditorText(
+                    separateData.text || r.content
+                  );
+
+
+                // ----------------------------------------------
+                // 리뷰 본문에서 추출한 첨부 이미지
+                // ----------------------------------------------
+
+                if (Array.isArray(separateData.images)) {
+
+                  reviewImages = separateData.images
+                    .filter(img =>
+                      typeof img === 'string' &&
+                      img.trim() !== ''
+                    );
+                }
+
+
+                // ----------------------------------------------
+                // 별점
+                // ----------------------------------------------
+
+                if (
+                  separateData.star !== null &&
+                  !isNaN(separateData.star)
+                ) {
+                  r.stars = separateData.star;
+                }
+
+
+                // ----------------------------------------------
+                // 제목
+                // ----------------------------------------------
+
+                if (
+                  separateData.subject &&
+                  separateData.subject.trim().length > 0
+                ) {
+                  r.subject = separateData.subject;
+                }
+
+
+                // ----------------------------------------------
+                // 날짜
+                // ----------------------------------------------
+
+                if (separateData.date) {
+                  r.original_date = separateData.date;
+                }
+
+
+                // ----------------------------------------------
+                // 작성자
+                // ----------------------------------------------
+
+                if (separateData.writer) {
+                  r.author_name = separateData.writer;
+                }
+
+
+                // ----------------------------------------------
+                // 상품 정보
+                // ----------------------------------------------
+
+                if (separateData.productNo) {
+                  r.scraped_product_no =
+                    separateData.productNo;
+                }
+
+                if (separateData.productName) {
+                  r.scraped_product_name =
+                    separateData.productName;
+                }
+
+                if (separateData.productImg) {
+
+                  r.scraped_product_img =
+                    separateData.productImg;
+
+                  productImage =
+                    separateData.productImg;
+                }
+
+              } else {
+
+                r.clean_text_body =
+                  r.content || '리뷰 본문이 없습니다.';
+
+              }
+
+
+              // ==================================================
+              // 2. DB에 저장된 리뷰 이미지 fallback
+              // ==================================================
+              //
+              // separateData.images가 없거나 비어있을 경우
+              // 기존 image_urls를 사용
+              //
+              // 기존 코드처럼 여기서 DEFAULT_IMG를 넣지 않음
+              // ==================================================
+
+              if (reviewImages.length === 0) {
+
+                if (
+                  Array.isArray(r.image_urls) &&
+                  r.image_urls.length > 0
+                ) {
+
+                  reviewImages = r.image_urls
+                    .filter(img =>
+                      typeof img === 'string' &&
+                      img.trim() !== ''
+                    );
+
+                }
+
+              }
+
+
+              // ==================================================
+              // 3. 리뷰 이미지 저장
+              // ==================================================
+
+              r.all_images = reviewImages;
+
+
+              // ==================================================
+              // 4. 상품 이미지 fallback 후보 확보
+              // ==================================================
+
+              if (!productImage) {
+
+                productImage =
+                  r.scraped_product_img ||
+                  r.product_image ||
+                  r.product_img ||
+                  null;
+
+              }
+
+
+              r.scraped_product_img = productImage;
+
+
+              // ==================================================
+              // 제목이 "포토 리뷰입니다." 또는 비어있는 경우
+              // 본문에서 제목 생성
+              // ==================================================
+
+              if (
+                r.subject === '포토 리뷰입니다.' ||
+                !r.subject
+              ) {
+
+                const tempDiv =
+                  document.createElement('div');
+
+                tempDiv.innerHTML =
+                  r.clean_text_body;
+
+                const plainText =
+                  tempDiv.innerText
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                if (plainText.length > 0) {
+                  r.subject = plainText;
+                }
+
+              }
+
+
+              // ==================================================
+              // 최종 데이터 저장
+              // ==================================================
+
+              this.data[id] = r;
+
+              this.listOrder.push(id);
+
+            })
+        );
+
+
+        // --------------------------------------------------
+        // 최신순 정렬
+        // --------------------------------------------------
+
+        this.listOrder.sort(
+          (a, b) =>
+            new Date(this.data[b].created_at) -
+            new Date(this.data[a].created_at)
+        );
+
+
         return true;
+
+
       } catch (e) {
+
+        console.error('[REVIEW-IT] loadReviews 오류:', e);
+
         return false;
+
       }
+
     },
 
     renderWidget() {
@@ -677,21 +910,61 @@
 
       const d = this.data[id];
 
-      // 1순위: 실제 리뷰 첨부 이미지
+
+      // ==================================================
+      // 이미지 유효성 검사
+      // ==================================================
+
+      const isValidImage = (src) => {
+
+        if (!src || typeof src !== 'string') {
+          return false;
+        }
+
+        const value = src.trim();
+
+        if (
+          !value ||
+          value === 'null' ||
+          value === 'undefined' ||
+          value === '[object Object]'
+        ) {
+          return false;
+        }
+
+        return true;
+      };
+
+
+      // ==================================================
+      // 1순위 : 리뷰 첨부 이미지
+      // ==================================================
+
       const reviewImg =
-        Array.isArray(d.all_images) && d.all_images.length > 0
-          ? d.all_images[0]
+        Array.isArray(d.all_images)
+          ? d.all_images.find(isValidImage)
           : null;
 
-      // 2순위: 기존 상품 이미지
-      const productImg =
-        d.scraped_product_img ||
-        d.product_image ||
-        d.product_img ||
-        CONFIG.DEFAULT_IMG;
 
-      // 최종 우선순위
-      const thumb = reviewImg || productImg || CONFIG.DEFAULT_IMG;
+      // ==================================================
+      // 2순위 : 상품 이미지
+      // ==================================================
+
+      const productImg = [
+        d.scraped_product_img,
+        d.product_image,
+        d.product_img
+      ].find(isValidImage) || null;
+
+
+      // ==================================================
+      // 3순위 : 기본 이미지
+      // ==================================================
+
+      const thumb =
+        reviewImg ||
+        productImg ||
+        CONFIG.DEFAULT_IMG;
 
 
 
