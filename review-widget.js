@@ -375,19 +375,53 @@
         };
 
         if (contentArea) {
-          contentArea.querySelectorAll('img').forEach(img => processImage(img.getAttribute('src'), img));
-          contentArea.querySelectorAll('div[style*="background-image"]').forEach(div => {
-            const match = div.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
-            if (match && match[1]) {
-              processImage(match[1]);
-              div.style.backgroundImage = 'none';
-            }
+
+          contentArea.querySelectorAll('img').forEach(img => {
+
+            const src =
+              img.getAttribute('data-src') ||
+              img.getAttribute('data-original') ||
+              img.getAttribute('data-image') ||
+              img.getAttribute('data-lazy') ||
+              img.getAttribute('src');
+
+            processImage(src, img);
+
           });
+
+          contentArea.querySelectorAll('div[style*="background-image"]').forEach(div => {
+
+            const match = div.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+
+            if (match && match[1]) {
+
+              processImage(match[1]);
+
+              div.style.backgroundImage = 'none';
+
+            }
+
+          });
+
         }
 
         if (attachArea) {
-          attachArea.querySelectorAll('img').forEach(img => processImage(img.getAttribute('src'), img));
+
+          attachArea.querySelectorAll('img').forEach(img => {
+
+            const src =
+              img.getAttribute('data-src') ||
+              img.getAttribute('data-original') ||
+              img.getAttribute('data-image') ||
+              img.getAttribute('data-lazy') ||
+              img.getAttribute('src');
+
+            processImage(src, img);
+
+          });
+
           attachArea.remove();
+
         }
 
         let cleanText = contentArea ? contentArea.innerHTML.trim() : "";
@@ -643,20 +677,21 @@
 
       const d = this.data[id];
 
+      // 1순위: 실제 리뷰 첨부 이미지
+      const reviewImg =
+        Array.isArray(d.all_images) && d.all_images.length > 0
+          ? d.all_images[0]
+          : null;
+
+      // 2순위: 기존 상품 이미지
       const productImg =
         d.scraped_product_img ||
         d.product_image ||
         d.product_img ||
         CONFIG.DEFAULT_IMG;
 
-      const reviewImg =
-        Array.isArray(d.all_images) && d.all_images.length > 0
-          ? d.all_images[0]
-          : null;
-
+      // 최종 우선순위
       const thumb = reviewImg || productImg || CONFIG.DEFAULT_IMG;
-
-
 
 
 
