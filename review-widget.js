@@ -907,16 +907,12 @@
     },
 
     getCardHTML(id) {
-
       const d = this.data[id];
 
-
       // ==================================================
-      // 이미지 유효성 검사
+      // 이미지 유효성 검사 (더미 및 스팸 이미지 강력 차단)
       // ==================================================
-
       const isValidImage = (src) => {
-
         if (!src || typeof src !== 'string') {
           return false;
         }
@@ -932,45 +928,39 @@
           return false;
         }
 
+        // 💡 핵심 방어 로직: 리뷰 이미지인 척하는 기본 이미지나 더미 이미지 원천 차단
+        if (value.includes('rit_noimg.jpg')) return false;
+        if (CONFIG.SPAM_KEYWORDS && CONFIG.SPAM_KEYWORDS.test(value)) return false;
+
         return true;
       };
-
 
       // ==================================================
       // 1순위 : 리뷰 첨부 이미지
       // ==================================================
-
       const reviewImg =
         Array.isArray(d.all_images)
           ? d.all_images.find(isValidImage)
           : null;
 
-
       // ==================================================
-      // 2순위 : 상품 이미지
+      // 2순위 : 상품 이미지 (칩에서 정상 노출되는 데이터 최우선 탐색)
       // ==================================================
-
       const productImg = [
         d.scraped_product_img,
         d.product_image,
         d.product_img
       ].find(isValidImage) || null;
 
-
       // ==================================================
-      // 3순위 : 기본 이미지
+      // 3순위 : 최후의 보루 (기본 썸네일)
       // ==================================================
-
       const thumb =
         reviewImg ||
         productImg ||
         CONFIG.DEFAULT_IMG;
 
-
-
-
       const rawName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
-
 
       const isMallOwner = (CONFIG.MALL_NAME && (
         rawName === CONFIG.MALL_NAME.trim() ||
@@ -1005,7 +995,7 @@
              onmouseover="this.style.background='#f1f5f9'" 
              onmouseout="this.style.background='#f8fafc'"
              style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; cursor: pointer;">
-          <img src="${productImg}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" alt="product" onerror="this.src='${CONFIG.DEFAULT_IMG}'">
+          <img src="${productImg || CONFIG.DEFAULT_IMG}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" alt="product" onerror="this.src='${CONFIG.DEFAULT_IMG}'">
           <span style="font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${actualProductName}</span>
         </div>
       `;
@@ -1018,7 +1008,7 @@
       <div class="rit-card" onclick="ReviewApp.openModal('${id}')" style="position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background:#fff; height: 100%; aspect-ratio: auto !important;">
         <div class="rit-card-img-container" style="position: relative; width: 100%; aspect-ratio: 1/1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; z-index: 2; overflow: hidden; background: rgba(0,0,0,0.02);">
           <img src="${thumb}" class="rit-card-img" loading="lazy" 
-              onerror="this.onerror=null; this.src='${CONFIG.DEFAULT_IMG}';"
+              onerror="this.onerror=null; this.src='${productImg || CONFIG.DEFAULT_IMG}';"
               style="max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%; transition: transform 0.3s ease;">
           ${verifiedBadgeHtml}
         </div>
