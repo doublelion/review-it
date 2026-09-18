@@ -446,8 +446,43 @@
     },
 
     // 💡 개별 카드의 HTML을 리턴하는 독립된 함수입니다.
+    // 💡 개별 카드의 HTML을 리턴하는 독립된 함수입니다.
     getCardHTML(r) {
-      const imgUrl = (r.all_images && r.all_images.length > 0 && r.all_images[0] !== CONFIG.defaultImg) ? r.all_images[0] : CONFIG.defaultImg;
+      // ==================================================
+      // 이미지 유효성 검사 (리스트 엔진용 강력 차단)
+      // ==================================================
+      const isValidImage = (src) => {
+        if (!src || typeof src !== 'string') return false;
+        const val = src.trim();
+        if (!val || val === 'null' || val === 'undefined' || val === '[object Object]') return false;
+
+        // 더미 및 기본 이미지 원천 차단
+        if (val.includes('rit_noimg.jpg')) return false;
+        const spamRegex = /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i;
+        if (spamRegex.test(val)) return false;
+
+        return true;
+      };
+
+      // ==================================================
+      // 1순위 : 리뷰 첨부 이미지
+      // ==================================================
+      const reviewImg = Array.isArray(r.all_images) ? r.all_images.find(isValidImage) : null;
+
+      // ==================================================
+      // 2순위 : 상품 이미지
+      // ==================================================
+      const productImg = [
+        r.scraped_product_img,
+        r.product_image,
+        r.product_img
+      ].find(isValidImage) || null;
+
+      // ==================================================
+      // 3순위 : 최종 썸네일 (최후의 보루)
+      // ==================================================
+      const thumb = reviewImg || productImg || CONFIG.defaultImg;
+
       const cleanContent = r.clean_text_body || '내용이 없습니다.';
       const avgScore = r.product_avg_score || r.stars || 5;
       const revCount = r.product_review_count;
@@ -466,15 +501,15 @@
       }
 
       const actualProductName = '상품 보기';
-      const actualProductImg = r.scraped_product_img || r.product_image || r.product_img || imgUrl;
       const actualProductNo = r.scraped_product_no || r.product_no || '';
       const productLink = actualProductNo ? `/product/detail.html?product_no=${actualProductNo}` : '';
 
+      // 상품 칩에도 유효한 상품 이미지(productImg) 적용
       const productChipHtml = `
         <div class="rit-product-chip" 
              ${productLink ? `onclick="event.stopPropagation(); window.location.href='${productLink}';"` : ''} 
              style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #f1f5f9; padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; transition: background 0.2s; cursor: pointer;">
-          <img src="${actualProductImg}" class="rit-product-chip-img" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
+          <img src="${productImg || CONFIG.defaultImg}" class="rit-product-chip-img" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex-shrink: 0;" alt="product" onerror="this.src='${CONFIG.defaultImg}'">
           <span class="rit-product-chip-name" style="font-size: 11px; color: #475569; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${actualProductName}</span>
         </div>
       `;
@@ -495,7 +530,6 @@
         else displayName = rawName.substring(0, 2) + '**';
       }
 
-      // isMallOwner가 true(관리자)이면 뱃지를 빈 문자열로 처리하여 숨김
       const verifiedBadgeHtml = !isMallOwner ? `
       <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #3f3f46; padding: 4px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: -0.5px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">구매 인증</span>
       ` : '';
@@ -503,7 +537,7 @@
       return `
         <div class="rit-masonry-item" onclick="if(window.ReviewApp) window.ReviewApp.openModal('${r.id}')">
           <div style="position: relative; width: 100%; overflow: hidden; background: rgba(0,0,0,0.02);">
-            <img src="${imgUrl}" class="rit-masonry-img" loading="lazy" onerror="this.src='${CONFIG.defaultImg}'">
+            <img src="${thumb}" class="rit-masonry-img" loading="lazy" onerror="this.onerror=null; this.src='${productImg || CONFIG.defaultImg}'">
             ${verifiedBadgeHtml}
           </div>
           <div class="rit-masonry-info">
