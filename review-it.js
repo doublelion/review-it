@@ -137,8 +137,7 @@
         }
       }
 
-      let authorNameEl = el.querySelector('.writer, .name, td.name, span.name, td:nth-child(3)');
-      let cleanWriter = "고객";
+      let authorNameEl = el.querySelector('.writer, .name, td.name, span.name, .td_name'); let cleanWriter = "고객";
       if (authorNameEl) {
         let clone = authorNameEl.cloneNode(true);
         let hidden = clone.querySelector('.displaynone');
