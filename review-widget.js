@@ -1257,23 +1257,10 @@
 
       if (validProductNo) {
         const productUrl = `/product/detail.html?product_no=${validProductNo}`;
-        
-        // 💡 [핵심] 칩(Chip) 전용 상품 이미지 유효성 검사 (더미/노이미지 차단)
-        const isValidImage = (src) => {
-          if (!src || typeof src !== 'string') return false;
-          const val = src.trim();
-          if (!val || val === 'null' || val === 'undefined' || val === '[object Object]') return false;
-          if (val.includes('rit_noimg.jpg')) return false;
-          if (CONFIG.SPAM_KEYWORDS && CONFIG.SPAM_KEYWORDS.test(val)) return false;
-          return true;
-        };
-
-        // 💡 [핵심] 리뷰 첨부파일(all_images) 의존성을 끊고, 순수 상품 이미지만 최우선 탐색
-        const productImg = [
-          currentReviewData?.scraped_product_img,
-          currentReviewData?.product_image,
-          currentReviewData?.product_img
-        ].find(isValidImage) || CONFIG.DEFAULT_IMG;
+        const productImg =
+          currentReviewData?.product_img ||
+          currentReviewData?.product_thumb ||
+          (currentReviewData?.all_images && currentReviewData.all_images.length > 0 && currentReviewData.all_images[0] !== CONFIG.DEFAULT_IMG ? currentReviewData.all_images[0] : CONFIG.DEFAULT_IMG);
 
         shoppableBtnHtml = `
           <a href="${productUrl}" target="_self" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:5px 12px; border-radius:6px; border:1px solid #f1f5f9; text-decoration:none; transition:all 0.2s;">
@@ -1314,6 +1301,22 @@
         </div>
       `;
       }).join('');
+    },
+
+    closeModal() {
+      document.getElementById('ritModal').style.display = 'none';
+      document.body.style.cssText = "";
+      window.scrollTo(0, this.currentScrollY);
+    },
+
+    injectCSS() {
+      if (!document.getElementById('rit-css-link')) {
+        const link = document.createElement('link');
+        link.id = 'rit-css-link';
+        link.rel = 'stylesheet';
+        link.href = 'https://review-it-tau.vercel.app/review-it.css';
+        document.head.appendChild(link);
+      }
     }
   };
 
