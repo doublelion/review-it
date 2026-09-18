@@ -70,7 +70,7 @@
 
       const parser = new DOMParser();
       doc = parser.parseFromString(htmlText, 'text/html'); // 값 할당
-      
+
       items = doc.querySelectorAll(`
           .xans-board-listpackage .xans-record-, 
           .xans-product-review .xans-record-,
@@ -192,7 +192,6 @@
         if (match && match[1]) extractedStar = parseInt(match[1], 10);
       }
 
-      // 💡 페이로드(전송 데이터) 구성
       const reviewData = {
         mall_id: CONFIG.mallId,
         article_no: String(articleNo),
@@ -201,8 +200,8 @@
         content: "본문을 불러오는 중입니다...",
         writer: cleanWriter,
         stars: extractedStar,
-        image_urls: thumbUrl ? [thumbUrl] : [],
-        is_visible: true
+        image_urls: thumbUrl ? [thumbUrl] : []
+        // 💡 is_visible 줄을 완전히 삭제합니다.
       };
 
       // 💡 새롭게 추출한 데이터들을 Supabase 컬럼에 맞게 추가
