@@ -1235,22 +1235,27 @@
             return true;
           };
 
-          // 💡 1순위: 유효한 리뷰 첨부 이미지 탐색
-          const reviewImg = Array.isArray(d.all_images)
-            ? d.all_images.find(isValidImage)
-            : null;
+          // 💡 1순위: 유효한 상품 이미지 탐색
 
-          // 💡 2순위: 유효한 상품 이미지 탐색
           const productImg = [
             d.scraped_product_img,
             d.product_image,
             d.product_img
           ].find(isValidImage) || null;
 
-          // 💡 최종 썸네일 결정 (리뷰 이미지 -> 상품 이미지 -> 최후의 보루 폴백)
-          const imgUrl = reviewImg || productImg || CONFIG.DEFAULT_IMG;
+          // 💡 2순위: 유효한 리뷰 첨부 이미지 탐색
 
-          
+          const reviewImg = Array.isArray(d.all_images)
+            ? d.all_images.find(isValidImage)
+            : null;
+
+          // 💡 최종 썸네일 결정
+          // 상품 이미지 → 리뷰 이미지 → 최후의 보루 폴백
+
+          const imgUrl =
+            productImg ||
+            reviewImg ||
+            CONFIG.DEFAULT_IMG;
           return `
         <div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')">
           <img
