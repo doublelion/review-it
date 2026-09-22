@@ -1078,11 +1078,10 @@
         )
         : [];
 
-      const validImages =
-        reviewImages.length > 0
-          ? reviewImages
-          : (productImg ? [productImg] : []);
-
+     
+      const validImages = productImg
+        ? [productImg, ...reviewImages]
+        : reviewImages;
 
       if (validImages.length > 0) {
         const swiperControls = validImages.length > 1 ? `
