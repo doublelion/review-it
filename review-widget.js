@@ -309,25 +309,70 @@
         }
 
         // 💡 [핵심] 상품 이미지 추출을 페이지 전체로 넓혀서 무조건 잡아냄
-        if (!extractedProductImg) {
-          const bgEl = doc.querySelector(
-            '.ec-board-prdinfo [style*="background-image"], .prdInfo [style*="background-image"], .typeProduct [style*="background-image"]'
+        // ==================================================
+        // 상품 이미지 추출
+        // 1. 상품 영역 <img>
+        // 2. 상품 영역 background-image
+        // ==================================================
+
+        const normalizeImageUrl = (src) => {
+          if (!src || typeof src !== 'string') return null;
+
+          const value = src.trim();
+
+          if (
+            !value ||
+            value === 'null' ||
+            value === 'undefined' ||
+            value === '[object Object]' ||
+            value.includes('rit_noimg.jpg') ||
+            /star|icon|btn|logo|dummy|ec2-common|echosting/i.test(value)
+          ) {
+            return null;
+          }
+
+          return value.startsWith('//')
+            ? 'https:' + value
+            : value.startsWith('/')
+              ? window.location.origin + value
+              : value;
+        };
+
+        const prdImageArea = doc.querySelector(
+          '.ec-board-prdinfo, .prdInfo, .boardItem, .product-info, .typeProduct, .xans-board-product'
+        );
+
+        // 1순위: 상품 정보 영역의 실제 <img>
+        if (prdImageArea) {
+          const productImgEl = prdImageArea.querySelector(
+            'img[data-src], img[data-original], img[data-image], img[data-lazy], img[src]'
+          );
+
+          if (productImgEl) {
+            const src =
+              productImgEl.getAttribute('data-src') ||
+              productImgEl.getAttribute('data-original') ||
+              productImgEl.getAttribute('data-image') ||
+              productImgEl.getAttribute('data-lazy') ||
+              productImgEl.getAttribute('src');
+
+            extractedProductImg = normalizeImageUrl(src);
+          }
+        }
+
+        // 2순위: 상품 정보 영역의 background-image
+        if (!extractedProductImg && prdImageArea) {
+          const bgEl = prdImageArea.querySelector(
+            '[style*="background-image"]'
           );
 
           if (bgEl) {
-            const match = bgEl.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+            const match = bgEl.style.backgroundImage.match(
+              /url\(["']?(.*?)["']?\)/
+            );
 
             if (match && match[1]) {
-              const src = match[1];
-
-              if (!src.match(/star|icon|btn|logo|dummy|ec2-common|echosting/i)) {
-                extractedProductImg =
-                  src.startsWith('//')
-                    ? 'https:' + src
-                    : (src.startsWith('/')
-                      ? window.location.origin + src
-                      : src);
-              }
+              extractedProductImg = normalizeImageUrl(match[1]);
             }
           }
         }
@@ -1078,7 +1123,8 @@
         )
         : [];
 
-     
+
+
       const validImages = productImg
         ? [productImg, ...reviewImages]
         : reviewImages;
@@ -1204,6 +1250,7 @@
           // 💡 최종 썸네일 결정 (리뷰 이미지 -> 상품 이미지 -> 최후의 보루 폴백)
           const imgUrl = reviewImg || productImg || CONFIG.DEFAULT_IMG;
 
+          
           return `
         <div class="rit-grid-thumb" onclick="ReviewApp.renderDetail('${id}')">
           <img
