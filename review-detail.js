@@ -31,7 +31,7 @@
   };
 
   const productNo = getProductNo();
-
+  
   // [추가] 동적 Mall ID 추출기
   const getDynamicMallId = () => {
     if (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) return window.CAFE24API.MALL_ID;
@@ -83,7 +83,7 @@
     restoreDefaultReviews() {
       const hideCss = document.getElementById('rit-hide-default-css');
       if (hideCss) hideCss.remove();
-
+      
       document.querySelectorAll('.rit-oy-summary-wrap, .rit-thumb-wrap, .rit-detail-container, #ritDtlModal').forEach(el => el.remove());
       console.warn('[REVIEW-IT] 상세페이지 위젯 사용이 제한되어 카페24 기본 리뷰로 롤백되었습니다.');
     },
@@ -231,11 +231,11 @@
           });
         }
         if (attachArea) {
-          attachArea.querySelectorAll('img').forEach(img => {
-            const src = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-image') || img.getAttribute('data-lazy') || img.getAttribute('src');
-            processImage(src, img);
-          });
-          attachArea.remove();
+            attachArea.querySelectorAll('img').forEach(img => {
+              const src = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-image') || img.getAttribute('data-lazy') || img.getAttribute('src');
+              processImage(src, img);
+            });
+            attachArea.remove();
         }
 
         let cleanText = contentArea ? contentArea.innerHTML.trim() : "";
@@ -255,10 +255,10 @@
           this.restoreDefaultReviews();
           return false;
         }
-
+        
         if (!res.ok) {
-          this.restoreDefaultReviews();
-          return false;
+           this.restoreDefaultReviews();
+           return false;
         }
 
         let list = await res.json();
@@ -267,8 +267,8 @@
           this.isFallbackDemo = true;
           const fbRes = await fetch(`https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.mallId}`);
           if (fbRes.status === 403 || fbRes.status === 429) {
-            this.restoreDefaultReviews();
-            return false;
+             this.restoreDefaultReviews();
+             return false;
           }
           list = await fbRes.json();
         }
@@ -278,24 +278,24 @@
         this.photoReviews = [];
 
         const isValidImage = (src) => {
-          if (!src || typeof src !== 'string') return false;
-          const val = src.trim();
-          if (!val || val === 'null' || val === 'undefined' || val === '[object Object]') return false;
-          if (val.includes('rit_noimg.jpg')) return false;
-          if (CONFIG.spamKeywords.test(val)) return false;
-          return true;
+            if (!src || typeof src !== 'string') return false;
+            const val = src.trim();
+            if (!val || val === 'null' || val === 'undefined' || val === '[object Object]') return false;
+            if (val.includes('rit_noimg.jpg')) return false;
+            if (CONFIG.spamKeywords.test(val)) return false;
+            return true;
         };
 
         await Promise.all((list || []).slice(0, 15).map(async (r) => {
           const id = String(r.id);
           const scraped = await this._fetchAndSeparateContent(r.article_no, r.board_no);
-
+          
           let reviewImages = [];
 
           if (scraped) {
             r.clean_text_body = this.cleanEditorText(scraped.text || r.content);
             if (Array.isArray(scraped.images)) {
-              reviewImages = scraped.images.filter(isValidImage);
+                reviewImages = scraped.images.filter(isValidImage);
             }
             if (scraped.date) r.original_date = scraped.date;
             if (scraped.writer) r.author_name = scraped.writer;
@@ -304,11 +304,11 @@
           } else {
             r.clean_text_body = this.cleanEditorText(r.content || "리뷰 본문이 없습니다.");
           }
-
+          
           if (reviewImages.length === 0 && Array.isArray(r.image_urls)) {
-            reviewImages = r.image_urls.filter(isValidImage);
+             reviewImages = r.image_urls.filter(isValidImage);
           }
-
+          
           r.all_images = reviewImages.length > 0 ? reviewImages : [CONFIG.defaultImg];
           r.is_parsed = true;
 
@@ -758,274 +758,71 @@
 
     async renderDetail(id) {
       this.currentReviewId = id;
-
       const d = this.data[id];
-      if (!d) return;
-
       const imgSide = document.getElementById('ritDtlModalImg');
       const contentSide = document.getElementById('ritDtlContent');
       const subjectSide = document.getElementById('ritDtlSubject');
-      const gridView = document.getElementById('ritDtlGridView');
-      const detailView = document.getElementById('ritDtlDetailView');
-      const metaArea = document.getElementById('ritDtlMetaArea');
 
-      if (!imgSide || !contentSide || !subjectSide) return;
+      const rawDisplayName = (d.author_name ? d.author_name : (d.writer || '고객')).trim();
+      const isMallOwner = CONFIG.mallName && (rawDisplayName === CONFIG.mallName.trim() || CONFIG.mallName.includes(rawDisplayName));
+      const updatedDisplayName = isMallOwner ? rawDisplayName : this.maskName(rawDisplayName);
 
-      /* =========================================================
-         1. 상세 화면 전환
-      ========================================================= */
+      document.getElementById('ritDtlGridView').classList.add('rit-hidden');
+      document.getElementById('ritDtlDetailView').style.display = 'flex';
+      contentSide.innerHTML = '<div class="rit-loading">리뷰를 불러오는 중입니다...</div>';
 
-      if (gridView) {
-        gridView.classList.add('rit-hidden');
-      }
-
-      if (detailView) {
-        detailView.style.display = 'flex';
-      }
-
-      contentSide.innerHTML = [
-        '<div class="rit-detail-loading">',
-        '리뷰를 불러오는 중입니다...',
-        '</div>'
-      ].join('');
-
-
-      /* =========================================================
-         2. 작성자 이름 처리
-      ========================================================= */
-
-      const rawDisplayName = (
-        d.author_name
-          ? d.author_name
-          : (d.writer || '고객')
-      ).trim();
-
-      const mallName = CONFIG.mallName
-        ? CONFIG.mallName.trim()
-        : '';
-
-      const isMallOwner = Boolean(
-        mallName &&
-        (
-          rawDisplayName === mallName ||
-          mallName.includes(rawDisplayName)
-        )
-      );
-
-      const updatedDisplayName = isMallOwner
-        ? rawDisplayName
-        : this.maskName(rawDisplayName);
-
-
-      /* =========================================================
-         3. 리뷰 이미지 처리
-      ========================================================= */
-
-      const allImages = Array.isArray(d.all_images)
-        ? d.all_images
-        : [];
-
-      const validImages = allImages.filter(function (img) {
-        return (
-          img &&
-          String(img).indexOf('rit_noimg.jpg') === -1
-        );
-      });
-
-
-      /* =========================================================
-         4. 이미지가 있는 경우
-      ========================================================= */
+      const validImages = d.all_images.filter(img => img && !img.includes('rit_noimg.jpg'));
 
       if (validImages.length > 0) {
+        const swiperControls = validImages.length > 1 ? `
+          <div class="rit-fraction"></div>
+          <div class="swiper-button-next"></div><div class="swiper-button-prev"></div>
+        ` : '';
 
-        const slidesArr = [];
-
-        validImages.forEach(function (img) {
-
-          const slideStr = [
-            '<div class="swiper-slide">',
-            '<div class="rit-modal-image-wrap">',
-            '<img',
-            ' src="', img, '"',
-            ' alt="리뷰 이미지"',
-            ' loading="lazy"',
-            ' onerror="this.style.display=\'none\'"',
-            '>',
-            '</div>',
-            '</div>'
-          ].join('');
-
-          slidesArr.push(slideStr);
-        });
-
-
-        const wrapperHtml = [
-          '<div class="swiper-wrapper">',
-          slidesArr.join(''),
-          '</div>'
-        ].join('');
-
-
-        let swiperControls = '';
-
-        if (validImages.length > 1) {
-          swiperControls = [
-            '<div class="rit-fraction"></div>',
-            '<button type="button" class="swiper-button-prev" aria-label="이전 이미지"></button>',
-            '<button type="button" class="swiper-button-next" aria-label="다음 이미지"></button>'
-          ].join('');
-        }
-
-
-        imgSide.innerHTML = [
-          '<div class="rit-modal-swiper swiper">',
-          wrapperHtml,
-          swiperControls,
-          '</div>'
-        ].join('');
-
-
-        /* =======================================================
-           5. Swiper 초기화
-        ======================================================= */
+        imgSide.innerHTML = `
+      <div class="swiper rit-modal-swiper" style="width:100%; height:100%;">
+        <div class="swiper-wrapper">
+          ${validImages.map(img => `
+            <div class="swiper-slide" style="position: relative; overflow: hidden; background: #000; display:flex; align-items:center; justify-content:center; width: 100% !important; box-sizing: border-box;">
+              <div style="position: absolute; inset: -20px; background-image: url('${img}'); background-size: cover; background-position: center; filter: blur(20px); opacity: 0.4; pointer-events: none;"></div>
+              <img src="${img}" alt="review" 
+                   onerror="this.onerror=null; document.getElementById('ritDtlModalImg').innerHTML = \`<div class='rit-no-image'><span>REVIEW-IT</span></div>\`;"
+                   style="position: relative; max-width: 100%; max-height: 100%; object-fit: contain; z-index: 1;">
+            </div>
+          `).join('')}
+        </div>
+        ${swiperControls}
+      </div>`;
 
         if (window.Swiper) {
-
-          if (window.ritDtlActiveModalSwiper) {
-            window.ritDtlActiveModalSwiper.destroy(false, false);
-            window.ritDtlActiveModalSwiper = null;
-          }
-
-          setTimeout(function () {
-
-            const swiperElement = imgSide.querySelector('.rit-modal-swiper');
-
-            if (!swiperElement) return;
-
-            window.ritDtlActiveModalSwiper = new Swiper(
-              swiperElement,
-              {
-                pagination: validImages.length > 1
-                  ? {
-                    el: swiperElement.querySelector('.rit-fraction'),
-                    type: 'fraction'
-                  }
-                  : false,
-
-                navigation: validImages.length > 1
-                  ? {
-                    nextEl: swiperElement.querySelector('.swiper-button-next'),
-                    prevEl: swiperElement.querySelector('.swiper-button-prev')
-                  }
-                  : false,
-
-                centeredSlides: true,
-                loop: validImages.length > 1,
-                observer: true,
-                observeParents: true
-              }
-            );
-
+          if (window.ritDtlActiveModalSwiper) window.ritDtlActiveModalSwiper.destroy(false, false);
+          setTimeout(() => {
+            window.ritDtlActiveModalSwiper = new Swiper('.rit-modal-swiper', {
+              pagination: validImages.length > 1 ? { el: '.rit-fraction', type: 'fraction' } : false,
+              navigation: validImages.length > 1 ? { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' } : false,
+              centeredSlides: true, loop: validImages.length > 1, observer: true, observeParents: true
+            });
           }, 50);
         }
-
-
-        /* =========================================================
-           6. 이미지가 없는 경우
-        ======================================================= */
-
       } else {
-
-        imgSide.innerHTML = [
-          '<div class="rit-modal-no-image">',
-          '<span>REVIEW-IT</span>',
-          '</div>'
-        ].join('');
-
+        imgSide.innerHTML = `<div class="rit-no-image"><span>REVIEW-IT</span></div>`;
       }
 
+      const displayDate = d.original_date ? d.original_date : (d.created_at ? d.created_at.split('T')[0] : '');
 
-      /* =========================================================
-         7. 날짜 처리
-      ======================================================= */
-
-      const displayDate = d.original_date
-        ? d.original_date
-        : (
-          d.created_at
-            ? String(d.created_at).split('T')[0]
-            : ''
-        );
-
-      const formattedDate = String(displayDate).replace(/-/g, '.');
-
-
-      /* =========================================================
-         8. 별점 이미지
-      ======================================================= */
-
-      const starCount = Number(d.stars || 5);
-
-      const starImgSrc = [
-        CONFIG.starPath,
-        starCount,
-        '.svg'
-      ].join('');
-
-
-      /* =========================================================
-         9. 작성자 / 날짜 / 별점
-      ======================================================= */
-
-      if (metaArea) {
-
-        const metaArr = [
-          '<div class="rit-detail-author">',
-          '<span class="rit-author-name">',
-          updatedDisplayName,
-          '</span>',
-          '<span class="rit-detail-date">',
-          formattedDate,
-          '</span>',
-          '</div>',
-
-          '<div class="rit-detail-rating">',
-          '<img',
-          ' src="', starImgSrc, '"',
-          ' alt="', starCount, '점"',
-          '>',
-          '</div>'
-        ];
-
-        metaArea.innerHTML = metaArr.join('');
-      }
-
-
-      /* =========================================================
-         10. 제목
-      ======================================================= */
+      document.getElementById('ritDtlMetaArea').innerHTML = `
+        <div class="rit-meta-container">
+          <div class="rit-meta-top">
+            <span class="rit-author">${updatedDisplayName}</span> 
+            <span class="rit-date">${displayDate.replace(/-/g, '.')}</span>
+            <div class="rit-stars-gold"><img src="${CONFIG.starPath}${d.stars || 5}.svg" class="rit-star-img"></div>
+          </div>
+        </div>`;
 
       subjectSide.innerText = d.subject || '';
+      contentSide.innerHTML = this.cleanEditorText(d.clean_text_body || "본문 내용이 없습니다.");
 
-
-      /* =========================================================
-         11. 리뷰 본문
-      ======================================================= */
-
-      contentSide.innerHTML = this.cleanEditorText(
-        d.clean_text_body || '본문 내용이 없습니다.'
-      );
-
-
-      /* =========================================================
-         12. 댓글 로딩
-      ======================================================= */
-
-      this.loadComments(
-        d.article_no,
-        d.board_no
-      );
+      this.loadComments(d.article_no, d.board_no);
     },
 
     async loadComments(articleNo, boardNo) {
