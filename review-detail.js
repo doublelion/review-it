@@ -34,8 +34,6 @@
   const mallId = (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) || window.location.hostname.split('.')[0];
 
   const CONFIG = {
-    sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
-    sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
     spamKeywords: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
@@ -206,13 +204,29 @@
 
     async loadReviewsAndParse() {
       try {
-        const baseUrl = `${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&is_visible=eq.true`;
-        let res = await fetch(`${baseUrl}&product_no=eq.${productNo}&order=created_at.desc`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
+        // 💡 [핵심 방어 1] Supabase 직접 호출 제거 후 Vercel API 통신
+        let apiUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=\({CONFIG.mallId}&product_no=\){productNo}`;
+        let res = await fetch(apiUrl);
+
+        // 권한 차단 또는 트래픽 초과 시 프론트엔드 조용한 차단 (Silent Fail)
+        if (res.status === 403 || res.status === 429) {
+          console.warn('[REVIEW-IT] 구독 상태 또는 트래픽 한도로 인해 상세페이지 리뷰 노출이 제한되었습니다.');
+          this.isFallbackDemo = false;
+          return;
+        }
+
+        if (!res.ok) throw new Error('API Error');
+
         let list = await res.json();
 
+        // 현재 상품의 리뷰가 없을 경우, 타 상품의 리뷰(전체 리뷰)를 노출하는 Fallback
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
-          const fbRes = await fetch(`${baseUrl}&order=created_at.desc&limit=15`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
+          const fallbackUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.mallId}`;
+          const fbRes = await fetch(fallbackUrl);
+          
+          if (fbRes.status === 403 || fbRes.status === 429) return;
+          
           list = await fbRes.json();
         }
 
@@ -220,6 +234,7 @@
         this.listOrder = [];
         this.photoReviews = [];
 
+        // 💡 [핵심 방어 2] 상세페이지는 무한 스크롤이 아니므로 15개로 프론트 하드 리밋 적용
         await Promise.all(list.slice(0, 15).map(async (r) => {
           const scraped = await this._fetchAndSeparateContent(r.article_no, r.board_no);
           if (scraped) {
@@ -236,12 +251,16 @@
 
           this.data[r.id] = r;
           this.listOrder.push(r.id);
-          if (r.all_images[0] !== CONFIG.defaultImg) this.photoReviews.push(r);
+          
+          // 더미 이미지가 아닌 실제 포토 리뷰만 추출하여 갤러리에 노출
+          if (r.all_images[0] !== CONFIG.defaultImg && !r.all_images[0].includes('rit_noimg.jpg')) {
+             this.photoReviews.push(r);
+          }
         }));
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
       } catch (e) {
-        console.error("Review load failed", e);
+        console.error("[REVIEW-IT] 상세페이지 리뷰 로드 실패:", e);
       }
     },
 

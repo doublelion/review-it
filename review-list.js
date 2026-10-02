@@ -71,9 +71,8 @@
 
   if (!isReviewBoardPage) return;
 
+
   const CONFIG = {
-    sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
-    sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     mallId: env.mallId,
     mallName: env.mallName,
     limit: 15,
@@ -373,26 +372,50 @@
     async fetchReviews() {
       if (this.isLoading || !this.hasMore) return;
       this.isLoading = true;
-      const offset = this.page * CONFIG.limit;
 
       try {
-        const res = await fetch(`${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&is_visible=eq.true&order=created_at.desc`, {
-          headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}`, 'Range': `${offset}-${offset + CONFIG.limit - 1}` }
-        });
-        const data = await res.json();
+        // 💡 [핵심 방어 1] 최초 1회만 Vercel API 호출 (요금제 Limit에 맞춘 데이터 획득 및 캐싱)
+        if (!this.masterList) {
+          let apiUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.mallId}`;
+          const res = await fetch(apiUrl);
 
-        if (data.length < CONFIG.limit) {
+          // 권한 차단 또는 트래픽 초과 시 (Silent Fail)
+          if (res.status === 403 || res.status === 429) {
+            console.warn('[REVIEW-IT] 구독 상태 또는 트래픽 한도로 인해 리뷰 게시판 노출이 제한되었습니다.');
+            this.hideConflicts();
+            const container = document.querySelector('.rit-list-container');
+            if (container) container.style.setProperty('display', 'none', 'important');
+            this.hasMore = false;
+            return;
+          }
+
+          if (!res.ok) throw new Error('API Error');
+
+          this.masterList = await res.json();
+          if (!this.masterList || this.masterList.length === 0) {
+            this.hasMore = false;
+            return;
+          }
+        }
+
+        // 💡 [핵심 방어 2] 프론트엔드 자체 페이징 (스크롤 시 DB 부하 원천 차단)
+        const offset = this.page * CONFIG.limit;
+        const chunk = this.masterList.slice(offset, offset + CONFIG.limit);
+
+        if (chunk.length < CONFIG.limit || offset + chunk.length >= this.masterList.length) {
           this.hasMore = false;
           const anchor = document.getElementById('rit-scroll-anchor');
           if (anchor) {
             anchor.innerHTML = '모든 리뷰를 불러왔습니다.';
-            // 명시적으로 한 번 더 스타일 강제 적용
             anchor.style.fontSize = '14px';
             anchor.style.color = '#a1a1aa';
           }
         }
 
-        const enrichedData = await Promise.all(data.map(async (r) => {
+        if (chunk.length === 0) return;
+
+        // 기존 데이터 가공 로직 동일 유지
+        const enrichedData = await Promise.all(chunk.map(async (r) => {
           if (window.ReviewApp) {
             if (!window.ReviewApp.data[r.id]) {
               window.ReviewApp.data[r.id] = { ...r };
@@ -435,7 +458,7 @@
         if (newUnique.length > 0) {
           this.allFetchedReviews = [...this.allFetchedReviews, ...newUnique];
           this.renderDashboard(this.allFetchedReviews);
-          this.renderGrid(); // 💡 배열이 갱신될 때마다 전체 그리드를 완벽하게 재구성합니다.
+          this.renderGrid();
         }
         this.page++;
       } catch (error) {
@@ -445,7 +468,6 @@
       }
     },
 
-    // 💡 개별 카드의 HTML을 리턴하는 독립된 함수입니다.
     // 💡 개별 카드의 HTML을 리턴하는 독립된 함수입니다.
     getCardHTML(r) {
       // ==================================================
