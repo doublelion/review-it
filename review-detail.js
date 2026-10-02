@@ -31,20 +31,11 @@
   };
 
   const productNo = getProductNo();
-
-  // 💡 [복구 1] Mall ID 추출 로직 강화 (www, m, cafe24 등의 도메인 접두사 완벽 예외 처리)
-  let cafe24MallId = null;
-  if (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) {
-    cafe24MallId = window.CAFE24API.MALL_ID;
-  } else if (typeof window.SHOP_ID !== 'undefined' && window.SHOP_ID) {
-    cafe24MallId = window.SHOP_ID;
-  } else if (typeof EC_SHOP_ID !== 'undefined' && EC_SHOP_ID) {
-    cafe24MallId = EC_SHOP_ID;
-  }
-  let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
-  const mallId = cafe24MallId || fallbackMallId || 'default_mall';
+  const mallId = (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) || window.location.hostname.split('.')[0];
 
   const CONFIG = {
+    sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
+    sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
     spamKeywords: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
@@ -61,22 +52,15 @@
     isFallbackDemo: false,
     viewType: 'thumbnail',
 
-   async init() {
-      if (!productNo) return;
+    async init() {
       this.injectCSS();
+      this.hideDefaultReviews();
+      if (!productNo) return;
 
       await this.loadSettings();
       this.viewType = this.settings.detail_display_type === 'thumbnail' ? 'thumbnail' : 'list';
 
-      // 💡 [복구 2] 리뷰 로드 실패 시, 숨겼던 카페24 기본 리뷰를 다시 원상복구 (진정한 Silent Fail)
-      const isSuccess = await this.loadReviewsAndParse();
-      if (!isSuccess) {
-        const hideCss = document.getElementById('rit-hide-default-css');
-        if (hideCss) hideCss.remove(); 
-        return;
-      }
-
-      this.hideDefaultReviews();
+      await this.loadReviewsAndParse();
       this.initModal();
 
       if (this.settings.is_detail_summary_enabled !== false) this.renderTopSummary();
@@ -222,25 +206,13 @@
 
     async loadReviewsAndParse() {
       try {
-        let apiUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=\({CONFIG.mallId}&product_no=\){productNo}`;
-        let res = await fetch(apiUrl);
-
-        if (res.status === 403 || res.status === 429) {
-          console.warn('[REVIEW-IT] 구독 상태 또는 트래픽 한도로 인해 위젯 노출이 제한되었습니다.');
-          return false; // 💡 실패를 상위로 전달하여 렌더링 중단
-        }
-
-        if (!res.ok) throw new Error('API Error');
-
+        const baseUrl = `${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&is_visible=eq.true`;
+        let res = await fetch(`${baseUrl}&product_no=eq.${productNo}&order=created_at.desc`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
         let list = await res.json();
 
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
-          const fallbackUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.mallId}`;
-          const fbRes = await fetch(fallbackUrl);
-          
-          if (fbRes.status === 403 || fbRes.status === 429) return false; // 💡 실패 전달
-          
+          const fbRes = await fetch(`${baseUrl}&order=created_at.desc&limit=15`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
           list = await fbRes.json();
         }
 
@@ -264,17 +236,12 @@
 
           this.data[r.id] = r;
           this.listOrder.push(r.id);
-          
-          if (r.all_images[0] !== CONFIG.defaultImg && !r.all_images[0].includes('rit_noimg.jpg')) {
-             this.photoReviews.push(r);
-          }
+          if (r.all_images[0] !== CONFIG.defaultImg) this.photoReviews.push(r);
         }));
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-        return true; // 💡 성공 시 true 반환
       } catch (e) {
-        console.error("[REVIEW-IT] 상세페이지 리뷰 로드 실패:", e);
-        return false;
+        console.error("Review load failed", e);
       }
     },
 
