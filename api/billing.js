@@ -1,4 +1,4 @@
-// api/billing.js
+// 파일 경로: api/billing.js
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -6,7 +6,6 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 export default async function handler(req, res) {
   console.log('--- 🔍 웹훅 디버깅 시작 ---');
   console.log('바디 정보 (raw):', JSON.stringify(req.body, null, 2));
-  console.log('쿼리 정보 (URL param):', JSON.stringify(req.query, null, 2));
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -20,12 +19,15 @@ export default async function handler(req, res) {
     if (typeof body === 'string') try { body = JSON.parse(body); } catch (e) { }
     else if (Buffer.isBuffer(body)) try { body = JSON.parse(body.toString('utf8')); } catch (e) { }
 
-    // 💡 [수정] 바디에 없으면 우리가 URL에 달아둔 query에서 강제로 가져옵니다!
     const event_type = body.event_type || req.query.event_type;
     const mall_id = body.mall_id || (body.resource && body.resource.mall_id);
     const expire_date = body.expire_date || (body.resource && body.resource.expire_date);
 
-    console.log(`[파싱 완료] event_type: ${event_type}, mall_id: ${mall_id}`);
+    // 💡 [핵심] 결제 금액 또는 옵션명을 유연하게 파싱하여 요금제를 식별합니다.
+    const price = body.price || body.payment_amount || (body.resource && (body.resource.price || body.resource.payment_amount)) || 5000;
+    const optionName = body.option_name || (body.resource && body.resource.option_name) || '';
+
+    console.log(`[파싱 완료] event_type: \({event_type}, mall_id:\){mall_id}, price: \({price}, option:\){optionName}`);
 
     if (!mall_id || !event_type) {
       console.warn('⚠️ [경고] 필수 파라미터가 누락되었습니다.');
@@ -34,8 +36,17 @@ export default async function handler(req, res) {
 
     let nextStatus = 'inactive';
     let isDeleted = false;
+    let planType = 'starter'; 
 
-    // api/billing.js
+    // 금액 또는 옵션명 키워드로 3-Tier 요금제를 자동 분류합니다.
+    const numPrice = Number(price);
+    if (numPrice >= 29000 || optionName.includes('프로') || optionName.includes('Pro')) {
+      planType = 'pro';
+    } else if (numPrice >= 14000 || optionName.includes('그로스') || optionName.includes('Growth')) {
+      planType = 'growth';
+    } else {
+      planType = 'starter';
+    }
 
     switch (event_type) {
       case 'app.paid':
@@ -49,7 +60,7 @@ export default async function handler(req, res) {
       case 'app.expired':
       case 'app.refund':
         nextStatus = 'inactive';
-        isDeleted = true; // 💡 [수정 포인트] 만료나 환불 시에도 isDeleted를 true로 주어 토큰을 날립니다!
+        isDeleted = true;
         break;
       default:
         nextStatus = 'inactive';
@@ -62,13 +73,18 @@ export default async function handler(req, res) {
 
     if (expire_date) updatePayload.expire_date = expire_date;
 
-    // 💡 [핵심] 앱 삭제 시, 토큰을 완전히 지워버려 재설치(권한동의)가 열리도록 합니다!
+    // 결제가 정상적으로 이루어지거나 연장되었을 때만 DB에 요금제를 업데이트합니다.
+    if (nextStatus === 'active') {
+      updatePayload.plan_type = planType;
+      console.log(`🚀 [요금제 적용] \({mall_id} 상점이\){planType} 플랜으로 자동 설정되었습니다.`);
+    }
+
+    // 앱 삭제나 만료 시 재설치를 위해 토큰을 파기합니다.
     if (isDeleted) {
       updatePayload.access_token = null;
       console.log(`[토큰 초기화] ${mall_id} 상점의 토큰을 파기하여 재설치를 허용합니다.`);
     }
 
-    // upsert 대신 update를 사용하여 다른 필수 정보(refresh token 등)가 날아가는 것을 방지
     const { error } = await supabase
       .from('active_malls')
       .update(updatePayload)
@@ -76,8 +92,8 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
-    console.log(`✅ [웹훅 처리 완료] 상점: ${mall_id} -> 상태: ${nextStatus}`);
-    return res.status(200).json({ success: true, status_updated_to: nextStatus });
+    console.log(`✅ [웹훅 처리 완료] 상점: \({mall_id} -> 상태:\){nextStatus}, 적용플랜: ${planType}`);
+    return res.status(200).json({ success: true, status_updated_to: nextStatus, plan: planType });
 
   } catch (error) {
     console.error('🔥 웹훅 실패:', error.message);
