@@ -1,9 +1,9 @@
 // api/sync-reviews.js (Vercel Serverless Function)
 import { createClient } from '@supabase/supabase-js';
 
-// 환경변수에 Supabase 정보 세팅 필요
+// 💡 [수정됨] 대표님의 Vercel 환경변수 세팅에 맞춰 SUPABASE_KEY로 변경했습니다.
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 
+const supabaseKey = process.env.SUPABASE_KEY; 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
