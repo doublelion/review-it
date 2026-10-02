@@ -1,27 +1,38 @@
 // api/sync-reviews.js (Vercel Serverless Function)
 import { createClient } from '@supabase/supabase-js';
 
-// 💡 [수정됨] 대표님의 Vercel 환경변수 세팅에 맞춰 SUPABASE_KEY로 변경했습니다.
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY; 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
-  // 호출 시 mall_id와 해당 몰의 access_token을 전달받음
-  const { mall_id, access_token } = req.query;
+  const { mall_id } = req.query; // 💡 토큰을 파라미터로 받지 않습니다.
 
-  if (!mall_id || !access_token) {
-    return res.status(400).json({ error: "mall_id와 access_token이 필요합니다." });
+  if (!mall_id) {
+    return res.status(400).json({ error: "mall_id가 필요합니다." });
   }
 
   try {
-    // 1. 카페24 상품후기 게시판(board_no: 4) API 호출
+    // 1. 우리 DB(active_malls)에서 해당 상점의 가장 최신 Access Token을 알아서 꺼내옵니다.
+    const { data: mallData, error: dbError } = await supabase
+      .from('active_malls')
+      .select('access_token')
+      .eq('mall_id', mall_id)
+      .single();
+
+    if (dbError || !mallData || !mallData.access_token) {
+      throw new Error("DB에 해당 상점의 유효한 토큰이 없습니다.");
+    }
+
+    const access_token = mallData.access_token;
+
+    // 2. 카페24 상품후기 게시판(board_no: 4) API 호출
     const cafe24Res = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/boards/4/articles`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Content-Type': 'application/json',
-        'X-Cafe24-Api-Version': '2025-12-01'
+        'X-Cafe24-Api-Version': '2023-03-01' 
       }
     });
 
@@ -36,7 +47,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: "동기화할 리뷰가 없습니다.", count: 0 });
     }
 
-    // 2. Supabase 스키마에 맞게 데이터 정제
+    // 3. Supabase 스키마에 맞게 데이터 정제
     const syncData = articles.map(article => ({
       mall_id: mall_id,
       board_no: '4',
@@ -45,11 +56,10 @@ export default async function handler(req, res) {
       author_name: article.writer,
       content: article.content || '',
       created_at: article.created_date,
-      // 필요한 경우 별점(rating) 추출 로직 추가
       is_visible: true
     }));
 
-    // 3. Supabase DB 일괄 적재 (Upsert로 중복 방지)
+    // 4. Supabase DB 일괄 적재 (Upsert로 중복 방지)
     const { error } = await supabase
       .from('reviews')
       .upsert(syncData, { onConflict: 'mall_id, board_no, article_no' });
