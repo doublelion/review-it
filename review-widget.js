@@ -493,29 +493,24 @@
 
     async loadReviews() {
       try {
-        const baseUrl = `\({CONFIG.URL}/rest/v1/reviews?mall_id=eq.\){CONFIG.MALL_ID}&is_visible=eq.true`;
-        let apiUrl = baseUrl;
+        // 💡 [핵심 복구 1] Supabase 직접 호출을 제거하고, 우리가 방어막을 쳐둔 Vercel API로 연결합니다.
+        let apiUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.MALL_ID}`;
 
         if (CONFIG.PRODUCT_NO) {
-          apiUrl += `&product_no=eq.${CONFIG.PRODUCT_NO}`;
+          apiUrl += `&product_no=${CONFIG.PRODUCT_NO}`;
         }
-        apiUrl += `&order=created_at.desc`;
 
-        let res = await fetch(apiUrl, {
-          headers: {
-            'apikey': CONFIG.KEY,
-            'Authorization': `Bearer ${CONFIG.KEY}`
-          }
-        });
+        // Vercel API 호출 (보안 키는 백엔드에 숨겨져 있으므로 헤더 불필요)
+        let res = await fetch(apiUrl); 
 
-        // 💡 [핵심 방어 1] 권한/트래픽 초과 시 프론트엔드 조용한 차단 (Silent Fail)
+        // 💡 [핵심 방어] 권한/트래픽 초과 시 프론트엔드 조용한 차단 (Silent Fail)
         if (res.status === 403 || res.status === 429) {
           console.warn('[REVIEW-IT] 구독 상태 또는 트래픽 한도로 인해 위젯 노출이 제한되었습니다.');
           return false;
         }
 
         if (!res.ok) {
-           console.error('[REVIEW-IT] 리뷰 데이터를 가져오지 못했습니다.');
+           console.error('[REVIEW-IT] 서버 연동 오류. 상태 코드:', res.status);
            return false;
         }
 
@@ -523,13 +518,8 @@
 
         // 리뷰가 없으면 (상품 상세 등) 전체 리뷰로 Fallback
         if ((!list || list.length === 0) && CONFIG.PRODUCT_NO) {
-          const fallbackUrl = `${baseUrl}&order=created_at.desc`;
-          res = await fetch(fallbackUrl, {
-            headers: {
-              'apikey': CONFIG.KEY,
-              'Authorization': `Bearer ${CONFIG.KEY}`
-            }
-          });
+          const fallbackUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.MALL_ID}`;
+          res = await fetch(fallbackUrl);
           
           if (res.status === 403 || res.status === 429) return false;
           
@@ -545,7 +535,7 @@
         this.data = {};
         this.listOrder = [];
 
-        // 💡 [핵심 방어 2] 백엔드에서 받은 데이터라도, 프론트 설정 한계까지만 처리하여 과부하 방지
+        // 백엔드에서 받은 데이터라도, 프론트 설정 한계까지만 처리하여 과부하 방지
         const limitCount = this.settings.display_limit || 15;
         const processList = list.slice(0, limitCount);
 
@@ -553,7 +543,7 @@
           processList.map(async (r) => {
             const id = String(r.id);
             const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
-            // ... (기존 _fetchAndSeparateContent 데이터 결합 로직 동일 유지) ...
+            
             let reviewImages = [];
             let productImage = null;
 
