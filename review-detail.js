@@ -247,28 +247,30 @@
 
     async loadReviewsAndParse() {
       try {
-        let apiUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=\({CONFIG.mallId}&product_no=\){productNo}`;
+        // 💡 백틱(``)을 제거하고 순수 문자열 결합(+)으로 변경하여 URL 깨짐 원천 차단
+        let apiUrl = "https://review-it-tau.vercel.app/api/reviews?mall_id=" + CONFIG.mallId + "&product_no=" + productNo;
         let res = await fetch(apiUrl);
 
-        // 💡 [방어로직] 요금제 제한(403) 또는 트래픽 초과(429) 시 기본리뷰 복구 후 종료
+        // [방어로직] 요금제 제한(403) 또는 트래픽 초과(429) 시 기본리뷰 복구 후 종료
         if (res.status === 403 || res.status === 429) {
           this.restoreDefaultReviews();
           return false;
         }
-        
+
         if (!res.ok) {
-           this.restoreDefaultReviews();
-           return false;
+          this.restoreDefaultReviews();
+          return false;
         }
 
         let list = await res.json();
 
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
-          const fbRes = await fetch(`https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.mallId}`);
+          const fbUrl = "https://review-it-tau.vercel.app/api/reviews?mall_id=" + CONFIG.mallId;
+          const fbRes = await fetch(fbUrl);
           if (fbRes.status === 403 || fbRes.status === 429) {
-             this.restoreDefaultReviews();
-             return false;
+            this.restoreDefaultReviews();
+            return false;
           }
           list = await fbRes.json();
         }
@@ -278,24 +280,24 @@
         this.photoReviews = [];
 
         const isValidImage = (src) => {
-            if (!src || typeof src !== 'string') return false;
-            const val = src.trim();
-            if (!val || val === 'null' || val === 'undefined' || val === '[object Object]') return false;
-            if (val.includes('rit_noimg.jpg')) return false;
-            if (CONFIG.spamKeywords.test(val)) return false;
-            return true;
+          if (!src || typeof src !== 'string') return false;
+          const val = src.trim();
+          if (!val || val === 'null' || val === 'undefined' || val === '[object Object]') return false;
+          if (val.indexOf('rit_noimg.jpg') !== -1) return false;
+          if (CONFIG.spamKeywords.test(val)) return false;
+          return true;
         };
 
         await Promise.all((list || []).slice(0, 15).map(async (r) => {
           const id = String(r.id);
           const scraped = await this._fetchAndSeparateContent(r.article_no, r.board_no);
-          
+
           let reviewImages = [];
 
           if (scraped) {
             r.clean_text_body = this.cleanEditorText(scraped.text || r.content);
             if (Array.isArray(scraped.images)) {
-                reviewImages = scraped.images.filter(isValidImage);
+              reviewImages = scraped.images.filter(isValidImage);
             }
             if (scraped.date) r.original_date = scraped.date;
             if (scraped.writer) r.author_name = scraped.writer;
@@ -304,11 +306,11 @@
           } else {
             r.clean_text_body = this.cleanEditorText(r.content || "리뷰 본문이 없습니다.");
           }
-          
+
           if (reviewImages.length === 0 && Array.isArray(r.image_urls)) {
-             reviewImages = r.image_urls.filter(isValidImage);
+            reviewImages = r.image_urls.filter(isValidImage);
           }
-          
+
           r.all_images = reviewImages.length > 0 ? reviewImages : [CONFIG.defaultImg];
           r.is_parsed = true;
 
