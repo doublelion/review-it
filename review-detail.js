@@ -31,7 +31,18 @@
   };
 
   const productNo = getProductNo();
-  const mallId = (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) || window.location.hostname.split('.')[0];
+
+  // 💡 [복구 1] Mall ID 추출 로직 강화 (www, m, cafe24 등의 도메인 접두사 완벽 예외 처리)
+  let cafe24MallId = null;
+  if (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) {
+    cafe24MallId = window.CAFE24API.MALL_ID;
+  } else if (typeof window.SHOP_ID !== 'undefined' && window.SHOP_ID) {
+    cafe24MallId = window.SHOP_ID;
+  } else if (typeof EC_SHOP_ID !== 'undefined' && EC_SHOP_ID) {
+    cafe24MallId = EC_SHOP_ID;
+  }
+  let fallbackMallId = window.location.hostname.split('.').filter(part => !['www', 'm', 'cafe24', 'com', 'co', 'kr'].includes(part))[0];
+  const mallId = cafe24MallId || fallbackMallId || 'default_mall';
 
   const CONFIG = {
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
@@ -50,15 +61,22 @@
     isFallbackDemo: false,
     viewType: 'thumbnail',
 
-    async init() {
-      this.injectCSS();
-      this.hideDefaultReviews();
+   async init() {
       if (!productNo) return;
+      this.injectCSS();
 
       await this.loadSettings();
       this.viewType = this.settings.detail_display_type === 'thumbnail' ? 'thumbnail' : 'list';
 
-      await this.loadReviewsAndParse();
+      // 💡 [복구 2] 리뷰 로드 실패 시, 숨겼던 카페24 기본 리뷰를 다시 원상복구 (진정한 Silent Fail)
+      const isSuccess = await this.loadReviewsAndParse();
+      if (!isSuccess) {
+        const hideCss = document.getElementById('rit-hide-default-css');
+        if (hideCss) hideCss.remove(); 
+        return;
+      }
+
+      this.hideDefaultReviews();
       this.initModal();
 
       if (this.settings.is_detail_summary_enabled !== false) this.renderTopSummary();
@@ -204,28 +222,24 @@
 
     async loadReviewsAndParse() {
       try {
-        // 💡 [핵심 방어 1] Supabase 직접 호출 제거 후 Vercel API 통신
         let apiUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=\({CONFIG.mallId}&product_no=\){productNo}`;
         let res = await fetch(apiUrl);
 
-        // 권한 차단 또는 트래픽 초과 시 프론트엔드 조용한 차단 (Silent Fail)
         if (res.status === 403 || res.status === 429) {
-          console.warn('[REVIEW-IT] 구독 상태 또는 트래픽 한도로 인해 상세페이지 리뷰 노출이 제한되었습니다.');
-          this.isFallbackDemo = false;
-          return;
+          console.warn('[REVIEW-IT] 구독 상태 또는 트래픽 한도로 인해 위젯 노출이 제한되었습니다.');
+          return false; // 💡 실패를 상위로 전달하여 렌더링 중단
         }
 
         if (!res.ok) throw new Error('API Error');
 
         let list = await res.json();
 
-        // 현재 상품의 리뷰가 없을 경우, 타 상품의 리뷰(전체 리뷰)를 노출하는 Fallback
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
           const fallbackUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.mallId}`;
           const fbRes = await fetch(fallbackUrl);
           
-          if (fbRes.status === 403 || fbRes.status === 429) return;
+          if (fbRes.status === 403 || fbRes.status === 429) return false; // 💡 실패 전달
           
           list = await fbRes.json();
         }
@@ -234,7 +248,6 @@
         this.listOrder = [];
         this.photoReviews = [];
 
-        // 💡 [핵심 방어 2] 상세페이지는 무한 스크롤이 아니므로 15개로 프론트 하드 리밋 적용
         await Promise.all(list.slice(0, 15).map(async (r) => {
           const scraped = await this._fetchAndSeparateContent(r.article_no, r.board_no);
           if (scraped) {
@@ -252,15 +265,16 @@
           this.data[r.id] = r;
           this.listOrder.push(r.id);
           
-          // 더미 이미지가 아닌 실제 포토 리뷰만 추출하여 갤러리에 노출
           if (r.all_images[0] !== CONFIG.defaultImg && !r.all_images[0].includes('rit_noimg.jpg')) {
              this.photoReviews.push(r);
           }
         }));
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
+        return true; // 💡 성공 시 true 반환
       } catch (e) {
         console.error("[REVIEW-IT] 상세페이지 리뷰 로드 실패:", e);
+        return false;
       }
     },
 
