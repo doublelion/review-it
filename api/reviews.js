@@ -4,11 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
-
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
+  // 💡 [방어막 유지] 방문자 폭주 시 Vercel CDN 요청 차감을 막아주는 브라우저/엣지 캐시
+  res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=600, stale-while-revalidate=86400');
 
   const { mall_id, product_no } = req.query;
 
@@ -27,14 +27,14 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Unregistered or inactive mall.' });
     }
 
-
-    let reviewLimit = 100; 
+    // 💡 [요금제 로직 원복] 대표님이 구현해두신 3단계 요금제 데이터 제공량 제한
+    let reviewLimit = 100; // Starter (기본 100개)
     
     const plan = mallData.plan_type || 'starter';
     if (plan === 'growth') {
-      reviewLimit = 1000;
+      reviewLimit = 1000;  // Growth (1,000개)
     } else if (plan === 'pro') {
-      reviewLimit = 5000; 
+      reviewLimit = 5000;  // Pro (5,000개)
     }
 
     let query = supabase
@@ -48,6 +48,7 @@ export default async function handler(req, res) {
       query = query.eq('product_no', product_no);
     }
 
+    // 여기서 요금제별 한도(reviewLimit)가 최종 적용되어 데이터 추출량을 체크 및 통제합니다.
     const { data: reviews, error } = await query.limit(reviewLimit);
 
     if (error) throw error;
