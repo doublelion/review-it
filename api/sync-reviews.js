@@ -35,13 +35,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, error: "우리 DB에 해당 상점의 토큰이 없습니다. (상점이 앱을 삭제했거나 연동 실패)" });
     }
 
-    // [방어 3] 과거 리뷰 한 번에 500개까지 싹쓸이 수집 (?limit=500)
-    const cafe24Res = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/boards/4/articles?limit=500`, {
+    const cafe24Res = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/boards/4/articles?limit=100`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${mallData.access_token}`,
         'Content-Type': 'application/json',
-        'X-Cafe24-Api-Version': '2023-03-01'
+        'X-Cafe24-Api-Version': '2026-03-01'
       }
     });
 
