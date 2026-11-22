@@ -206,7 +206,7 @@
         container.innerHTML = '';
         return;
       }
-      
+
       this.renderWidget();
     },
 
@@ -391,7 +391,7 @@
         let apiUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.MALL_ID}`;
         if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=${CONFIG.PRODUCT_NO}`;
 
-        let res = await fetch(apiUrl); 
+        let res = await fetch(apiUrl);
 
         if (res.status === 403 || res.status === 429) {
           console.warn('[REVIEW-IT] 구독 상태 또는 트래픽 한도로 인해 위젯 노출이 제한되었습니다.');
@@ -399,26 +399,29 @@
         }
 
         if (!res.ok) {
-           console.error('[REVIEW-IT] 서버 연동 오류. 상태 코드:', res.status);
-           return false;
+          console.error('[REVIEW-IT] 서버 연동 오류. 상태 코드:', res.status);
+          return false;
         }
 
-        // 💡 [핵심 보정] 응답 데이터를 객체 형태로 파싱하여 list 변수에 배열만 추출합니다.
-        let resData = await res.json();
-        let list = resData.reviews || [];
+        let list = await res.json();
 
-        // 💡 폴백(Fallback) 발생 시에도 동일하게 Vercel API 응답 구조 적용
-        if ((!list || list.length === 0) && CONFIG.PRODUCT_NO) {
+        if ((!list || !Array.isArray(list) || list.length === 0) && CONFIG.PRODUCT_NO) {
           const fallbackUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.MALL_ID}`;
           res = await fetch(fallbackUrl);
-          
+
           if (res.status === 403 || res.status === 429) return false;
-          
-          const fbData = await res.json();
-          list = fbData.reviews || [];
-          this.settings.title = '다른 고객들의 베스트 리뷰';
-          this.settings.description = '현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!';
+
+          list = await res.json();
+
+          // 폴백 시에만 문구 변경
+          if (Array.isArray(list) && list.length > 0) {
+            this.settings.title = '다른 고객들의 베스트 리뷰';
+            this.settings.description = '현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!';
+          }
         }
+
+        // 최종적으로 리스트가 배열이 아니거나 비어있으면 렌더링 종료
+        if (!list || !Array.isArray(list) || list.length === 0) return false;
 
         if (!list || list.length === 0) return false;
 
@@ -432,7 +435,7 @@
           processList.map(async (r) => {
             const id = String(r.id);
             const separateData = await this._fetchAndSeparateContent(r.article_no, r.board_no);
-            
+
             let reviewImages = [];
             let productImage = null;
 

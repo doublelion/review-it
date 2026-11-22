@@ -50,6 +50,9 @@
   const CONFIG = getDynamicConfig();
 
   async function sync() {
+    const CONFIG = getDynamicConfig();
+    console.log("▶ [REVIEW-IT Collector] 인식된 Mall ID:", CONFIG.mallId);
+
     const lastSync = localStorage.getItem('rit_last_sync');
     const now = new Date().getTime();
     const COOLDOWN_MS = 1000 * 60 * 60; // 1시간 쿨타임
