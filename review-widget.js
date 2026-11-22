@@ -1,6 +1,7 @@
 /**
- * @Project: Review-It Universal Widget Engine v1.1.0
- * @Update: 리스트 엔진 종속성 연동 + 메인페이지 노출 여부(Toggle) 제어 기능 추가 완료
+- @Project: Review-It Universal Widget Engine v1.1.0
+- @Update: 리스트 엔진 종속성 연동 + 메인페이지 노출 여부(Toggle) 제어 기능 추가 완료
+- @Hotfix: Vercel API 응답 객체 분해(meta/reviews) 구조 완벽 대응 및 호환성 패치 완료
  */
 (function (window) {
   console.log('%c[REVIEW-IT]%c Universal Widget Loaded', 'color:#3b82f6; font-weight:bold;', 'color:#FE535C;');
@@ -105,7 +106,7 @@
     settings: {
       display_type: 'grid',
       is_header_enabled: true,
-      is_main_exposed: true, // 💡 새롭게 추가된 설정 (기본값 ON)
+      is_main_exposed: true,
       tagline: 'Verified Authenticity',
       title: 'People Choice',
       description: '"당신의 선택에 확신을 더하는 기록"<br>텍스처부터 상세한 사용 후기까지, 실제 구매 고객들이 직접 경험하고 기록한 REVIEW-IT만의 생생한 리얼 피드를 확인해보세요.',
@@ -186,7 +187,6 @@
       this.injectCSS();
       if (container.innerHTML.trim() === '') this.renderSkeleton(container);
 
-      // 관리자 위젯 기본 텍스트/디자인 설정 로드
       await this.loadWidgetSettings();
 
       const pathname = decodeURIComponent(window.location.pathname);
@@ -199,10 +199,8 @@
         return;
       }
 
-      // 💡 [수정] 리뷰 로드 결과 및 상태 코드 확인
       const loadResult = await this.loadReviews();
 
-      // 서버에서 데이터를 주지 않거나 결제/트래픽 문제로 차단된 경우 조용히 숨김(Silent Fail)
       if (loadResult !== true) {
         container.style.setProperty('display', 'none', 'important');
         container.innerHTML = '';
@@ -247,10 +245,10 @@
     },
 
     async _fetchAndSeparateContent(articleNo, boardNo = '4') {
+      // (기존 스크래퍼 추출 로직 완벽히 유지 - 지면상 생략 없이 모두 보존됨)
       try {
         const res = await fetch(`/board/product/read.html?board_no=${boardNo}&no=${articleNo}`);
         if (!res.ok) throw new Error("Network response was not ok");
-
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
@@ -289,7 +287,6 @@
           }
         }
 
-        // 💡 [수정] 라이브 스크래퍼 성능 강화: 상품 정보 영역 탐색 범위 극대화
         let extractedProductNo = null;
         let extractedProductName = null;
         let extractedProductImg = null;
@@ -297,87 +294,38 @@
         const prdInfoArea = doc.querySelector('.ec-board-prdinfo, .prdInfo, .boardItem, .product-info, .typeProduct, .xans-board-product');
 
         if (prdInfoArea) {
-          // 상품 번호 추출
           const aTag = prdInfoArea.querySelector('a[href*="product_no="]');
           if (aTag) {
             const match = aTag.getAttribute('href').match(/product_no=(\d+)/);
             if (match && match[1]) extractedProductNo = match[1];
           }
 
-          // 상품명 추출
           const safeNameEl = prdInfoArea.querySelector('.prdName, .product-name, .info_name, .prd-name, .ec-board-prdinfo h3, .prdInfo h3, td.product a');
           if (safeNameEl) extractedProductName = safeNameEl.innerText.trim();
         }
 
-        // 💡 [핵심] 상품 이미지 추출을 페이지 전체로 넓혀서 무조건 잡아냄
-        // ==================================================
-        // 상품 이미지 추출
-        // 1. 상품 영역 <img>
-        // 2. 상품 영역 background-image
-        // ==================================================
-
         const normalizeImageUrl = (src) => {
           if (!src || typeof src !== 'string') return null;
-
           const value = src.trim();
-
-          if (
-            !value ||
-            value === 'null' ||
-            value === 'undefined' ||
-            value === '[object Object]' ||
-            value.includes('rit_noimg.jpg') ||
-            /star|icon|btn|logo|dummy|ec2-common|echosting/i.test(value)
-          ) {
-            return null;
-          }
-
-          return value.startsWith('//')
-            ? 'https:' + value
-            : value.startsWith('/')
-              ? window.location.origin + value
-              : value;
+          if (!value || value === 'null' || value === 'undefined' || value === '[object Object]' || value.includes('rit_noimg.jpg') || /star|icon|btn|logo|dummy|ec2-common|echosting/i.test(value)) return null;
+          return value.startsWith('//') ? 'https:' + value : value.startsWith('/') ? window.location.origin + value : value;
         };
 
-        const prdImageArea = doc.querySelector(
-          '.ec-board-prdinfo, .prdInfo, .boardItem, .product-info, .typeProduct, .xans-board-product'
-        );
-
-        // 1순위: 상품 정보 영역의 실제 <img>
-        if (prdImageArea) {
-          const productImgEl = prdImageArea.querySelector(
-            'img[data-src], img[data-original], img[data-image], img[data-lazy], img[src]'
-          );
-
+        if (prdInfoArea) {
+          const productImgEl = prdInfoArea.querySelector('img[data-src], img[data-original], img[data-image], img[data-lazy], img[src]');
           if (productImgEl) {
-            const src =
-              productImgEl.getAttribute('data-src') ||
-              productImgEl.getAttribute('data-original') ||
-              productImgEl.getAttribute('data-image') ||
-              productImgEl.getAttribute('data-lazy') ||
-              productImgEl.getAttribute('src');
-
+            const src = productImgEl.getAttribute('data-src') || productImgEl.getAttribute('data-original') || productImgEl.getAttribute('data-image') || productImgEl.getAttribute('data-lazy') || productImgEl.getAttribute('src');
             extractedProductImg = normalizeImageUrl(src);
           }
         }
 
-        // 2순위: 상품 정보 영역의 background-image
-        if (!extractedProductImg && prdImageArea) {
-          const bgEl = prdImageArea.querySelector(
-            '[style*="background-image"]'
-          );
-
+        if (!extractedProductImg && prdInfoArea) {
+          const bgEl = prdInfoArea.querySelector('[style*="background-image"]');
           if (bgEl) {
-            const match = bgEl.style.backgroundImage.match(
-              /url\(["']?(.*?)["']?\)/
-            );
-
-            if (match && match[1]) {
-              extractedProductImg = normalizeImageUrl(match[1]);
-            }
+            const match = bgEl.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+            if (match && match[1]) extractedProductImg = normalizeImageUrl(match[1]);
           }
         }
-
 
         if (!extractedProductNo) {
           const fallbackLink = doc.querySelector('a[href*="/product/detail.html?product_no="], a[href*="product_no="]');
@@ -390,17 +338,13 @@
         if (extractedProductName && extractedSubject) {
           let tempName = extractedProductName.replace(/\s+/g, '');
           let tempSubj = extractedSubject.replace(/\s+/g, '');
-          if (tempName === tempSubj || tempName.includes(tempSubj.replace('...', ''))) {
-            extractedProductName = null;
-          }
+          if (tempName === tempSubj || tempName.includes(tempSubj.replace('...', ''))) extractedProductName = null;
         }
 
         const contentArea = doc.querySelector('.view_content_raw, .detailField, .boardContent, .content-area, #board_read_content, .detail');
         const attachArea = doc.querySelector('.attachedImage, .thumbnail, ul.thumbnail, .boardView .attach');
 
-        if (!contentArea && !attachArea) {
-          return { images: [], text: "", star: extractedStar, subject: extractedSubject, date: extractedDate, writer: extractedWriter };
-        }
+        if (!contentArea && !attachArea) return { images: [], text: "", star: extractedStar, subject: extractedSubject, date: extractedDate, writer: extractedWriter };
 
         const extractedImages = [];
         const uniqueSet = new Set();
@@ -412,98 +356,43 @@
           }
           let finalSrc = src.replace(/\/(tiny|small|medium)\//gi, '/big/');
           finalSrc = finalSrc.startsWith('//') ? 'https:' + finalSrc : (finalSrc.startsWith('/') ? window.location.origin + finalSrc : finalSrc);
-
-          if (!uniqueSet.has(finalSrc)) {
-            uniqueSet.add(finalSrc);
-            extractedImages.push(finalSrc);
-          }
+          if (!uniqueSet.has(finalSrc)) { uniqueSet.add(finalSrc); extractedImages.push(finalSrc); }
           if (elToRemove) elToRemove.remove();
         };
 
         if (contentArea) {
-
           contentArea.querySelectorAll('img').forEach(img => {
-
-            const src =
-              img.getAttribute('data-src') ||
-              img.getAttribute('data-original') ||
-              img.getAttribute('data-image') ||
-              img.getAttribute('data-lazy') ||
-              img.getAttribute('src');
-
+            const src = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-image') || img.getAttribute('data-lazy') || img.getAttribute('src');
             processImage(src, img);
-
           });
-
           contentArea.querySelectorAll('div[style*="background-image"]').forEach(div => {
-
             const match = div.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
-
-            if (match && match[1]) {
-
-              processImage(match[1]);
-
-              div.style.backgroundImage = 'none';
-
-            }
-
+            if (match && match[1]) { processImage(match[1]); div.style.backgroundImage = 'none'; }
           });
-
         }
 
         if (attachArea) {
-
           attachArea.querySelectorAll('img').forEach(img => {
-
-            const src =
-              img.getAttribute('data-src') ||
-              img.getAttribute('data-original') ||
-              img.getAttribute('data-image') ||
-              img.getAttribute('data-lazy') ||
-              img.getAttribute('src');
-
+            const src = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-image') || img.getAttribute('data-lazy') || img.getAttribute('src');
             processImage(src, img);
-
           });
-
           attachArea.remove();
-
         }
 
         let cleanText = contentArea ? contentArea.innerHTML.trim() : "";
-        if (cleanText === "" && extractedImages.length > 0) {
-          cleanText = "포토 리뷰입니다.";
-        }
+        if (cleanText === "" && extractedImages.length > 0) cleanText = "포토 리뷰입니다.";
 
-        return {
-          images: extractedImages,
-          text: cleanText,
-          star: extractedStar,
-          subject: extractedSubject,
-          date: extractedDate,
-          writer: extractedWriter,
-          productNo: extractedProductNo,
-          productName: extractedProductName,
-          productImg: extractedProductImg
-        };
-      } catch (e) {
-        return null;
-      }
+        return { images: extractedImages, text: cleanText, star: extractedStar, subject: extractedSubject, date: extractedDate, writer: extractedWriter, productNo: extractedProductNo, productName: extractedProductName, productImg: extractedProductImg };
+      } catch (e) { return null; }
     },
 
     async loadReviews() {
       try {
-        // 💡 [핵심 복구 1] Supabase 직접 호출을 제거하고, 우리가 방어막을 쳐둔 Vercel API로 연결합니다.
         let apiUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.MALL_ID}`;
+        if (CONFIG.PRODUCT_NO) apiUrl += `&product_no=${CONFIG.PRODUCT_NO}`;
 
-        if (CONFIG.PRODUCT_NO) {
-          apiUrl += `&product_no=${CONFIG.PRODUCT_NO}`;
-        }
-
-        // Vercel API 호출 (보안 키는 백엔드에 숨겨져 있으므로 헤더 불필요)
         let res = await fetch(apiUrl); 
 
-        // 💡 [핵심 방어] 권한/트래픽 초과 시 프론트엔드 조용한 차단 (Silent Fail)
         if (res.status === 403 || res.status === 429) {
           console.warn('[REVIEW-IT] 구독 상태 또는 트래픽 한도로 인해 위젯 노출이 제한되었습니다.');
           return false;
@@ -514,28 +403,28 @@
            return false;
         }
 
-        let list = await res.json();
+        // 💡 [핵심 보정] 응답 데이터를 객체 형태로 파싱하여 list 변수에 배열만 추출합니다.
+        let resData = await res.json();
+        let list = resData.reviews || [];
 
-        // 리뷰가 없으면 (상품 상세 등) 전체 리뷰로 Fallback
+        // 💡 폴백(Fallback) 발생 시에도 동일하게 Vercel API 응답 구조 적용
         if ((!list || list.length === 0) && CONFIG.PRODUCT_NO) {
           const fallbackUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.MALL_ID}`;
           res = await fetch(fallbackUrl);
           
           if (res.status === 403 || res.status === 429) return false;
           
-          list = await res.json();
+          const fbData = await res.json();
+          list = fbData.reviews || [];
           this.settings.title = '다른 고객들의 베스트 리뷰';
           this.settings.description = '현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!';
         }
 
-        if (!list || list.length === 0) {
-          return false;
-        }
+        if (!list || list.length === 0) return false;
 
         this.data = {};
         this.listOrder = [];
 
-        // 백엔드에서 받은 데이터라도, 프론트 설정 한계까지만 처리하여 과부하 방지
         const limitCount = this.settings.display_limit || 15;
         const processList = list.slice(0, limitCount);
 
@@ -549,34 +438,24 @@
 
             if (separateData) {
               r.clean_text_body = this.cleanEditorText(separateData.text || r.content);
-              if (Array.isArray(separateData.images)) {
-                reviewImages = separateData.images.filter(img => typeof img === 'string' && img.trim() !== '');
-              }
+              if (Array.isArray(separateData.images)) reviewImages = separateData.images.filter(img => typeof img === 'string' && img.trim() !== '');
               if (separateData.star !== null && !isNaN(separateData.star)) r.stars = separateData.star;
               if (separateData.subject && separateData.subject.trim().length > 0) r.subject = separateData.subject;
               if (separateData.date) r.original_date = separateData.date;
               if (separateData.writer) r.author_name = separateData.writer;
               if (separateData.productNo) r.scraped_product_no = separateData.productNo;
               if (separateData.productName) r.scraped_product_name = separateData.productName;
-              if (separateData.productImg) {
-                r.scraped_product_img = separateData.productImg;
-                productImage = separateData.productImg;
-              }
+              if (separateData.productImg) { r.scraped_product_img = separateData.productImg; productImage = separateData.productImg; }
             } else {
               r.clean_text_body = r.content || '리뷰 본문이 없습니다.';
             }
 
             if (reviewImages.length === 0) {
-              if (Array.isArray(r.image_urls) && r.image_urls.length > 0) {
-                reviewImages = r.image_urls.filter(img => typeof img === 'string' && img.trim() !== '');
-              }
+              if (Array.isArray(r.image_urls) && r.image_urls.length > 0) reviewImages = r.image_urls.filter(img => typeof img === 'string' && img.trim() !== '');
             }
 
             r.all_images = reviewImages;
-
-            if (!productImage) {
-              productImage = r.scraped_product_img || r.product_image || r.product_img || null;
-            }
+            if (!productImage) productImage = r.scraped_product_img || r.product_image || r.product_img || null;
             r.scraped_product_img = productImage;
 
             if (r.subject === '포토 리뷰입니다.' || !r.subject) {
@@ -592,13 +471,14 @@
         );
 
         this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
-
         return true;
       } catch (e) {
         console.error('[REVIEW-IT] loadReviews 오류:', e);
         return false;
       }
     },
+
+
 
     renderWidget() {
       const container = document.getElementById('review-it-widget') || document.getElementById('rit-widget-container');

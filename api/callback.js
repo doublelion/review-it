@@ -6,7 +6,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
-// 💡 대표님 개발자 센터 앱 설정에 맞춘 API 버전
+// API 버전
 const CAFE24_API_VERSION = '2026-03-01';
 
 module.exports = async (req, res) => {
@@ -151,7 +151,7 @@ module.exports = async (req, res) => {
       console.log(`🔄 [리뷰 동기화 시작] ${mall_id}의 초기 리뷰 데이터를 가져옵니다.`);
       const boardNo = 4;
 
-      const articlesRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/boards/${boardNo}/articles?limit=15`, {
+      const articlesRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/admin/boards/${boardNo}/articles?limit=100`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,

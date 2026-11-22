@@ -36,6 +36,8 @@
   const CONFIG = {
     sbUrl: 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1',
     sbKey: 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt',
+    // 💡 백엔드(Vercel) API 주소 추가
+    apiUrl: 'https://review-it-tau.vercel.app/api/reviews',
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating',
     spamKeywords: /star|icon|btn|logo|dummy|ec2-common|star_fill|star_empty|rating|clear/i,
@@ -117,13 +119,13 @@
 
     async loadSettings() {
       try {
+        // 설정값은 보안과 무관하고 가벼우므로 기존처럼 Supabase 직접 호출 유지
         const res = await fetch(`${CONFIG.sbUrl}/widget_settings?mall_id=eq.${CONFIG.mallId}`, {
           headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` }
         });
         const data = await res.json();
         if (data && data.length > 0) this.settings = data[0];
       } catch (e) {
-        // 💡 셋팅을 못 불러왔을 때(초기화 상태)의 기본값도 'list'로 변경
         this.settings = { detail_display_type: 'list', is_detail_summary_enabled: true, is_detail_gallery_enabled: true, is_detail_main_enabled: true };
       }
     },
@@ -206,21 +208,36 @@
 
     async loadReviewsAndParse() {
       try {
-        const baseUrl = `${CONFIG.sbUrl}/reviews?mall_id=eq.${CONFIG.mallId}&is_visible=eq.true`;
-        let res = await fetch(`${baseUrl}&product_no=eq.${productNo}&order=created_at.desc`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
-        let list = await res.json();
+        // Supabase 직결이 아닌, CDN 캐싱과 요금제 제한이 걸려있는 Vercel API 호출
+        const targetUrl = `${CONFIG.apiUrl}?mall_id=${CONFIG.mallId}&product_no=${productNo}`;
+        let res = await fetch(targetUrl);
+        
+        if (res.status === 403 || res.status === 429) {
+          console.warn('[REVIEW-IT] 요금제 구독 만료 또는 제한으로 위젯 노출이 중단되었습니다.');
+          return; // 요금제 미결제 시 화면에 렌더링하지 않고 종료
+        }
 
+        let resData = await res.json();
+        // Vercel API는 { meta: {}, reviews: [] } 형태로 반환하므로 배열만 추출
+        let list = resData.reviews || [];
+
+        // 리뷰가 하나도 없을 경우 폴백(Fallback) 데모 데이터 노출
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
-          const fbRes = await fetch(`${baseUrl}&order=created_at.desc&limit=15`, { headers: { 'apikey': CONFIG.sbKey, 'Authorization': `Bearer ${CONFIG.sbKey}` } });
-          list = await fbRes.json();
+          // 상품 번호(productNo) 없이 해당 몰 전체의 최신 리뷰를 가져옵니다.
+          const fbRes = await fetch(`${CONFIG.apiUrl}?mall_id=${CONFIG.mallId}`);
+          const fbData = await fbRes.json();
+          // 폴백 데모는 15개까지만 노출
+          list = (fbData.reviews || []).slice(0, 15);
         }
 
         this.data = {};
         this.listOrder = [];
         this.photoReviews = [];
 
+        // 상세페이지는 무거워질 수 있으니 최신 15개까지만 렌더링
         await Promise.all(list.slice(0, 15).map(async (r) => {
+          // 크롤링 로직은 기존과 동일
           const scraped = await this._fetchAndSeparateContent(r.article_no, r.board_no);
           if (scraped) {
             r.clean_text_body = scraped.text || r.content || "리뷰 본문이 없습니다.";
