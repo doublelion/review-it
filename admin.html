@@ -14,7 +14,6 @@
       background-color: #f8fafc;
     }
 
-    /* 커스텀 스크롤바 */
     ::-webkit-scrollbar {
       width: 6px;
     }
@@ -32,7 +31,6 @@
       background: #94a3b8;
     }
 
-    /* 사이드바 메뉴 활성화 스타일 */
     .nav-item {
       transition: all 0.2s ease-in-out;
     }
@@ -48,7 +46,6 @@
       background-color: #f1f5f9;
     }
 
-    /* 셋팅 박스 공통 */
     .rit-setting-box {
       background: #fff;
       padding: 20px;
@@ -77,7 +74,6 @@
       width: 100%;
     }
 
-    /* 무한 흐르는 띠 배너 */
     .ticker-wrapper {
       width: 100%;
       overflow: hidden;
@@ -105,7 +101,6 @@
       }
     }
 
-    /* 모달 및 애니메이션 */
     .view-section {
       display: none;
       animation: fadeIn 0.3s ease-in-out;
@@ -127,7 +122,6 @@
       }
     }
 
-    /* 토글 스위치 베이스 */
     .toggle-checkbox:checked {
       right: 0;
       border-color: #2563eb;
@@ -140,54 +134,38 @@
 </head>
 
 <body class="flex h-screen overflow-hidden text-gray-800">
-
-  <!-- 💡 [모바일 대응] 사이드바 배경 오버레이 -->
   <div id="sidebar-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 hidden md:hidden"
     onclick="toggleSidebar()"></div>
 
-  <!-- 💡 좌측 사이드바 네비게이션 -->
   <aside id="sidebar"
     class="fixed inset-y-0 left-0 bg-white w-64 border-r border-gray-200 z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col h-full">
-    <!-- 💡 [수정됨] 좌측 사이드바 네비게이션 (로고 추가) -->
     <div class="h-16 flex items-center px-6 border-b border-gray-100">
       <img src="https://review-it-tau.vercel.app/assets/logo_review.png" alt="Review-It Logo"
         class="w-8 h-8 mr-2 rounded-md object-cover shadow-sm">
       <h1 class="text-xl font-extrabold tracking-tighter text-gray-900">REVIEW-IT</h1>
-      <span class="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">PRO</span>
+      <!-- 💡 1. 오해를 막기 위해 초기 하드코딩된 PRO 텍스트를 제거하고 점 3개로 초기화 -->
+      <span id="plan-badge"
+        class="ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-400 text-[10px] font-bold rounded uppercase">...</span>
     </div>
 
     <nav class="flex-1 overflow-y-auto py-4">
       <ul class="space-y-1">
-        <li>
-          <a href="#" onclick="switchTab('dashboard')" id="nav-dashboard"
-            class="nav-item active flex items-center px-6 py-3 text-sm text-gray-600">
-            <span class="mr-3 text-lg">📊</span> 대시보드
-          </a>
-        </li>
+        <li><a href="#" onclick="switchTab('dashboard')" id="nav-dashboard"
+            class="nav-item active flex items-center px-6 py-3 text-sm text-gray-600"><span
+              class="mr-3 text-lg">📊</span> 대시보드</a></li>
         <li class="pt-4 pb-2 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider">환경 설정</li>
-        <li>
-          <a href="#" onclick="switchTab('main-widget')" id="nav-main-widget"
-            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600">
-            <span class="mr-3 text-lg">⚙️</span> 공통 / 메인 위젯
-          </a>
-        </li>
-        <li>
-          <a href="#" onclick="switchTab('detail-widget')" id="nav-detail-widget"
-            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600">
-            <span class="mr-3 text-lg">🛍️</span> 상세페이지 위젯
-          </a>
-        </li>
+        <li><a href="#" onclick="switchTab('main-widget')" id="nav-main-widget"
+            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600"><span class="mr-3 text-lg">⚙️</span> 공통 /
+            메인 위젯</a></li>
+        <li><a href="#" onclick="switchTab('detail-widget')" id="nav-detail-widget"
+            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600"><span class="mr-3 text-lg">🛍️</span>
+            상세페이지 위젯</a></li>
         <li class="pt-4 pb-2 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider">리뷰 관리</li>
-        <li>
-          <a href="#" onclick="switchTab('reviews')" id="nav-reviews"
-            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600">
-            <span class="mr-3 text-lg">💬</span> 수집된 리뷰 목록
-          </a>
-        </li>
+        <li><a href="#" onclick="switchTab('reviews')" id="nav-reviews"
+            class="nav-item flex items-center px-6 py-3 text-sm text-gray-600"><span class="mr-3 text-lg">💬</span> 수집된
+            리뷰 목록</a></li>
       </ul>
     </nav>
-
-    <!-- 💡 [수정됨] 사이드바 하단 몰 정보 및 스토어 이동 버튼 -->
     <div class="p-4 border-t border-gray-100 bg-gray-50 flex flex-col gap-3">
       <div>
         <div class="flex items-center gap-2 mb-1">
@@ -196,19 +174,13 @@
         </div>
         <p class="text-[10px] text-gray-500">API 연동 정상 작동 중</p>
       </div>
-
-      <!-- 쇼핑몰 이동 버튼 -->
       <a href="#" id="btn-mall-link" target="_blank"
-        class="flex items-center justify-center w-full py-2 bg-white border border-gray-300 rounded-md text-xs font-bold text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors shadow-sm">
-        내 쇼핑몰 확인 ↗
-      </a>
+        class="flex items-center justify-center w-full py-2 bg-white border border-gray-300 rounded-md text-xs font-bold text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors shadow-sm">내
+        쇼핑몰 확인 ↗</a>
     </div>
   </aside>
 
-  <!-- 💡 우측 메인 콘텐츠 영역 -->
   <div class="flex-1 flex flex-col h-full md:ml-64 relative overflow-hidden">
-
-    <!-- 💡 [수정됨] 모바일 전용 헤더 (로고 추가) -->
     <header
       class="md:hidden flex items-center justify-between h-14 bg-white border-b border-gray-200 px-4 z-30 flex-shrink-0">
       <div class="flex items-center">
@@ -216,49 +188,31 @@
           class="w-7 h-7 mr-2 rounded-md object-cover">
         <h1 class="text-lg font-extrabold tracking-tighter text-gray-900">REVIEW-IT</h1>
       </div>
-      <button onclick="toggleSidebar()" class="p-2 text-gray-600 focus:outline-none">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <button onclick="toggleSidebar()" class="p-2 text-gray-600 focus:outline-none"><svg class="w-6 h-6" fill="none"
+          stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-        </svg>
-      </button>
+        </svg></button>
     </header>
 
-    <!-- 공지사항 띠 배너 -->
     <div class="ticker-wrapper flex-shrink-0">
       <div class="ticker-track py-2">
         <div class="flex items-center gap-3 px-4">
           <span
-            class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Update</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 모던 미니멀 리스트 레이아웃 추가! 뷰 전환 토글 도입
+            class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Update</span><span
+            class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 모던 미니멀 리스트 레이아웃 추가! 뷰 전환 토글 도입
             🎉</span><span class="w-8 inline-block"></span>
           <span
-            class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Notice</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">설정 변경 후에는 반드시 '전체 설정 저장' 버튼을
-            눌러주세요.</span><span class="w-8 inline-block"></span>
-        </div>
-        <!-- 루프 복제 -->
-        <div class="flex items-center gap-3 px-4">
-          <span
-            class="bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Update</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">최신 업데이트: 모던 미니멀 리스트 레이아웃 추가! 뷰 전환 토글 도입
-            🎉</span><span class="w-8 inline-block"></span>
-          <span
-            class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Notice</span>
-          <span class="text-[12px] text-gray-200 font-medium whitespace-nowrap">설정 변경 후에는 반드시 '전체 설정 저장' 버튼을
+            class="bg-purple-600 text-white px-2 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider uppercase shrink-0">Notice</span><span
+            class="text-[12px] text-gray-200 font-medium whitespace-nowrap">설정 변경 후에는 반드시 '전체 설정 저장' 버튼을
             눌러주세요.</span><span class="w-8 inline-block"></span>
         </div>
       </div>
     </div>
 
-    <!-- 스크롤 가능한 본문 영역 -->
     <main class="flex-1 overflow-y-auto p-4 md:p-8">
-
-      <!-- ==========================================
-           TAB 1: 대시보드
-      =========================================== -->
       <section id="tab-dashboard" class="view-section active max-w-5xl mx-auto">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">안녕하세요, 운영자님! 👋</h2>
-
+        <div id="upgrade-nudge-container" style="display: none;"></div>
         <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-6 shadow-sm mb-8">
           <h2 class="text-[15px] font-bold text-blue-900 flex items-center gap-2 mb-3">
             <span class="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs">✔</span>
@@ -275,15 +229,11 @@
                   id="total-count-dash" class="text-blue-600">0</strong>개</p>
             </div>
           </div>
-          <p class="mt-3 text-[11px] text-blue-600 font-medium">
-            * 본 시스템은 Cafe24 최신 API 규격(2026-03-01)을 완벽하게 지원하며, 몰 속도 저하를 최소화하는 비동기 방식으로 구동됩니다.
-          </p>
+          <p class="mt-3 text-[11px] text-blue-600 font-medium">- 본 시스템은 Cafe24 최신 API 규격을 완벽하게 지원하며, 몰 속도 저하를 최소화하는 비동기
+            방식으로 구동됩니다.</p>
         </div>
       </section>
 
-      <!-- ==========================================
-           TAB 2: 공통 / 메인 위젯 설정
-      =========================================== -->
       <section id="tab-main-widget" class="view-section max-w-5xl mx-auto">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-2xl font-bold text-gray-900">공통 / 메인 위젯 설정</h2>
@@ -291,9 +241,7 @@
             class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5">설정
             저장하기</button>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <!-- 메인페이지 위젯 노출 -->
           <div class="rit-setting-box">
             <span class="rit-label">메인페이지 위젯 노출</span>
             <div class="rit-switch-group">
@@ -311,8 +259,6 @@
               </label>
             </div>
           </div>
-
-          <!-- 위젯 노출 타입 -->
           <div class="rit-setting-box">
             <span class="rit-label">위젯 노출 레이아웃</span>
             <div class="rit-switch-group">
@@ -330,8 +276,6 @@
               </label>
             </div>
           </div>
-
-          <!-- 그리드 단 수 설정 -->
           <div class="rit-setting-box">
             <span class="rit-label">그리드 단 수 설정</span>
             <div class="flex gap-2 w-full">
@@ -347,8 +291,6 @@
               </select>
             </div>
           </div>
-
-          <!-- 리스트 게시판 디자인 -->
           <div class="rit-setting-box">
             <span class="rit-label">리뷰 게시판 스킨</span>
             <div class="rit-switch-group">
@@ -367,8 +309,6 @@
             </div>
           </div>
         </div>
-
-        <!-- 헤더 문구 커스텀 -->
         <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div class="flex justify-between items-center mb-5 border-b border-gray-100 pb-4">
             <h3 class="text-md font-bold text-gray-800">위젯 타이틀 커스텀</h3>
@@ -402,9 +342,6 @@
         </div>
       </section>
 
-      <!-- ==========================================
-           TAB 3: 상세페이지 위젯 설정
-      =========================================== -->
       <section id="tab-detail-widget" class="view-section max-w-5xl mx-auto">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-2xl font-bold text-gray-900">상세페이지 전용 설정</h2>
@@ -412,12 +349,9 @@
             class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5">설정
             저장하기</button>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <!-- 1. 상단 평점 요약 토글 -->
           <div class="rit-setting-box flex flex-row items-center justify-between">
-            <div>
-              <span class="rit-label block !mb-1">1. 상단 평점 요약</span>
+            <div><span class="rit-label block !mb-1">1. 상단 평점 요약</span>
               <p class="text-[10px] text-gray-400">올리브영 스타일 요약 노출</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
@@ -427,11 +361,8 @@
               </div>
             </label>
           </div>
-
-          <!-- 2. 포토 갤러리 토글 -->
           <div class="rit-setting-box flex flex-row items-center justify-between">
-            <div>
-              <span class="rit-label block !mb-1">2. 썸네일 하단 갤러리</span>
+            <div><span class="rit-label block !mb-1">2. 썸네일 하단 갤러리</span>
               <p class="text-[10px] text-gray-400">메인 썸네일 하단 5구 노출</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
@@ -441,11 +372,8 @@
               </div>
             </label>
           </div>
-
-          <!-- 3. 하단 메인 리뷰 토글 -->
           <div class="rit-setting-box flex flex-row items-center justify-between">
-            <div>
-              <span class="rit-label block !mb-1">3. 하단 메인 리뷰</span>
+            <div><span class="rit-label block !mb-1">3. 하단 메인 리뷰</span>
               <p class="text-[10px] text-gray-400">대시보드 및 리뷰 목록 노출</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
@@ -455,8 +383,6 @@
               </div>
             </label>
           </div>
-
-          <!-- 💡 [핵심 픽스] 메인 리뷰 레이아웃 선택 (슬라이드 제거 -> 썸네일형 / 리스트형 배치) -->
           <div class="rit-setting-box">
             <span class="rit-label">기본 뷰 (Default View)</span>
             <div class="rit-switch-group">
@@ -477,9 +403,6 @@
         </div>
       </section>
 
-      <!-- ==========================================
-           TAB 4: 리뷰 관리 목록
-      =========================================== -->
       <section id="tab-reviews" class="view-section max-w-5xl mx-auto">
         <div
           class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4 border-b border-gray-200 pb-4">
@@ -495,7 +418,6 @@
               class="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-gray-800 transition shadow-sm">검색</button>
           </div>
         </div>
-
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse min-w-[700px]">
@@ -510,8 +432,6 @@
               <tbody id="admin-list" class="divide-y divide-gray-100"></tbody>
             </table>
           </div>
-
-          <!-- 페이지네이션 -->
           <div class="flex justify-center items-center p-5 bg-gray-50 border-t border-gray-100 gap-4">
             <button onclick="changePage(-1)"
               class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition"
@@ -523,21 +443,16 @@
           </div>
         </div>
       </section>
-
     </main>
   </div>
 
   <script>
-    // ==========================================
-    // UI 로직: 사이드바 및 탭 전환
-    // ==========================================
     function toggleSidebar() {
       const sidebar = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebar-overlay');
       sidebar.classList.toggle('-translate-x-full');
       overlay.classList.toggle('hidden');
     }
-
     function switchTab(tabId) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
       document.getElementById('tab-' + tabId).classList.add('active');
@@ -546,40 +461,112 @@
       if (window.innerWidth < 768) { toggleSidebar(); }
     }
 
-    // ==========================================
-    // 리뷰 앱 핵심 코어 로직 (DB & API)
-    // ==========================================
     const SB_URL = 'https://ozxnynnntkjjjhyszbms.supabase.co/rest/v1';
     const SB_KEY = 'sb_publishable_ppOXwf1JcyyAalzT7tgzdw_OZYfCFVt';
-
     const params = new URLSearchParams(window.location.search);
     let MALL_ID = params.get('mall_id') || window.location.hostname.split('.')[0];
     const AUTH_SIG = params.get('auth_sig');
 
     document.getElementById('display-mall-name').innerText = MALL_ID;
-
     let currentPage = 0;
     const itemsPerPage = 15;
     let currentSearchKeyword = '';
 
+    async function loadPlanAndStats() {
+      console.log("🔍 [디버그] 요금제 조회 시작 - 대상 몰:", MALL_ID);
+
+      try {
+        // 1. 조인 쿼리 대신 안전하게 active_malls 단독 조회로 먼저 테스트
+        const res = await fetch(`${SB_URL}/active_malls?select=mall_id,plan_type,status&mall_id=eq.${MALL_ID}`, {
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Cache-Control': 'no-cache' // 브라우저 캐시 강제 무시
+          }
+        });
+
+        console.log("📡 [디버그] active_malls 응답 상태:", res.status);
+        const data = await res.json();
+        console.log("📦 [디버그] active_malls 원본 데이터:", data);
+
+        let plan = 'starter';
+        if (data && data.length > 0) {
+          const rawPlan = data[0].plan_type;
+          console.log("🏷️ [디버그] DB에서 읽어온 plan_type:", rawPlan);
+          if (rawPlan === 'pro' || rawPlan === 'growth') {
+            plan = rawPlan;
+          }
+        } else {
+          console.warn("⚠️ [디버그] active_malls에서 데이터를 찾지 못함 (RLS 권한 문제 또는 몰 ID 불일치)");
+        }
+
+        // 2. mall_stats 테이블 별도 조회 (조인 에러 원천 차단)
+        let totalReviews = 0;
+        const statsRes = await fetch(`${SB_URL}/mall_stats?select=total_reviews&mall_id=eq.${MALL_ID}`, {
+          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+        });
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          console.log("📊 [디버그] mall_stats 데이터:", statsData);
+          if (statsData && statsData.length > 0) {
+            totalReviews = statsData[0].total_reviews || 0;
+          }
+        } else {
+          console.warn("⚠️ [디버그] mall_stats 조회 실패 상태:", statsRes.status);
+        }
+
+        // 3. 뱃지 UI 강제 업데이트
+        const badge = document.getElementById('plan-badge');
+        console.log("🎯 [디버그] 최종 결정된 요금제:", plan, "| 뱃지 엘리먼트 존재 여부:", !!badge);
+
+        if (badge) {
+          if (plan === 'pro') {
+            badge.innerText = 'PRO';
+            badge.className = 'ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase tracking-wide';
+          } else if (plan === 'growth') {
+            badge.innerText = 'GROWTH';
+            badge.className = 'ml-2 px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded uppercase tracking-wide';
+          } else {
+            badge.innerText = 'STARTER';
+            badge.className = 'ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase tracking-wide';
+          }
+        }
+
+        // 4. 한도 초과 넛지 계산
+        let limit = 100;
+        if (plan === 'growth') limit = 1000;
+        if (plan === 'pro') limit = 5000;
+
+        const lockedCount = totalReviews >= limit ? (totalReviews - limit) : 0;
+        const nudgeContainer = document.getElementById('upgrade-nudge-container');
+        if (lockedCount > 0 && nudgeContainer) {
+          nudgeContainer.innerHTML = `
+        <div class="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm mb-6 flex items-start gap-4">
+          <div class="text-2xl pt-1">🔒</div>
+          <div class="flex-1">
+            <h3 class="text-[14px] font-bold text-red-700 mb-1">숨겨진 리뷰가 <span class="text-xl underline underline-offset-2">${lockedCount.toLocaleString()}</span>개 있습니다!</h3>
+            <p class="text-[13px] text-red-600 mb-3">${plan.toUpperCase()} 요금제의 노출 한도(<strong class="text-red-800">${limit.toLocaleString()}개</strong>)를 초과하여 새 리뷰가 쇼핑몰 고객에게 보이지 않고 있습니다.</p>
+            <a href="https://store.cafe24.com/kr/apps/5115" target="_blank" class="inline-block px-5 py-2 bg-red-600 text-white text-[13px] font-bold rounded-lg shadow-sm hover:bg-red-700 transition">요금제 업그레이드 ↗</a>
+          </div>
+        </div>
+      `;
+          nudgeContainer.style.display = 'block';
+        }
+
+        const dashCount = document.getElementById('total-count-dash');
+        if (dashCount) dashCount.innerText = totalReviews.toLocaleString();
+
+      } catch (err) {
+        console.error("🔥 [디버그] 요금제 조회 중 치명적 에러:", err);
+      }
+    }
+
     function updateToggleText() {
       const isChecked = document.getElementById('toggle-header').checked;
       const toggleText = document.getElementById('header-toggle-text');
-      const inputs = [
-        document.getElementById('input-tagline'),
-        document.getElementById('input-title'),
-        document.getElementById('input-description')
-      ];
-
-      if (isChecked) {
-        toggleText.innerText = '노출 켜짐';
-        toggleText.classList.replace('text-gray-400', 'text-blue-600');
-        inputs.forEach(input => input.disabled = false);
-      } else {
-        toggleText.innerText = '노출 꺼짐';
-        toggleText.classList.replace('text-blue-600', 'text-gray-400');
-        inputs.forEach(input => input.disabled = true);
-      }
+      const inputs = [document.getElementById('input-tagline'), document.getElementById('input-title'), document.getElementById('input-description')];
+      if (isChecked) { toggleText.innerText = '노출 켜짐'; toggleText.classList.replace('text-gray-400', 'text-blue-600'); inputs.forEach(input => input.disabled = false); }
+      else { toggleText.innerText = '노출 꺼짐'; toggleText.classList.replace('text-blue-600', 'text-gray-400'); inputs.forEach(input => input.disabled = true); }
     }
 
     function getCleanThumbnail(rawUrls) {
@@ -590,8 +577,7 @@
           if (urls.trim().startsWith('[')) urls = JSON.parse(urls);
           else if (urls.trim() !== '') urls = [urls];
         }
-      } catch (e) { console.warn("이미지 파싱 오류:", e); }
-
+      } catch (e) { }
       if (!Array.isArray(urls) || urls.length === 0) return null;
       const spamKeywords = /star|icon|btn|twitch|logo|dummy|ec2-common|star_fill|star_empty|ico_point|ico_review/i;
       const validImg = urls.find(url => typeof url === 'string' && !spamKeywords.test(url) && !url.toLowerCase().includes('.gif'));
@@ -600,42 +586,30 @@
 
     async function loadSettings() {
       try {
-        const res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, {
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
-        });
+        const res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` } });
         const data = await res.json();
-
         if (data && data.length > 0) {
           const s = data[0];
-
           if (document.getElementById('input-tagline')) document.getElementById('input-tagline').value = s.tagline || '';
           if (document.getElementById('input-title')) document.getElementById('input-title').value = s.title || '';
           if (document.getElementById('input-description')) document.getElementById('input-description').value = s.description || '';
-
           if (document.getElementById('toggle-header')) document.getElementById('toggle-header').checked = s.is_header_enabled !== false;
-
           if (s.grid_rows_desktop && document.getElementById('select-grid-pc')) document.getElementById('select-grid-pc').value = s.grid_rows_desktop;
           if (s.grid_rows_mobile && document.getElementById('select-grid-mo')) document.getElementById('select-grid-mo').value = s.grid_rows_mobile;
-
           const dTypeRadio = document.querySelector(`input[name="display_type"][value="${s.display_type || 'grid'}"]`);
           if (dTypeRadio) dTypeRadio.checked = true;
-
           const lTypeRadio = document.querySelector(`input[name="list_design"][value="${s.list_design_type || 'review_it'}"]`);
           if (lTypeRadio) lTypeRadio.checked = true;
-
           const mExpRadio = document.querySelector(`input[name="main_exposure"][value="${s.is_main_exposed !== false}"]`);
           if (mExpRadio) mExpRadio.checked = true;
-
-          // 💡 [핵심 픽스] 불러올 때 masonry/swiper가 아닌 thumbnail/list로 바인딩
           const detailTypeRadio = document.querySelector(`input[name="detail_display_type"][value="${s.detail_display_type || 'thumbnail'}"]`);
           if (detailTypeRadio) detailTypeRadio.checked = true;
-
           if (document.getElementById('toggle-detail-summary')) document.getElementById('toggle-detail-summary').checked = s.is_detail_summary_enabled !== false;
           if (document.getElementById('toggle-detail-gallery')) document.getElementById('toggle-detail-gallery').checked = s.is_detail_gallery_enabled !== false;
           if (document.getElementById('toggle-detail-main')) document.getElementById('toggle-detail-main').checked = s.is_detail_main_enabled !== false;
         }
         updateToggleText();
-      } catch (err) { console.error("설정 로드 실패:", err); }
+      } catch (err) { }
     }
 
     async function saveHeaderSettings() {
@@ -651,29 +625,19 @@
           tagline: document.getElementById('input-tagline')?.value || '',
           grid_rows_desktop: parseInt(document.getElementById('select-grid-pc')?.value || 5),
           grid_rows_mobile: parseInt(document.getElementById('select-grid-mo')?.value || 2),
-          // 💡 [핵심 픽스] 저장 시 thumbnail/list 값을 DB로 넘김
           detail_display_type: document.querySelector('input[name="detail_display_type"]:checked')?.value || 'thumbnail',
           is_detail_summary_enabled: document.getElementById('toggle-detail-summary')?.checked ?? true,
           is_detail_gallery_enabled: document.getElementById('toggle-detail-gallery')?.checked ?? true,
           is_detail_main_enabled: document.getElementById('toggle-detail-main')?.checked ?? true
         };
-
         const res = await fetch(`${SB_URL}/widget_settings?on_conflict=mall_id`, {
           method: 'POST',
-          headers: {
-            'apikey': SB_KEY,
-            'Authorization': `Bearer ${SB_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
-          },
+          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
           body: JSON.stringify(payload)
         });
-
         if (res.ok) alert('✅ 설정이 안전하게 저장되었습니다.\n쇼핑몰 위젯에 즉시 반영됩니다.');
         else throw new Error(await res.text());
-      } catch (err) {
-        alert('❌ 저장 중 오류 발생: ' + err.message);
-      }
+      } catch (err) { alert('❌ 저장 중 오류 발생: ' + err.message); }
     }
 
     async function loadAdminData() {
@@ -681,28 +645,18 @@
         const from = currentPage * itemsPerPage;
         const to = from + itemsPerPage - 1;
         let query = `${SB_URL}/reviews?mall_id=eq.${MALL_ID}&select=*&order=created_at.desc`;
-
-        if (currentSearchKeyword) {
-          query += `&or=(subject.ilike.*${currentSearchKeyword}*,writer.ilike.*${currentSearchKeyword}*,author_name.ilike.*${currentSearchKeyword}*,content.ilike.*${currentSearchKeyword}*)`;
-        }
-
+        if (currentSearchKeyword) { query += `&or=(subject.ilike.*${currentSearchKeyword}*,writer.ilike.*${currentSearchKeyword}*,author_name.ilike.*${currentSearchKeyword}*,content.ilike.*${currentSearchKeyword}*)`; }
         const res = await fetch(query, {
           headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Range': `${from}-${to}`, 'Prefer': 'count=exact' }
         });
-
         const total = res.headers.get('content-range')?.split('/')[1] || 0;
-
         const countTop = document.getElementById('total-count');
-        const countDash = document.getElementById('total-count-dash');
         const countList = document.getElementById('total-count-list');
-
-        if (countTop) countTop.innerText = total;
-        if (countDash) countDash.innerText = total;
-        if (countList) countList.innerText = total;
-
+        if (countTop) countTop.innerText = Number(total).toLocaleString();
+        if (countList) countList.innerText = Number(total).toLocaleString();
         renderList(await res.json());
         updatePagination(total);
-      } catch (err) { console.error("로드 실패:", err); }
+      } catch (err) { }
     }
 
     function renderList(data) {
@@ -711,20 +665,13 @@
         list.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400">데이터가 없습니다.</td></tr>`;
         return;
       }
-
       list.innerHTML = data.map(rv => {
-        // 이미지 파싱 및 폴백 (상품 이미지 활용 가능성이 있으면 추가)
         const thumbnail = getCleanThumbnail(rv.image_urls) || rv.product_image || 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg';
-
         const rawContent = rv.content ? rv.content.replace(/<[^>]*>?/gm, '') : '';
         const displayContent = rawContent.trim() ? rawContent : '본문 내용이 없는 리뷰입니다.';
         const displayName = rv.author_name ? rv.author_name : (rv.writer || '고객');
-
         let displaySubject = (rv.subject || '').trim();
-        if (!displaySubject || displaySubject === '포토 리뷰입니다.') {
-          displaySubject = displayContent;
-        }
-
+        if (!displaySubject || displaySubject === '포토 리뷰입니다.') displaySubject = displayContent;
         const starCount = rv.stars ?? 5;
         const activeStars = '★'.repeat(starCount);
         const inactiveStars = '☆'.repeat(5 - starCount);
@@ -732,7 +679,6 @@
         return `
         <tr class="hover:bg-blue-50/20 transition-colors">
           <td class="px-5 py-4 font-semibold text-gray-700 text-sm w-32 max-w-[120px] truncate" title="${displayName}">${displayName}</td>
-          
           <td class="px-5 py-4">
             <div class="flex items-start gap-4">
               <div class="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex-shrink-0 shadow-sm">
@@ -744,13 +690,11 @@
               </div>
             </div>
           </td>
-          
           <td class="px-5 py-4 text-center w-32">
             <div class="inline-flex items-center px-2.5 py-1 bg-amber-50 rounded shadow-sm border border-amber-100">
               <span class="text-amber-500 text-[11px] tracking-widest">${activeStars}<span class="text-amber-200">${inactiveStars}</span></span>
             </div>
           </td>
-          
           <td class="px-5 py-4 text-center w-32">
             <button onclick="toggleVisibility('${rv.id}', ${rv.is_visible})" 
               class="w-full max-w-[80px] py-1.5 rounded-full text-[12px] font-black transition-all shadow-sm ${rv.is_visible ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border border-gray-300 text-gray-500 hover:bg-gray-50'}">
@@ -762,27 +706,19 @@
     }
 
     function handleSearch() { currentSearchKeyword = document.getElementById('search-input').value; currentPage = 0; loadAdminData(); }
-
     function updatePagination(total) {
       const totalPages = Math.ceil(total / itemsPerPage) || 1;
       document.getElementById('page-info').innerText = `PAGE ${currentPage + 1} / ${totalPages}`;
       document.getElementById('prev-btn').disabled = currentPage === 0;
       document.getElementById('next-btn').disabled = (currentPage + 1) >= totalPages;
     }
-
     function changePage(step) { currentPage += step; loadAdminData(); window.scrollTo(0, 0); }
-
     async function toggleVisibility(id, currentStatus) {
       try {
-        const res = await fetch(`${SB_URL}/reviews?id=eq.${id}&mall_id=eq.${MALL_ID}`, {
-          method: 'PATCH',
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ is_visible: !currentStatus })
-        });
+        const res = await fetch(`${SB_URL}/reviews?id=eq.${id}&mall_id=eq.${MALL_ID}`, { method: 'PATCH', headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ is_visible: !currentStatus }) });
         if (res.ok) loadAdminData();
-      } catch (err) { console.error("노출 상태 변경 실패:", err); }
+      } catch (err) { }
     }
-
     async function checkAuthentication() {
       if (window.location.hostname === 'localhost') return true;
       if (!AUTH_SIG || !MALL_ID) { alert("올바르지 않은 접근입니다."); window.location.href = '/index.html'; return false; }
@@ -799,18 +735,15 @@
         return false;
       }
     }
-
     function setupMallLink() {
       const mallLinkBtn = document.getElementById('btn-mall-link');
-      if (mallLinkBtn && MALL_ID) {
-        mallLinkBtn.href = `https://${MALL_ID}.cafe24.com`;
-      }
+      if (mallLinkBtn && MALL_ID) { mallLinkBtn.href = `https://${MALL_ID}.cafe24.com`; }
     }
-
     window.onload = async () => {
       const isAuthValid = await checkAuthentication();
       if (isAuthValid) {
         setupMallLink();
+        loadPlanAndStats();
         loadSettings();
         loadAdminData();
       }
