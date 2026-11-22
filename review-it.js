@@ -1,3 +1,5 @@
+console.log("Review-IT Script Started");
+
 /**
  * @Project: Review-It Universal Collector Engine
  * @Version: v1.0.9 (Self-Healing & Zero-Error Update)
