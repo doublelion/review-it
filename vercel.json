@@ -1,7 +1,8 @@
+
 {
   "headers": [
     {
-      "source": "/(.*\\.(js|css|png|jpg|jpeg|ico))",
+      "source": "/:path*.(js|css|png|jpg|jpeg|ico)",
       "headers": [
         {
           "key": "Cache-Control",
