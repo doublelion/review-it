@@ -473,30 +473,52 @@
     let currentSearchKeyword = '';
 
     async function loadPlanAndStats() {
+      console.log("🔍 [디버그] 요금제 조회 시작 - 대상 몰:", MALL_ID);
+
       try {
-        const res = await fetch(`${SB_URL}/active_malls?select=plan_type,mall_stats(total_reviews)&mall_id=eq.${MALL_ID}`, {
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+        // 1. 조인 쿼리 대신 안전하게 active_malls 단독 조회로 먼저 테스트
+        const res = await fetch(`${SB_URL}/active_malls?select=mall_id,plan_type,status&mall_id=eq.${MALL_ID}`, {
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Cache-Control': 'no-cache' // 브라우저 캐시 강제 무시
+          }
         });
+
+        console.log("📡 [디버그] active_malls 응답 상태:", res.status);
         const data = await res.json();
+        console.log("📦 [디버그] active_malls 원본 데이터:", data);
 
-        // 💡 2. 'basic' 이나 'null' 일 경우 무조건 'starter'로 데이터 정제
         let plan = 'starter';
-        let totalReviews = 0;
-
         if (data && data.length > 0) {
           const rawPlan = data[0].plan_type;
+          console.log("🏷️ [디버그] DB에서 읽어온 plan_type:", rawPlan);
           if (rawPlan === 'pro' || rawPlan === 'growth') {
             plan = rawPlan;
-          } else {
-            plan = 'starter';
           }
-
-          if (data[0].mall_stats && data[0].mall_stats.length > 0) {
-            totalReviews = data[0].mall_stats[0].total_reviews || 0;
-          }
+        } else {
+          console.warn("⚠️ [디버그] active_malls에서 데이터를 찾지 못함 (RLS 권한 문제 또는 몰 ID 불일치)");
         }
 
+        // 2. mall_stats 테이블 별도 조회 (조인 에러 원천 차단)
+        let totalReviews = 0;
+        const statsRes = await fetch(`${SB_URL}/mall_stats?select=total_reviews&mall_id=eq.${MALL_ID}`, {
+          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+        });
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          console.log("📊 [디버그] mall_stats 데이터:", statsData);
+          if (statsData && statsData.length > 0) {
+            totalReviews = statsData[0].total_reviews || 0;
+          }
+        } else {
+          console.warn("⚠️ [디버그] mall_stats 조회 실패 상태:", statsRes.status);
+        }
+
+        // 3. 뱃지 UI 강제 업데이트
         const badge = document.getElementById('plan-badge');
+        console.log("🎯 [디버그] 최종 결정된 요금제:", plan, "| 뱃지 엘리먼트 존재 여부:", !!badge);
+
         if (badge) {
           if (plan === 'pro') {
             badge.innerText = 'PRO';
@@ -510,33 +532,32 @@
           }
         }
 
+        // 4. 한도 초과 넛지 계산
         let limit = 100;
         if (plan === 'growth') limit = 1000;
         if (plan === 'pro') limit = 5000;
 
         const lockedCount = totalReviews >= limit ? (totalReviews - limit) : 0;
         const nudgeContainer = document.getElementById('upgrade-nudge-container');
-        if (lockedCount > 0) {
+        if (lockedCount > 0 && nudgeContainer) {
           nudgeContainer.innerHTML = `
-            <div class="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm mb-6 flex items-start gap-4">
-              <div class="text-2xl pt-1">🔒</div>
-              <div class="flex-1">
-                <h3 class="text-[14px] font-bold text-red-700 mb-1">숨겨진 리뷰가 <span class="text-xl underline underline-offset-2">${lockedCount.toLocaleString()}</span>개 있습니다!</h3>
-                <p class="text-[13px] text-red-600 mb-3">${plan.toUpperCase()} 요금제의 노출 한도(<strong class="text-red-800">${limit.toLocaleString()}개</strong>)를 초과하여 새 리뷰가 쇼핑몰 고객에게 보이지 않고 있습니다.</p>
-                <a href="https://store.cafe24.com/kr/apps/5115" target="_blank" onclick="alert('카페24 앱스토어 결제 페이지로 이동합니다.')" class="inline-block px-5 py-2 bg-red-600 text-white text-[13px] font-bold rounded-lg shadow-sm hover:bg-red-700 transition">요금제 업그레이드 ↗</a>
-              </div>
-            </div>
-          `;
+        <div class="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm mb-6 flex items-start gap-4">
+          <div class="text-2xl pt-1">🔒</div>
+          <div class="flex-1">
+            <h3 class="text-[14px] font-bold text-red-700 mb-1">숨겨진 리뷰가 <span class="text-xl underline underline-offset-2">${lockedCount.toLocaleString()}</span>개 있습니다!</h3>
+            <p class="text-[13px] text-red-600 mb-3">${plan.toUpperCase()} 요금제의 노출 한도(<strong class="text-red-800">${limit.toLocaleString()}개</strong>)를 초과하여 새 리뷰가 쇼핑몰 고객에게 보이지 않고 있습니다.</p>
+            <a href="https://store.cafe24.com/kr/apps/5115" target="_blank" class="inline-block px-5 py-2 bg-red-600 text-white text-[13px] font-bold rounded-lg shadow-sm hover:bg-red-700 transition">요금제 업그레이드 ↗</a>
+          </div>
+        </div>
+      `;
           nudgeContainer.style.display = 'block';
-        } else {
-          nudgeContainer.style.display = 'none';
         }
 
         const dashCount = document.getElementById('total-count-dash');
         if (dashCount) dashCount.innerText = totalReviews.toLocaleString();
 
       } catch (err) {
-        console.error("요금제 및 통계 로드 실패:", err);
+        console.error("🔥 [디버그] 요금제 조회 중 치명적 에러:", err);
       }
     }
 
