@@ -552,7 +552,7 @@
           };
         };
 
-        
+
         let ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
         let isDesktopLast = window.innerWidth >= 1024;
 
@@ -681,8 +681,7 @@
 
       const isMallOwner = (CONFIG.MALL_NAME && (
         rawName === CONFIG.MALL_NAME.trim() ||
-        rawName.includes(CONFIG.MALL_NAME) ||
-        (rawName.length >= 2 && CONFIG.MALL_NAME.includes(rawName))
+        rawName.includes(CONFIG.MALL_NAME)
       )) || CONFIG.ADMIN_KEYWORDS.some(k => rawName.toLowerCase().includes(k.toLowerCase()));
 
       const displayName = isMallOwner ? rawName : this.maskName(rawName);

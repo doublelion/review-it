@@ -22,7 +22,7 @@ console.log("Review-IT Script Started");
       .trim();
   };
 
-  
+
   const getDynamicConfig = () => {
     let cafe24MallId = null;
 
@@ -157,9 +157,10 @@ console.log("Review-IT Script Started");
       let reviewImg = el.querySelector('img[src*="/board/"]:not([src*="icon"])');
       let productImg = el.querySelector('.typeProduct img, td.thumb img, .product-img img, img[src*="/product/"]:not([src*="icon"])');
 
-      // 💡 (오타 수정 완료) document -> doc 참조 복구 완료
+
+
       if (!reviewImg && !productImg) {
-        productImg = doc.querySelector('.typeProduct img, .xans-board-product img, .xans-board-product-4 img');
+        productImg = el.querySelector('.typeProduct img, .xans-board-product img, .xans-board-product-4 img');
       }
 
       // 💡 3. 상품 이미지(product_image) 전용 추출 로직
@@ -203,8 +204,8 @@ console.log("Review-IT Script Started");
         board_no: CONFIG.targetBoardNo,
         subject: cleanSubject,
         content: "본문을 불러오는 중입니다...",
-        writer: extractedWriter || '고객',         // 값이 없으면 '고객'으로 강제 지정
-        author_name: extractedWriter || '고객',
+        writer: cleanWriter || '고객',
+        author_name: cleanWriter || '고객',
         stars: extractedStar,
         image_urls: thumbUrl ? [thumbUrl] : []
         // 💡 is_visible 줄을 완전히 삭제합니다.
