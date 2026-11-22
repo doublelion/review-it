@@ -5,21 +5,12 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Cafe24-Api-Version');
 
-  // 💡 [핵심 추가 1] CORS Preflight(OPTIONS) 요청 강력 캐싱
-  // 브라우저가 본 요청(GET)을 보내기 전 확인하는 OPTIONS 요청을 24시간(86400초) 캐싱합니다.
-  // 이 처리가 없으면 매 API 호출마다 CDN 요청이 2배(OPTIONS + GET)로 차감됩니다.
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Max-Age', '86400');
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
-
-  // 💡 [핵심 수정 2] 브라우저 캐시(max-age) 대폭 증가
-  // max-age=300 (5분): 동일 방문자는 5분 동안 새로고침/페이지 이동 시 Vercel CDN에 아예 접속하지 않고 브라우저에서 읽음
-  // s-maxage=3600 (1시간): Vercel Edge 서버에 1시간 저장 (상품별/URL별로 자동 분리 저장됨)
-  // stale-while-revalidate=86400: 캐시 만료 시 백그라운드 갱신
   res.setHeader(
     'Cache-Control',
     'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400'
