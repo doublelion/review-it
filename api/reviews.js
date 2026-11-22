@@ -58,10 +58,17 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
-    // 💡 [수정 2] 프론트엔드 위젯 스크립트들이 즉시 렌더링할 수 있도록 순수 배열(reviews) 반환
-    return res.status(200).json(reviews);
+    return res.status(200).json({
+      meta: {
+        current_plan: currentPlan,
+        total_reviews: 0, // reviews.js에는 mall_stats 조인이 없으므로 기본값 처리
+        is_limit_reached: false,
+        locked_reviews_count: 0
+      },
+      reviews: reviews
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
-  
+
 }

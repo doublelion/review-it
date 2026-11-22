@@ -4,7 +4,7 @@ const CAFE24_CLIENT_ID = process.env.CAFE24_CLIENT_ID;
 const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const CAFE24_SCOPE = 'mall.read_application,mall.write_application,mall.read_product,mall.read_community,mall.write_community';
+const CAFE24_SCOPE = 'mall.read_application,mall.write_application,mall.read_product,mall.read_community,mall.write_community,mall.read_scripttags,mall.write_scripttags';
 const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
 module.exports = async (req, res) => {
@@ -93,7 +93,7 @@ module.exports = async (req, res) => {
         }
       }
 
-      
+
       const dbCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/active_malls?select=access_token,status&mall_id=eq.${mall_id}`, {
         method: 'GET',
         headers: {
