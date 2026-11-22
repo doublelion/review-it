@@ -403,28 +403,24 @@
           return false;
         }
 
-        let list = await res.json();
+        let resData = await res.json();
+        let list = resData.reviews || []; // 💡 핵심: .reviews 속성으로 배열 추출
 
-        if ((!list || !Array.isArray(list) || list.length === 0) && CONFIG.PRODUCT_NO) {
+        if ((!list || list.length === 0) && CONFIG.PRODUCT_NO) {
           const fallbackUrl = `https://review-it-tau.vercel.app/api/reviews?mall_id=${CONFIG.MALL_ID}`;
-          res = await fetch(fallbackUrl);
+          const fbRes = await fetch(fallbackUrl);
+          if (fbRes.status === 403 || fbRes.status === 429) return false;
 
-          if (res.status === 403 || res.status === 429) return false;
+          const fbData = await fbRes.json();
+          list = fbData.reviews || []; // 💡 폴백 시에도 .reviews 로 추출
 
-          list = await res.json();
-
-          // 폴백 시에만 문구 변경
-          if (Array.isArray(list) && list.length > 0) {
+          if (list.length > 0) {
             this.settings.title = '다른 고객들의 베스트 리뷰';
             this.settings.description = '현재 상품의 리뷰를 기다리는 동안, 다른 구매자들의 생생한 후기를 먼저 확인해보세요!';
           }
         }
 
-        // 최종적으로 리스트가 배열이 아니거나 비어있으면 렌더링 종료
-        if (!list || !Array.isArray(list) || list.length === 0) return false;
-
         if (!list || list.length === 0) return false;
-
         this.data = {};
         this.listOrder = [];
 

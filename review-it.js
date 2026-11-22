@@ -1,4 +1,3 @@
-console.log("Review-IT Script Started");
 
 /**
  * @Project: Review-It Universal Collector Engine
