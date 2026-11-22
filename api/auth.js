@@ -1,44 +1,56 @@
 const crypto = require('crypto');
 
-// 환경변수
 const CAFE24_CLIENT_ID = process.env.CAFE24_CLIENT_ID;
 const CAFE24_CLIENT_SECRET = process.env.CAFE24_CLIENT_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
-// 쇼핑몰 정보 조회를 일단 제외하고 핵심 기능 권한만 채워 넣은 스코프
 const CAFE24_SCOPE = 'mall.read_application,mall.write_application,mall.read_product,mall.read_community,mall.write_community';
 const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
 module.exports = async (req, res) => {
   try {
-    // 💡 [수정 1] 프론트엔드에서 넘겨주는 auth_sig를 받을 수 있도록 추가했습니다.
     const { mall_id, code, hmac, auth_sig } = req.query;
 
     if (!mall_id) {
       return res.status(400).send('mall_id가 누락되었습니다.');
     }
 
-    // =====================================================================
-    // [핵심 보안 패치] 프론트엔드(admin.html)의 권한 검증 API 요청 처리
-    // 프론트에서 넘어온 auth_sig가 서버에서 만든 서명과 일치하는지 확인합니다.
-    // =====================================================================
     if (auth_sig) {
       const expectedSig = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
-
       if (auth_sig === expectedSig) {
-        // 서명이 일치함: 주소창 조작이 없는 정상 요청
         return res.status(200).json({ verified_mall_id: mall_id });
       } else {
-        // 서명이 불일치함: mall_id를 임의로 조작한 타 상점 접근 시도 (해킹 차단)
         return res.status(403).json({ error: "권한이 없습니다. 변조된 요청입니다." });
       }
     }
 
     // =====================================================================
-    // STEP 1: 강제 권한 동의 화면 리다이렉트 함수
+    // STEP 1: 강제 권한 동의 화면 리다이렉트 함수 (사전 유효성 검사 추가)
     // =====================================================================
-    const redirectToAuth = () => {
+    const redirectToAuth = async () => {
       console.log(`[설치/재설치 시작] ${mall_id} 상점을 권한 요청 화면으로 이동시킵니다.`);
+
+      // 💡 [핵심 방어 로직 추가]
+      // 브라우저 리다이렉트 전, 해당 mall_id.cafe24api.com이 실제로 존재하는지
+      // Vercel 서버에서 가볍게 Ping(GET)을 때려보고, 없으면 안전하게 튕겨냅니다.
+      try {
+        const pingRes = await fetch(`https://${mall_id}.cafe24api.com/api/v2/oauth/authorize`, {
+           method: 'HEAD' // 바디 없이 헤더만 요청해서 부하 최소화
+        });
+        
+        // 400 에러(client_id 누락 등)가 뜨더라도 호스트 서버 자체는 살아있다는 증거이므로 통과시킵니다.
+        // 하지만 호스트 자체를 찾을 수 없다면 fetch 자체가 실패(catch)로 빠지게 됩니다.
+      } catch (pingError) {
+        console.error(`[🚨 접근 에러] 존재하지 않는 카페24 몰 아이디: ${mall_id}`);
+        // 브라우저 기본 에러(NXDOMAIN) 화면 대신, 안전하게 알럿을 띄우고 메인으로 돌려보내는 HTML 응답
+        return res.status(404).send(`
+          <script>
+            alert("존재하지 않거나 오타가 포함된 카페24 쇼핑몰 아이디입니다. 다시 확인해 주세요.");
+            window.location.href = "/index.html";
+          </script>
+        `);
+      }
+
       const state = mall_id;
       const authUrl = `https://${mall_id}.cafe24api.com/api/v2/oauth/authorize?response_type=code&client_id=${CAFE24_CLIENT_ID}&state=${state}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(CAFE24_SCOPE)}`;
       return res.redirect(authUrl);
@@ -48,23 +60,20 @@ module.exports = async (req, res) => {
     // STEP 2: 최초 진입 시 (HMAC 없음)
     // =====================================================================
     if (!hmac && !code) {
-      return redirectToAuth();
+      return await redirectToAuth();
     }
 
     // =====================================================================
     // STEP 3: 카페24에서 이미 설치된 앱을 실행할 때 (HMAC 검증 및 DB 확인)
     // =====================================================================
     if (hmac) {
-      // 1. HMAC 보안 검증
       const queryString = req.url.split('?')[1] || '';
       const rawParams = queryString.split('&').filter(part => !part.startsWith('hmac='));
-
       rawParams.sort((a, b) => {
         const keyA = a.split('=')[0];
         const keyB = b.split('=')[0];
         return keyA.localeCompare(keyB);
       });
-
       const message = rawParams.join('&');
       const calculatedHmac = crypto
         .createHmac('sha256', CAFE24_CLIENT_SECRET)
@@ -75,7 +84,6 @@ module.exports = async (req, res) => {
         return res.status(401).send('보안 검증(HMAC)에 실패했습니다.');
       }
 
-      // 2. 시간 유효성 체크
       if (req.query.timestamp) {
         const timestampNum = Number(req.query.timestamp);
         const requestTime = timestampNum < 10000000000 ? timestampNum * 1000 : timestampNum;
@@ -85,7 +93,6 @@ module.exports = async (req, res) => {
         }
       }
 
-      // 3. DB에서 토큰뿐만 아니라 "status" 상태도 함께 가져와서 검사합니다!
       const dbCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/active_malls?select=access_token,status&mall_id=eq.${mall_id}`, {
         method: 'GET',
         headers: {
@@ -93,25 +100,19 @@ module.exports = async (req, res) => {
           'Authorization': `Bearer ${SUPABASE_KEY}`
         }
       });
-
       const dbMalls = await dbCheckRes.json();
       const mallData = dbMalls && dbMalls.length > 0 ? dbMalls[0] : null;
 
-      // [방어 1] 앱 정보가 아예 없거나 토큰이 비어있는 경우 (신규 설치 or 앱 삭제 후 재설치)
       if (!mallData || !mallData.access_token) {
         console.log(`[설치 진입] ${mall_id} - 토큰이 없으므로 권한 요청 화면으로 이동합니다.`);
-        return redirectToAuth();
+        return await redirectToAuth();
       }
 
-      // [방어 2] 토큰은 있지만 상태가 inactive인 경우 (단순 이용 기간 만료)
       if (mallData.status !== 'active') {
         console.log(`[재인증 유도] ${mall_id} - 만료/삭제된 상점, 재권한 승인을 위해 Auth 화면으로 이동합니다.`);
-        return redirectToAuth(); // ◄── 여기가 핵심입니다! 알럿 없이 바로 권한 동의 화면으로 보냅니다.
+        return await redirectToAuth();
       }
 
-      // 만약 inactive 상태였지만 재설치 프로세스를 밟는 중(code가 있음)이라면 아래로 통과되어 재인증을 진행하게 됩니다.
-
-      // 4. 정상 유저(active)라면 접속 기록(updated_at)만 갱신
       await fetch(`${SUPABASE_URL}/rest/v1/active_malls?on_conflict=mall_id`, {
         method: 'POST',
         headers: {
@@ -126,7 +127,6 @@ module.exports = async (req, res) => {
         })
       });
 
-      // 5. 검증 완료 후 admin.html로 리다이렉트
       const authSignature = crypto.createHmac('sha256', CAFE24_CLIENT_SECRET).update(mall_id).digest('hex');
       return res.redirect(`/admin.html?mall_id=${mall_id}&auth_sig=${authSignature}`);
     }
