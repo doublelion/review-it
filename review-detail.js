@@ -59,6 +59,7 @@
       this.hideDefaultReviews();
       if (!productNo) return;
 
+      
       await this.loadSettings();
       this.viewType = this.settings.detail_display_type === 'thumbnail' ? 'thumbnail' : 'list';
 

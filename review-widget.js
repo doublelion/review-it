@@ -552,6 +552,7 @@
           };
         };
 
+        
         let ritSwiper = new Swiper('.rit-main-swiper', getSwiperConfig());
         let isDesktopLast = window.innerWidth >= 1024;
 

@@ -6,6 +6,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const REDIRECT_URI = 'https://review-it-tau.vercel.app/api/callback';
 
+
 // API 버전
 const CAFE24_API_VERSION = '2026-03-01';
 

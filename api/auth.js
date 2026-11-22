@@ -93,6 +93,7 @@ module.exports = async (req, res) => {
         }
       }
 
+      
       const dbCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/active_malls?select=access_token,status&mall_id=eq.${mall_id}`, {
         method: 'GET',
         headers: {

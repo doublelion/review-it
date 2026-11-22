@@ -14,6 +14,7 @@ export default async function handler(req, res) {
     return;
   }
 
+  
   // 💡 브라우저 캐시(max-age) 및 Vercel Edge 캐싱 설정 (유지)
   res.setHeader(
     'Cache-Control',

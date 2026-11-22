@@ -60,6 +60,7 @@ export default async function handler(req, res) {
         query = query.eq('product_no', product_no);
       }
 
+      
       const { data: reviews, error: reviewError } = await query.limit(reviewLimit);
       if (reviewError) throw reviewError;
 

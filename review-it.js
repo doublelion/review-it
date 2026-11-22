@@ -22,6 +22,7 @@ console.log("Review-IT Script Started");
       .trim();
   };
 
+  
   const getDynamicConfig = () => {
     let cafe24MallId = null;
 

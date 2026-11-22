@@ -584,6 +584,7 @@
       return validImg || null;
     }
 
+    
     async function loadSettings() {
       try {
         const res = await fetch(`${SB_URL}/widget_settings?mall_id=eq.${MALL_ID}`, { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` } });
