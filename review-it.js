@@ -200,7 +200,8 @@
         board_no: CONFIG.targetBoardNo,
         subject: cleanSubject,
         content: "본문을 불러오는 중입니다...",
-        writer: cleanWriter,
+        writer: extractedWriter || '고객',         // 값이 없으면 '고객'으로 강제 지정
+        author_name: extractedWriter || '고객',
         stars: extractedStar,
         image_urls: thumbUrl ? [thumbUrl] : []
         // 💡 is_visible 줄을 완전히 삭제합니다.
