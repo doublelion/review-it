@@ -392,11 +392,26 @@
 
           if (!res.ok) throw new Error('API Error');
 
-          this.masterList = await res.json();
-          if (!this.masterList || this.masterList.length === 0) {
+
+          const payload = await res.json();
+
+          // 기존 배열 응답과 현재 API 객체 응답 모두 지원
+          const reviews = Array.isArray(payload)
+            ? payload
+            : payload?.reviews;
+
+          if (!Array.isArray(reviews)) {
+            console.error('[REVIEW-IT] 잘못된 API 응답 구조:', payload);
+            throw new TypeError('API response does not contain a valid reviews array.');
+          }
+
+          this.masterList = reviews;
+
+          if (this.masterList.length === 0) {
             this.hasMore = false;
             return;
           }
+
         }
 
         // 💡 [핵심 방어 2] 프론트엔드 자체 페이징 (스크롤 시 DB 부하 원천 차단)
