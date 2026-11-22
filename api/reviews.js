@@ -13,10 +13,12 @@ export default async function handler(req, res) {
     return;
   }
 
-  res.setHeader(
-    'Cache-Control',
-    'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400'
-  );
+  // res.setHeader(
+  //   'Cache-Control',
+  //   'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400'
+  // );
+
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
   const { mall_id, product_no } = req.query;
 
