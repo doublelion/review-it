@@ -1,29 +1,35 @@
-.vercel
-# VSCode history files
+# Vercel
+.vercel/
+
+# VSCode history
 .history/
 *.history
 
-# Mac system files
+# Mac
 .DS_Store
 
-# Other logs
+# Logs
 *.log
 
+# Dependencies
 node_modules/
 
+# Environment
 .env
+.env.*
+
+# Build
 dist/
 .next/
 
-review-it-v2_backup.js
-review-detail_backup.js
+# Backup
+*_backup.js
 
+# Temporary
 temp/
 
+# Project files
 상세페이지.html
-
 sql/
-
-assets/관리자
-
-assets/cdn과부하
+assets/관리자/
+assets/cdn과부하/
