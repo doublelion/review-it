@@ -22,7 +22,7 @@
     return (tmp.textContent || tmp.innerText || "").trim();
   };
 
-  const getDynamicConfig = () => {
+  const getDynamicConfig = () => {ㅋ
     let cafe24MallId = null;
     if (typeof window.CAFE24API !== 'undefined' && window.CAFE24API.MALL_ID) {
       cafe24MallId = window.CAFE24API.MALL_ID;
