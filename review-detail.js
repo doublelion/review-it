@@ -48,6 +48,10 @@
 
   const ReviewDetailApp = {
     settings: {},
+    masterList: [],     // 💡 API에서 받아온 전체 리뷰 원본
+    loadedCount: 0,     // 💡 현재까지 파싱/노출된 개수
+    pageSize: 12,       // 💡 1회 노출 단위 (2, 3, 4열 모두 딱 떨어짐)
+    fallbackLimit: 12,  // 💡 리뷰 0개 상품일 때 노출할 타 상품 베스트 리뷰 수 (8 또는 12 추천)
     data: {},
     listOrder: [],
     photoReviews: [],
@@ -59,7 +63,7 @@
       this.hideDefaultReviews();
       if (!productNo) return;
 
-      
+
       await this.loadSettings();
       this.viewType = this.settings.detail_display_type === 'thumbnail' ? 'thumbnail' : 'list';
 
@@ -209,57 +213,91 @@
 
     async loadReviewsAndParse() {
       try {
-        // Supabase 직결이 아닌, CDN 캐싱과 요금제 제한이 걸려있는 Vercel API 호출
         const targetUrl = `${CONFIG.apiUrl}?mall_id=${CONFIG.mallId}&product_no=${productNo}`;
         let res = await fetch(targetUrl);
-        
+
         if (res.status === 403 || res.status === 429) {
           console.warn('[REVIEW-IT] 요금제 구독 만료 또는 제한으로 위젯 노출이 중단되었습니다.');
-          return; // 요금제 미결제 시 화면에 렌더링하지 않고 종료
+          return;
         }
 
         let resData = await res.json();
-        // Vercel API는 { meta: {}, reviews: [] } 형태로 반환하므로 배열만 추출
         let list = resData.reviews || [];
 
-        // 리뷰가 하나도 없을 경우 폴백(Fallback) 데모 데이터 노출
+        // 해당 상품 리뷰가 0개일 때 폴백 (전체 최신 리뷰 중 fallbackLimit개만 노출)
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
-          // 상품 번호(productNo) 없이 해당 몰 전체의 최신 리뷰를 가져옵니다.
           const fbRes = await fetch(`${CONFIG.apiUrl}?mall_id=${CONFIG.mallId}`);
           const fbData = await fbRes.json();
-          // 폴백 데모는 15개까지만 노출
-          list = (fbData.reviews || []).slice(0, 15);
+          list = (fbData.reviews || []).slice(0, this.fallbackLimit);
         }
 
+        // 최신순 정렬 후 전체 원본 보관
+        list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        this.masterList = list;
+        this.loadedCount = 0;
         this.data = {};
         this.listOrder = [];
         this.photoReviews = [];
 
-        // 상세페이지는 무거워질 수 있으니 최신 15개까지만 렌더링
-        await Promise.all(list.slice(0, 15).map(async (r) => {
-          // 크롤링 로직은 기존과 동일
-          const scraped = await this._fetchAndSeparateContent(r.article_no, r.board_no);
-          if (scraped) {
-            r.clean_text_body = scraped.text || r.content || "리뷰 본문이 없습니다.";
-            r.all_images = (scraped.images && scraped.images.length > 0) ? scraped.images : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg]);
-            if (scraped.date) r.original_date = scraped.date;
-            if (scraped.writer) r.author_name = scraped.writer;
-            if (scraped.subject) r.subject = scraped.subject;
-          } else {
-            r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
-            r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.defaultImg];
-          }
-          r.is_parsed = true;
-
-          this.data[r.id] = r;
-          this.listOrder.push(r.id);
-          if (r.all_images[0] !== CONFIG.defaultImg) this.photoReviews.push(r);
-        }));
-
-        this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
+        // 최초 1회차(12개)만 파싱
+        await this.loadNextChunk(false);
       } catch (e) {
         console.error("Review load failed", e);
+      }
+    },
+
+    // 💡 다음 N개만 안전하게 크롤링 및 렌더링하는 함수
+    async loadNextChunk(shouldRender = true) {
+      const btn = document.getElementById('rit-btn-load-more');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = '불러오는 중...';
+      }
+
+      const chunk = this.masterList.slice(this.loadedCount, this.loadedCount + this.pageSize);
+      if (chunk.length === 0) return;
+
+      await Promise.all(chunk.map(async (r) => {
+        const scraped = await this._fetchAndSeparateContent(r.article_no, r.board_no);
+        if (scraped) {
+          r.clean_text_body = scraped.text || r.content || "리뷰 본문이 없습니다.";
+          r.all_images = (scraped.images && scraped.images.length > 0) ? scraped.images : (r.image_urls && r.image_urls.length > 0 ? r.image_urls : [CONFIG.defaultImg]);
+          if (scraped.date) r.original_date = scraped.date;
+          if (scraped.writer) r.author_name = scraped.writer;
+          if (scraped.subject) r.subject = scraped.subject;
+        } else {
+          r.clean_text_body = r.content || "리뷰 본문이 없습니다.";
+          r.all_images = (r.image_urls && r.image_urls.length > 0) ? r.image_urls : [CONFIG.defaultImg];
+        }
+        r.is_parsed = true;
+
+        this.data[r.id] = r;
+        this.listOrder.push(r.id);
+        if (r.all_images[0] !== CONFIG.defaultImg) this.photoReviews.push(r);
+      }));
+
+      this.loadedCount += chunk.length;
+      this.listOrder.sort((a, b) => new Date(this.data[b].created_at) - new Date(this.data[a].created_at));
+
+      if (shouldRender) {
+        this.renderGrid();
+        this.updateLoadMoreBtn();
+      }
+    },
+
+    updateLoadMoreBtn() {
+      const wrap = document.getElementById('rit-load-more-wrap');
+      if (!wrap) return;
+      const remain = this.masterList.length - this.loadedCount;
+      if (remain > 0) {
+        wrap.innerHTML = `
+          <button id="rit-btn-load-more" onclick="if(window.ReviewDetailApp) window.ReviewDetailApp.loadNextChunk(true)"
+            style="width:100%; max-width:320px; padding:13px 20px; background:#fff; border:1px solid #d4d4d8; border-radius:8px; font-size:13px; font-weight:700; color:#18181b; cursor:pointer;">
+            리뷰 더보기 (${this.loadedCount} / ${this.masterList.length})
+          </button>`;
+      } else {
+        wrap.innerHTML = '';
       }
     },
 
@@ -326,7 +364,7 @@
       let infoArea = document.querySelector('.xans-product-info, .infoArea, .prdInfo, .product-info-section');
       if (!infoArea) return;
 
-      const realCount = this.listOrder.length;
+      const realCount = this.masterList.length;
       let avgScore = '5.0';
 
       if (realCount > 0) {
@@ -372,8 +410,7 @@
       let photosHtml = '';
       const displayPhotos = this.photoReviews.slice(0, 5);
 
-      // 💡 수정된 부분: 포토 리뷰 수(this.photoReviews.length) -> 전체 리뷰 수(this.listOrder.length)로 통일
-      const displayCount = this.listOrder.length;
+      const displayCount = this.masterList.length;
 
       if (displayPhotos.length === 0) {
         const writeUrl = productNo ? `/board/product/write.html?board_no=4&product_no=${productNo}` : `/board/product/write.html?board_no=4`;
@@ -411,7 +448,7 @@
       container.id = 'rit-detail-main-board';
       container.className = 'rit-detail-container cboth';
 
-      const realCount = this.listOrder.length;
+      const realCount = this.masterList.length;
       const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
       let avgScore = '0.0';
 
@@ -491,6 +528,7 @@
 
       contentHtml += viewToggleHtml;
       contentHtml += `<div id="rit-main-grid" class="rit-grid-layout-${this.viewType}"></div>`;
+      contentHtml += `<div id="rit-load-more-wrap" style="text-align:center; margin-top:28px;"></div>`;
 
       container.innerHTML = `
         ${dashboardHtml}
@@ -501,6 +539,7 @@
 
       if (this.listOrder.length > 0) {
         this.renderGrid();
+        this.updateLoadMoreBtn();
       }
     },
 
