@@ -73,10 +73,11 @@
   if (!isReviewBoardPage) return;
 
 
+  // limit을 24로 변경
   const CONFIG = {
     mallId: env.mallId,
     mallName: env.mallName,
-    limit: 15,
+    limit: 24, // 기존 15 -> 24로 변경
     defaultImg: 'https://review-it-tau.vercel.app/assets/rit_noimg.jpg',
     starPath: '//img.echosting.cafe24.com/skin/skin/board/icon-star-rating'
   };
@@ -405,12 +406,16 @@
             throw new TypeError('API response does not contain a valid reviews array.');
           }
 
+          // fetchReviews() 내부에서 this.masterList 세팅 직후 대시보드 1회 렌더링
           this.masterList = reviews;
 
           if (this.masterList.length === 0) {
             this.hasMore = false;
             return;
           }
+
+          // 💡 스크롤 조각(15개)이 아닌 전체 리뷰(masterList) 기준으로 상단 대시보드 최초 1회 렌더링
+          this.renderDashboard(this.masterList);
 
         }
 
@@ -473,14 +478,24 @@
 
         if (newUnique.length > 0) {
           this.allFetchedReviews = [...this.allFetchedReviews, ...newUnique];
-          this.renderDashboard(this.allFetchedReviews);
+          // this.renderDashboard(this.allFetchedReviews); <-- 제거 (위에서 masterList로 1회만 실행)
           this.renderGrid();
         }
         this.page++;
       } catch (error) {
         console.error("❌ [REVIEW-IT] 리스트 로드 실패:", error);
       } finally {
-        setTimeout(() => { this.isLoading = false; }, 300);
+        setTimeout(() => {
+          this.isLoading = false;
+          // 💡 화면이 커서 스크롤 앵커가 아직 뷰포트 안에 있다면 다음 페이지 자동 호출
+          const anchor = document.getElementById('rit-scroll-anchor');
+          if (anchor && this.hasMore) {
+            const rect = anchor.getBoundingClientRect();
+            if (rect.top <= window.innerHeight + 200) {
+              this.fetchReviews();
+            }
+          }
+        }, 300);
       }
     },
 
