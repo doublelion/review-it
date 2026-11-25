@@ -51,7 +51,6 @@
     masterList: [],     // 💡 API에서 받아온 전체 리뷰 원본
     loadedCount: 0,     // 💡 현재까지 파싱/노출된 개수
     pageSize: 12,       // 💡 1회 노출 단위 (2, 3, 4열 모두 딱 떨어짐)
-    fallbackLimit: 12,  // 💡 리뷰 0개 상품일 때 노출할 타 상품 베스트 리뷰 수 (8 또는 12 추천)
     data: {},
     listOrder: [],
     photoReviews: [],
@@ -63,13 +62,13 @@
       this.hideDefaultReviews();
       if (!productNo) return;
 
-
       await this.loadSettings();
       this.viewType = this.settings.detail_display_type === 'thumbnail' ? 'thumbnail' : 'list';
 
-      await this.loadReviewsAndParse();
-      this.initModal();
+      const isAllowed = await this.loadReviewsAndParse();
+      if (!isAllowed) return; // 💡 구독 만료/제한 시 위젯 렌더링 완전 중단
 
+      this.initModal();
       if (this.settings.is_detail_summary_enabled !== false) this.renderTopSummary();
       if (this.settings.is_detail_gallery_enabled !== false) this.renderUnderThumbGallery();
       if (this.settings.is_detail_main_enabled !== false) this.renderMainDetailBoard();
@@ -218,18 +217,18 @@
 
         if (res.status === 403 || res.status === 429) {
           console.warn('[REVIEW-IT] 요금제 구독 만료 또는 제한으로 위젯 노출이 중단되었습니다.');
-          return;
+          return false; // 💡 false 반환 추가
         }
 
         let resData = await res.json();
         let list = resData.reviews || [];
 
-        // 해당 상품 리뷰가 0개일 때 폴백 (전체 최신 리뷰 중 fallbackLimit개만 노출)
+        // 수정 후 (전체 원본을 masterList에 보관하고, 12개씩 페이지네이션)
         if (!list || list.length === 0) {
           this.isFallbackDemo = true;
           const fbRes = await fetch(`${CONFIG.apiUrl}?mall_id=${CONFIG.mallId}`);
           const fbData = await fbRes.json();
-          list = (fbData.reviews || []).slice(0, this.fallbackLimit);
+          list = fbData.reviews || [];
         }
 
         // 최신순 정렬 후 전체 원본 보관
@@ -242,8 +241,10 @@
 
         // 최초 1회차(12개)만 파싱
         await this.loadNextChunk(false);
+        return true; // 💡 정상 로드 시 true 반환
       } catch (e) {
         console.error("Review load failed", e);
+        return false;
       }
     },
 
@@ -369,7 +370,7 @@
 
       if (realCount > 0) {
         let totalStars = 0;
-        this.listOrder.forEach(id => totalStars += (this.data[id].stars || 5));
+        this.masterList.forEach(r => totalStars += (Number(r.stars) || 5));
         avgScore = (totalStars / realCount).toFixed(1);
       } else { avgScore = '0.0'; }
 
@@ -454,8 +455,8 @@
 
       if (realCount > 0) {
         let totalStars = 0;
-        this.listOrder.forEach(id => {
-          const star = this.data[id].stars || 5;
+        this.masterList.forEach(r => {
+          const star = Math.min(5, Math.max(1, Number(r.stars) || 5));
           totalStars += star;
           starCounts[star]++;
         });
